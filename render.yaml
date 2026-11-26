@@ -19,9 +19,16 @@ services:
     rootDir: Memory Files/A+_Studio_project
     dockerfilePath: ./Dockerfile
     dockerContext: .
-    # Measured: a 1572x5700 / 24-frame composite completes in ~3 s on 1 GB, ~9 s on 512 MB.
-    # `starter` (512 MB) works; move to `standard` if compose jobs get long or concurrent.
-    plan: starter
+    # Free plan (chosen 2026-11-26). What that means in practice:
+    #   - sleeps after ~15 min with no traffic; the next request waits while it wakes (~1 min).
+    #     Sign-ins survive that: sessions are sealed tokens held by the plugin, not server state.
+    #   - no persistent disk, so templates captured from a frame are lost on every restart or
+    #     redeploy. The fix is `starter` + a disk at /data with TEMPLATE_STORE_DIR=/data/templates
+    #     and TEMPLATE_STORE_DURABLE=true (the Dockerfile already owns /data for the node user).
+    #   - 512 MB RAM, a small CPU share: a 1572x5700 / 24-frame composite took ~9 s at 512 MB on
+    #     `starter` and will be slower here. COMPOSE_MAX_CONCURRENT=1 below keeps two jobs from
+    #     running out of memory together.
+    plan: free
     region: singapore
     branch: main
     autoDeploy: true
@@ -57,6 +64,9 @@ services:
         value: /tmp/aplus
       - key: COMPOSE_TIMEOUT_MS
         value: "300000"
+      # one export at a time on 512 MB; a second one gets a 429 "try again in a few seconds"
+      - key: COMPOSE_MAX_CONCURRENT
+        value: "1"
 
       # NOTE: SESSION_DIR is deliberately NOT set. Sessions are sealed tokens held by the
       # plugin (backend/session.js), so the service is stateless and needs no disk. If you
