@@ -430,6 +430,82 @@
   .okbar input { width: auto; flex: none; }
   input[type="checkbox"] { accent-color: var(--panel-accent); width: auto; flex: none; }
 
+  /* ---------- sign-in gate — the front door, not an error screen ----------
+     Shown INSTEAD of the tabs until the backend reports a connected Google
+     account. Everything it needs to get out of its own way (the backend URL)
+     lives on it, so a first run can never dead-end. -------------------------- */
+  /* the gate is the whole screen: one centred card, the masthead hidden behind it */
+  body.gated .head { display: none; }
+  #gate {
+    margin: 26px 0; padding: 34px 26px 26px; text-align: center;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 18px;
+  }
+  #gate .lockup { color: var(--text); height: 74px; margin-bottom: 24px; }
+  #gate .lockup svg { height: 100%; width: auto; display: inline-block; }
+  #gate h2 {
+    margin: 0; font-family: var(--font-display); font-size: 21px; font-weight: 700;
+    letter-spacing: -.02em; line-height: 1.26; color: var(--text);
+  }
+  #gate h2 em { font-style: normal; color: var(--warm-gold); }
+  #gate .p {
+    margin: 11px auto 0; max-width: 300px;
+    font-size: 11.5px; line-height: 1.62; color: var(--text-2);
+  }
+  /* white, as Google's own branding guidance expects, and the only bright surface
+     on the gate so there is exactly one thing to press */
+  #gate .btn.google {
+    margin-top: 26px; padding: 15px; font-size: 13px; font-weight: 600; gap: 12px;
+    background: #FFFFFF; color: #111113; border-color: #FFFFFF;
+  }
+  #gate .btn.google:hover { background: #ECECEE; border-color: #ECECEE; }
+  #gate .btn.google .gmark { width: 18px; height: 18px; }
+  #gate .foot {
+    margin-top: 26px; padding-top: 18px; border-top: 1px solid var(--line);
+    font-size: 10px; line-height: 1.6; color: var(--text-2);
+  }
+  #gate .foot .more { margin-top: 10px; }
+  #gate .foot .more > summary {
+    width: auto; height: auto; border-radius: 999px; padding: 3px 11px;
+    font-size: 9px; letter-spacing: .1em; text-transform: uppercase;
+  }
+  #gate .foot .row, #gate .foot .hint { text-align: left; }
+  #gate .alt {
+    display: block; width: 100%; margin-top: 10px; border: 0; background: transparent; cursor: pointer;
+    font-family: var(--font-ui); font-size: 10.5px; color: var(--text-2); text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  #gate .alt:hover { color: var(--text); }
+
+  /* ---------- capture: live steps, stats, round-trip diff ---------- */
+  .track { height: 4px; margin-top: 8px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
+  .track > i { display: block; height: 100%; width: 0; border-radius: 3px; background: var(--grad-primary); transition: width .25s; }
+  .stats { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 11px; }
+  .stats .s {
+    flex: 1 1 60px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface);
+    padding: 8px 10px; font-size: 9.5px; font-weight: 500; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--text-2);
+  }
+  .stats .s b { display: block; font-family: var(--font-mono); font-size: 14px; font-weight: 600; letter-spacing: 0; color: var(--text); }
+  .diff { margin-top: 11px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); overflow: hidden; }
+  .diff.clean { border-left: 3px solid var(--ok); }
+  .diff.dirty { border-left: 3px solid var(--cult-yellow); }
+  .diff > .top { display: flex; align-items: center; gap: 11px; padding: 12px 13px; }
+  .diff .score { font-family: var(--font-display); font-size: 27px; font-weight: 700; letter-spacing: -.02em; line-height: 1; }
+  .diff.clean .score { color: var(--ok); }
+  .diff.dirty .score { color: var(--cult-yellow); }
+  .diff .vd { min-width: 0; }
+  .diff .vd b {
+    display: block; font-family: var(--font-display); font-size: 9.5px; font-weight: 600;
+    letter-spacing: .13em; text-transform: uppercase; color: var(--text);
+  }
+  .diff .vd span { display: block; font-size: 10.5px; color: var(--text-2); line-height: 1.5; }
+  .mis { max-height: 190px; overflow: auto; border-top: 1px solid var(--line); }
+  .mis .m { padding: 8px 13px; border-bottom: 1px solid var(--line); }
+  .mis .m:last-child { border-bottom: 0; }
+  .mis .path { font-family: var(--font-mono); font-size: 10.5px; font-weight: 500; color: var(--warm-peach); word-break: break-all; }
+  .mis .ab { margin-top: 3px; font-size: 10.5px; color: var(--text-2); }
+  .mis .ab em { font-style: normal; color: var(--text); }
+
   /* ---------- export tables ---------- */
   .rules { margin-top: 11px; }
   .rule { border: 1px solid var(--line); border-radius: 9px; padding: 10px; background: var(--surface); margin-bottom: 8px; }
@@ -486,6 +562,58 @@
     </div>
   </div>
 
+  <!-- ==================== SIGN-IN GATE ====================
+       Shown until /auth/status reports a connected account. It carries the
+       backend field itself: sign-in is impossible without a backend, so the
+       first run must be able to set one from here. -->
+  <div id="gate">
+    <div class="lockup">
+      <svg viewBox="0 0 100 109" role="img" aria-label="cult">
+        <g fill="none" stroke-linecap="round">
+          <line x1="50.5" y1="4.6" x2="50.5" y2="9.8" stroke="#EE3C6E" stroke-width="9.2"/>
+          <circle cx="50" cy="33.7" r="9.5" stroke="currentColor" stroke-width="7.6"/>
+          <line x1="8.6" y1="31.8" x2="26.3" y2="41.7" stroke="currentColor" stroke-width="8.8"/>
+          <line x1="91.4" y1="31.8" x2="73.7" y2="41.7" stroke="currentColor" stroke-width="8.8"/>
+          <line x1="6.8" y1="58.7" x2="93.2" y2="58.7" stroke="currentColor" stroke-width="11.2"/>
+          <line x1="9.6" y1="84.4" x2="28.4" y2="72.6" stroke="#5BC2EF" stroke-width="8.8"/>
+          <line x1="90.4" y1="84.4" x2="71.6" y2="72.6" stroke="#FFD93E" stroke-width="8.8"/>
+          <path d="M19.6 101.8 L50 71.6 L80.4 101.8" stroke="currentColor" stroke-width="10" stroke-linejoin="round"/>
+          <line x1="50.5" y1="95.6" x2="50.5" y2="104.4" stroke="currentColor" stroke-width="7.2"/>
+        </g>
+      </svg>
+    </div>
+    <h2>Cult <em>A+</em> Design Lab</h2>
+    <p class="p">Builds Amazon A+ pages from your content sheet, straight onto the Figma page
+      you have open.</p>
+
+    <button class="btn google" id="gate-connect">
+      <svg class="gmark" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+      <span id="gate-label">Continue with Google</span>
+    </button>
+    <div class="authlink hidden" id="gate-authlink"></div>
+    <button class="alt hidden" id="gate-skip">Continue with Sheets only</button>
+    <div id="gate-note"></div>
+
+    <div class="foot">
+      Read-only access to your Sheets and the Drive folder of GIFs — nothing is written back.
+      Your session is an encrypted token held by Figma, so you stay signed in between sessions.
+      <details class="more">
+        <!-- Temporary: this disappears once the Render service is live and its URL is
+             baked in as a constant. Until then the panel needs somewhere to point. -->
+        <summary title="Backend">Backend</summary>
+        <div class="row" style="margin-top:7px">
+          <input id="gate-backend" placeholder="http://localhost:8787">
+          <button class="btn ghost" id="gate-bsave">Use</button>
+        </div>
+        <div class="hint" style="margin-top:6px">
+          <code>docker run --rm -p 8787:8787 --env-file backend/.env aplus-backend:latest</code>
+          — Google credentials live there, never here.
+        </div>
+      </details>
+    </div>
+  </div>
+
+  <div id="app" class="hidden">
   <div class="tabs" id="tabs">
     <button class="on" data-tab="automate">Automate A+</button>
     <button data-tab="design">Add design</button>
@@ -520,17 +648,12 @@
           <button class="btn ghost" id="load">Load</button>
         </div>
         <div id="scope-note"></div>
-        <button class="btn google" id="gconnect">
-          <svg class="gmark" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
-          <span id="gconnect-label">Connect Google</span>
-        </button>
-        <div class="authlink hidden" id="authlink"></div>
-        <div class="hint" id="link-hint">Not connected — use a <b>Publish to web → CSV</b> link.</div>
-        <!-- moved out of two inline paragraphs; #link-hint is rewritten by setGoogle, so this sits outside it -->
+        <!-- Connect Google lived here. It is now the startup gate: by the time this
+             panel is visible the user is signed in, so the button, its hint and the
+             "Publish to web → CSV" fallback copy have all been removed. -->
         <details class="more">
           <summary title="Link formats">?</summary>
           <div class="hint">
-            <b>Without Google:</b> File → Share → Publish to web → the tab → CSV.<br>
             <b>One row only:</b> right-click the row's cell → <b>Get link to this cell</b>,
             or append <code>&amp;range=A5</code>, <code>&amp;range=5:9</code> or
             <code>&amp;range=Sheet1!A5:J9</code>. The scope is shown above before you run.
@@ -624,36 +747,35 @@
     <div class="sec">
       <div class="lab"><span class="n"><i>3</i> Capture</span></div>
       <button class="btn dark" id="ad-go" disabled>Add as template</button>
-      <div id="ad-out"></div>
-      <div class="hint">
-        Capture isn’t built yet — nothing is written to the canvas or the backend.
-        <details class="more">
-          <summary title="Planned build">?</summary>
-          <div class="hint">Phase 0 (capture + raw dump) then Phase 1 (skeletonise + round-trip diff, which
-          must pass before a template saves) — <code>docs/add-to-template-plan.md</code>.</div>
-        </details>
-      </div>
       <div class="row" style="align-items:center;gap:8px;margin-top:9px">
-        <input type="checkbox" id="ad-ai" disabled style="width:auto;flex:none">
+        <input type="checkbox" id="ad-ai" style="width:auto;flex:none">
         <label for="ad-ai" style="font-size:10.5px">Semantic labelling — runs on the backend, no key here</label>
+      </div>
+      <div id="ad-out"></div>
+      <div class="hint">The round-trip diff is the gate.
+        <details class="more">
+          <summary title="What the diff checks">?</summary>
+          <div class="hint">The captured skeleton is re-rendered and compared with your frame. Any
+          mismatch is listed with its path — <code>docs/add-to-template-plan.md</code>.</div>
+        </details>
       </div>
     </div>
   </div>
 
   <!-- ==================== PANEL 3 — EXPORT ==================== -->
   <div class="view" id="view-export">
-    <div class="note warn" style="margin-top:14px">
-      <b>Pending your decision on output format</b>
-      Figma cannot render or export an animated GIF. An imported GIF becomes a single static first frame, and
-      <code>exportAsync</code> emits PNG, JPG, SVG or PDF only. So the GIF compositing step below is a shell: the
-      folder, the mapping rules and the per-style actions are real and editable, the compositing itself is not built
-      and will not be until you pick an output route.
+    <div class="note info" style="margin-top:14px">
+      <b>Static or animated</b>
+      PNG, JPG, SVG and PDF come straight from Figma. GIF and MP4 put the A+ on top and the GIF matched below
+      underneath it. The backend builds them (Figma can't make animated files), so they need Google connected.
+      <br><br><b>Amazon:</b> A+ image modules reject animated GIFs. Upload the A+ as a PNG or JPG, and use the MP4
+      only in a Premium A+ video module or outside Amazon.
     </div>
 
     <div class="sec">
       <div class="lab"><span class="n"><i>1</i> GIF source folder</span></div>
       <input id="ex-folder" placeholder="Google Drive folder link or ID">
-      <div class="hint">Session only — not persisted yet.</div>
+      <div class="hint">Needed for GIF and MP4 only. Saved, along with the rules below, for next time.</div>
     </div>
 
     <div class="sec">
@@ -667,10 +789,16 @@
       <div class="lab"><span class="n"><i>3</i> Export by style ID</span><span class="meta" id="ex-stylemeta"></span></div>
       <div class="row">
         <select id="ex-format">
-          <option value="PNG">PNG</option>
-          <option value="JPG">JPG</option>
-          <option value="SVG">SVG</option>
-          <option value="PDF">PDF</option>
+          <optgroup label="Static, from Figma">
+            <option value="PNG">PNG</option>
+            <option value="JPG">JPG</option>
+            <option value="SVG">SVG</option>
+            <option value="PDF">PDF</option>
+          </optgroup>
+          <optgroup label="Animated, A+ with GIF below">
+            <option value="gif">GIF</option>
+            <option value="mp4">MP4</option>
+          </optgroup>
         </select>
         <select id="ex-scale">
           <option value="1">1×</option>
@@ -696,12 +824,13 @@
       </div>
     </div>
   </div>
+  </div><!-- /#app -->
 
 <script>
   var state = {
     cat: null, gender: null, templateId: null,
     src: 'link', rows: [], registry: null,
-    backend: '', session: '', googleEmail: null, poll: null,
+    backend: '', session: '', googleEmail: null, poll: null, needsReconsent: false,
     selection: { frames: [], ids: [] },
     manifestCache: {},
     // --- added by the panel restructure ---
@@ -716,6 +845,9 @@
     exportFolder: '',
     pending: {}
   };
+  var DEFAULT_BACKEND = 'http://localhost:8787';   // what `docker run -p 8787:8787 …` serves
+  // what to do when that address is dead: locally it is the aplus-backend container
+  var START_HINT = 'If this is the local backend, open Docker Desktop (it restarts the <code>aplus-backend</code> container), then try again.';
   var $ = function (id) { return document.getElementById(id); };
   var base = function () { return state.backend.replace(/\/+$/, ''); };
   var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); };
@@ -1197,65 +1329,140 @@
   }
 
   // ---------- Google ----------
+  // Sign-in is a startup gate, not a panel control: #gate stands in front of #app until
+  // /auth/status reports a connected account, and the only Connect button lives on it.
   function setGoogle(stateStr) {
     var p = $('pill-google');
     if (stateStr === 'connected') {
-      p.classList.add('on'); $('g-title').textContent = 'Google'; $('g-sub').textContent = state.googleEmail || 'connected';
-      $('gconnect-label').textContent = 'Connected' + (state.googleEmail ? ' · ' + state.googleEmail : ''); $('gconnect').disabled = true;
+      $('g-title').textContent = 'Google';
+      $('g-sub').textContent = state.needsReconsent ? 'Sheets only — Drive not granted' : (state.googleEmail || 'connected');
+      p.classList.toggle('on', !state.needsReconsent);   // the dot stays grey while Drive is missing
       $('g-manage').classList.remove('hidden'); $('g-email').textContent = state.googleEmail ? '(' + state.googleEmail + ')' : '';
-      $('link-hint').innerHTML = 'Connected — paste any sheet link you can open.';
       $('link').placeholder = 'Google Sheet link';
     } else {
-      p.classList.remove('on'); $('g-title').textContent = 'Google'; $('g-sub').textContent = stateStr === 'connecting' ? 'connecting…' : 'not connected';
-      $('gconnect-label').textContent = stateStr === 'connecting' ? 'Waiting for Google…' : 'Connect Google';
-      $('gconnect').disabled = stateStr === 'connecting';
+      p.classList.remove('on'); $('g-title').textContent = 'Google';
+      $('g-sub').textContent = stateStr === 'connecting' ? 'connecting…' : 'not connected';
       $('g-manage').classList.add('hidden');
-      $('link-hint').innerHTML = 'Not connected — use a <b>Publish to web → CSV</b> link.';
     }
+    $('gate-label').textContent = stateStr === 'connecting' ? 'Waiting for Google…'
+      : (state.needsReconsent ? 'Reconnect Google' : 'Continue with Google');
+    $('gate-connect').disabled = stateStr === 'connecting';
+  }
+
+  // ---------- the gate ----------
+  // showGate(false) is the ONLY way into the three tabs.
+  function showGate(on) {
+    $('gate').classList.toggle('hidden', !on);
+    $('app').classList.toggle('hidden', !!on);
+    // the gate carries its own lockup, so the masthead would be a second one
+    document.body.classList.toggle('gated', !!on);
+    if (!on) window.scrollTo(0, 0);
+  }
+  function gateNote(kind, title, body) {
+    $('gate-note').innerHTML = kind
+      ? '<div class="note ' + kind + '"><b>' + esc(title) + '</b>' + body + '</div>'
+      : '';
   }
   function showAuthLink(url, blocked) {
-    $('authlink').classList.remove('hidden');
-    $('authlink').innerHTML = (blocked ? 'Popup blocked — ' : '') + '<a href="' + esc(url) + '" target="_blank" rel="noopener">Open the Google sign-in page</a>';
+    $('gate-authlink').classList.remove('hidden');
+    $('gate-authlink').innerHTML = (blocked ? 'Popup blocked — ' : '') + '<a href="' + esc(url) + '" target="_blank" rel="noopener">Open the Google sign-in page</a>';
   }
-  function hideAuthLink() { $('authlink').classList.add('hidden'); $('authlink').innerHTML = ''; }
+  function hideAuthLink() { $('gate-authlink').classList.add('hidden'); $('gate-authlink').innerHTML = ''; }
+
+  // One call answers every gate state: /auth/status reports `configured` even with no session.
+  // The four outcomes are kept distinct on purpose — collapsing them hides the actual fix.
+  async function gateProbe() {
+    $('gate-skip').classList.add('hidden');
+    if (!state.backend) {
+      gateNote('info', 'Backend needed first', 'Sign-in runs through your backend. Set its URL above, then connect.');
+      return 'nobackend';
+    }
+    var s;
+    try {
+      var res = await fetch(base() + '/auth/status?session=' + encodeURIComponent(state.session || ''));
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      s = await res.json();
+    } catch (e) {
+      gateNote('warn', 'Backend not reachable', 'Nothing answered at <code>' + esc(base()) + '</code>. ' + START_HINT);
+      return 'unreachable';
+    }
+    if (!s.configured) {
+      gateNote('warn', 'Backend has no Google credentials',
+        'It is running, but <code>GOOGLE_CLIENT_ID</code> / <code>GOOGLE_CLIENT_SECRET</code> are unset in <code>backend/.env</code>.');
+      return 'unconfigured';
+    }
+    // the durable sealed token — storing it is what survives a backend restart
+    if (s.session && s.session !== state.session) {
+      state.session = s.session;
+      parent.postMessage({ pluginMessage: { type: 'save-session', session: state.session } }, '*');
+    }
+    state.needsReconsent = !!s.needsReconsent;
+    if (s.connected && s.needsReconsent) {
+      state.googleEmail = s.email; setGoogle('connected');
+      gateNote('pending', 'Drive access not granted',
+        'Your sign-in predates the Drive scope. Reconnect to read the GIF folder.');
+      $('gate-skip').classList.remove('hidden');
+      return 'reconsent';
+    }
+    if (s.connected) {
+      state.googleEmail = s.email; setGoogle('connected');
+      gateNote('', '', ''); hideAuthLink(); showGate(false);
+      return 'connected';
+    }
+    setGoogle('off'); gateNote('', '', '');
+    return 'ready';
+  }
+
   async function connectGoogle() {
-    setErr('');
-    if (!state.backend) { setErr('Set the backend URL first (Backend & connection).'); $('settings').classList.add('open'); return; }
+    setErr(''); hideAuthLink();
+    // the field is the source of truth here, so a first run can never dead-end on an unsaved URL
+    var typed = $('gate-backend').value.trim();
+    if (typed !== state.backend) { applyBackend(typed); }
+    if (!state.backend) { gateNote('info', 'Backend needed first', 'Enter the backend URL above, then connect.'); return; }
     setGoogle('connecting');
     try {
       var res = await fetch(base() + '/auth/new', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
-      if (res.status === 503) { setErr('This backend has no Google credentials — see backend/.env.example.'); setGoogle(state.googleEmail ? 'connected' : 'off'); return; }
+      if (res.status === 503) {
+        gateNote('warn', 'Backend has no Google credentials',
+          'Set <code>GOOGLE_CLIENT_ID</code> / <code>GOOGLE_CLIENT_SECRET</code> in <code>backend/.env</code> and restart it.');
+        setGoogle('off'); return;
+      }
       var data = await res.json();
       state.session = data.sessionId;
       parent.postMessage({ pluginMessage: { type: 'save-session', session: state.session } }, '*');
       var w = null; try { w = window.open(data.authUrl, '_blank', 'noopener'); } catch (e) {}
       showAuthLink(data.authUrl, !w);
+      gateNote('info', 'Waiting for Google', 'Finish in the browser tab — this panel follows along.');
       pollAuth();
-    } catch (e) { setErr('Could not start Google sign-in: ' + (e.message || e)); setGoogle('off'); }
+    } catch (e) {
+      gateNote('warn', 'Backend not reachable', 'Nothing answered at <code>' + esc(base()) + '</code>. ' + START_HINT);
+      setGoogle('off');
+    }
   }
   function pollAuth() {
     clearInterval(state.poll); var tries = 0;
     state.poll = setInterval(async function () {
-      if (++tries > 60) { clearInterval(state.poll); setGoogle(state.googleEmail ? 'connected' : 'off'); return; }
-      try {
-        var res = await fetch(base() + '/auth/status?session=' + encodeURIComponent(state.session));
-        var s = await res.json();
-        if (s.connected) { clearInterval(state.poll); state.googleEmail = s.email; setGoogle('connected'); hideAuthLink(); }
-      } catch (e) {}
+      if (++tries > 60) {
+        clearInterval(state.poll); setGoogle(state.googleEmail ? 'connected' : 'off');
+        gateNote('pending', 'Sign-in timed out', 'Nothing came back from Google. Try again.');
+        return;
+      }
+      var r = await gateProbe();
+      if (r === 'connected' || r === 'reconsent' || r === 'unconfigured' || r === 'unreachable') clearInterval(state.poll);
     }, 2500);
   }
-  async function checkGoogle() {
-    if (!state.backend || !state.session) { setGoogle('off'); return; }
-    try { var res = await fetch(base() + '/auth/status?session=' + encodeURIComponent(state.session)); var s = await res.json(); if (s.connected) { state.googleEmail = s.email; setGoogle('connected'); } else setGoogle('off'); }
-    catch (e) { setGoogle('off'); }
-  }
+  async function checkGoogle() { return gateProbe(); }
   async function disconnectGoogle() {
+    clearInterval(state.poll);
     try { await fetch(base() + '/auth/logout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ session: state.session }) }); } catch (e) {}
-    state.googleEmail = null; setGoogle('off');
+    state.googleEmail = null; state.needsReconsent = false;
+    setGoogle('off'); showGate(true); gateProbe();
   }
-  $('gconnect').onclick = connectGoogle;
+  $('gate-connect').onclick = connectGoogle;
+  // the one escape from the reconsent state: Sheets work, Drive does not, and the pill says so
+  $('gate-skip').onclick = function () { hideAuthLink(); showGate(false); };
   $('gdisconnect').onclick = disconnectGoogle;
-  $('pill-google').onclick = function () { if (state.googleEmail) { $('settings').classList.add('open'); } else connectGoogle(); };
+  $('pill-google').onclick = function () { $('settings').classList.add('open'); };
 
   // ---------- backend ----------
   function setBackend(live) {
@@ -1272,11 +1479,16 @@
       state.registry = reg; state.manifestCache = {}; renderCats(); setBackend(true);
     } catch (e) { setBackend(false); }
   }
-  $('bsave').onclick = function () {
-    state.backend = $('backend').value.trim();
+  // one backend URL, two fields that can set it (the gate's and the settings panel's)
+  function applyBackend(url) {
+    state.backend = String(url || '').trim();
+    $('backend').value = state.backend;
+    $('gate-backend').value = state.backend;
     parent.postMessage({ pluginMessage: { type: 'save-backend', url: state.backend } }, '*');
-    refreshRegistry(); checkGoogle();
-  };
+    refreshRegistry();
+  }
+  $('bsave').onclick = function () { applyBackend($('backend').value); checkGoogle(); };
+  $('gate-bsave').onclick = function () { applyBackend($('gate-backend').value); gateProbe(); };
   $('settings-h').onclick = function () { $('settings').classList.toggle('open'); };
   $('extras-h').onclick = function () { $('extras').classList.toggle('open'); };
   $('pill-backend').onclick = function () { $('settings').classList.toggle('open'); };
@@ -1310,7 +1522,7 @@
       showRows(contentRows(rows), sheetRowNumbers(rows));
       if (!state.rows.length) setErr('No rows with content in that sheet.');
     } catch (e) {
-      setErr(state.googleEmail ? ('Could not read that sheet: ' + (e.message || e)) : 'Could not read that link — connect Google, or use a “Publish to web → CSV” link.');
+      setErr('Could not read that sheet: ' + (e.message || e));
       showRows([], []);
     }
     $('load').disabled = false; $('load').textContent = 'Load';
@@ -1592,12 +1804,10 @@
         '<span class="muted">Style IDs: ' + (f.ids && f.ids.length ? esc(f.ids.join(', ')) : 'none in the frame name') + '</span>' +
         (n > 1 ? '<br><span style="color:var(--danger)">' + n + ' frames selected — only the first is captured.</span>' : '');
     }
-    // Held disabled until main.js can answer `capture-template`. The form still validates
-    // so the shape is visible, but we do not offer an action that cannot do anything —
-    // firing it only produced a "no handler" notice that read like a failure.
-    var formReady = !!(f && $('ad-name').value.trim() && $('ad-id').value.trim() && $('ad-cat').value);
-    $('ad-go').disabled = true;
-    $('ad-go').textContent = formReady ? 'Add as template — not built yet' : 'Add as template';
+    // main.js answers `capture-template` now, so the original validation is back:
+    // a frame, a name, an id and a category.
+    $('ad-go').disabled = !(f && $('ad-name').value.trim() && $('ad-id').value.trim() && $('ad-cat').value);
+    $('ad-go').textContent = 'Add as template';
   }
 
   $('ad-go').onclick = function () {
@@ -1617,18 +1827,79 @@
         genderId: $('ad-gender').value,
         status: 'draft'
       },
-      semanticLabelling: false,       // backend-side, never a key in this UI
+      semanticLabelling: $('ad-ai').checked,   // backend-side, never a key in this UI
       backend: state.backend || null
     };
-    $('ad-out').innerHTML = '<div class="note pending"><b>Capture requested</b>Waiting on <code>capture-template</code>…</div>';
+    $('ad-go').disabled = true;
+    $('ad-out').innerHTML = '<div class="note pending"><b>Capturing</b>Reading the frame…<div class="track"><i></i></div></div>';
     parent.postMessage({ pluginMessage: payload }, '*');
+    armCaptureFallback();
+  };
+
+  // Kept for the case where the plugin build is older than this UI. In normal use the
+  // first capture-progress clears it, so it no longer fires.
+  function armCaptureFallback() {
     clearTimeout(state.pending.capture);
     state.pending.capture = setTimeout(function () {
+      renderDesignSelection();
       $('ad-out').innerHTML = '<div class="note warn"><b>No handler — nothing was captured</b>' +
-        'The message was posted and <code>main.js</code> did not answer, which is expected: the capture step is not built. ' +
-        'No template was created, nothing was written to the backend, and the frame on the canvas is untouched.</div>';
+        'This <code>code.js</code> is older than the panel and does not answer <code>capture-template</code>. ' +
+        'Rebuild the plugin. Nothing was written and the frame is untouched.</div>';
     }, 1500);
-  };
+  }
+
+  // ---------- capture render: progress, stats, and the round-trip diff ----------
+  function renderCaptureProgress(m) {
+    var done = Number(m.done) || 0, total = Number(m.total) || 0;
+    var pct = total > 0 ? Math.max(0, Math.min(100, Math.round(done / total * 100))) : 0;
+    $('ad-out').innerHTML = '<div class="note pending"><b>Capturing' + (total ? ' · ' + done + '/' + total : '') + '</b>' +
+      esc(m.step || 'Working…') +
+      '<div class="track"><i style="width:' + pct + '%"></i></div></div>';
+  }
+  function statTiles(st) {
+    st = st || {};
+    var keys = ['layers', 'texts', 'images', 'slots'];
+    var have = keys.filter(function (k) { return st[k] !== undefined && st[k] !== null; });
+    if (!have.length) return '';
+    return '<div class="stats">' + have.map(function (k) {
+      return '<div class="s"><b>' + esc(String(st[k])) + '</b>' + esc(k) + '</div>';
+    }).join('') + '</div>';
+  }
+  // The diff score is the quality gate, so it is the largest thing on the panel and the
+  // mismatches are listed in full rather than counted.
+  function diffBlock(d) {
+    if (!d) return '';
+    var mis = d.mismatches || [];
+    var clean = !mis.length;
+    var score = (d.score === undefined || d.score === null) ? '—'
+      : (typeof d.score === 'number' ? (d.score <= 1 ? Math.round(d.score * 100) + '%' : String(d.score)) : String(d.score));
+    return '<div class="diff ' + (clean ? 'clean' : 'dirty') + '">' +
+      '<div class="top"><span class="score">' + esc(score) + '</span>' +
+      '<span class="vd"><b>Round trip</b><span>' + (clean
+        ? 'Re-renders identically. Safe to use.'
+        : esc(mis.length + ' propert' + (mis.length > 1 ? 'ies do' : 'y does') + ' not come back. The template was captured but did not round-trip cleanly.')) +
+      '</span></span></div>' +
+      (clean ? '' : '<div class="mis">' + mis.map(function (x) {
+        return '<div class="m"><div class="path">' + esc(x.path || '(no path)') + '</div>' +
+          '<div class="ab">expected <em>' + esc(String(x.expected)) + '</em> · got <em>' + esc(String(x.actual)) + '</em></div></div>';
+      }).join('') + '</div>') +
+      '</div>';
+  }
+  function renderCaptureResult(m) {
+    var d = m.diff || null;
+    var clean = !!(d && !(d.mismatches || []).length);
+    var w = m.warnings || [];
+    $('ad-out').innerHTML =
+      '<div class="note ' + (clean ? 'info' : 'pending') + '"><b>' +
+        (clean ? 'Captured · clean round trip' : 'Captured · round trip incomplete') + '</b>' +
+        esc(((m.manifest && m.manifest.meta && m.manifest.meta.label) || $('ad-name').value.trim() || 'Template') +
+            ' saved as a draft.') +
+      '</div>' +
+      statTiles(m.stats) +
+      diffBlock(d) +
+      (w.length ? '<div class="note warn"><b>Warnings</b><ul style="margin:4px 0 0 15px;padding:0">' +
+        w.map(function (x) { return '<li>' + esc(String(x)) + '</li>'; }).join('') + '</ul></div>' : '');
+  }
 
   // ---------- PANEL 3 — export ----------
   var ruleSeq = 0;
@@ -1659,23 +1930,45 @@
     if (!k) return;
     var box = el.closest('.rule'); if (!box) return;
     var r = state.gifRules[parseInt(box.dataset.i, 10)];
-    if (r) { r[k] = el.value; renderExportStyles(); }
+    if (r) { r[k] = el.value; renderExportStyles(); saveExportConfig(); }
   });
   $('ex-rules').addEventListener('change', function (ev) {
     var el = ev.target, k = el.dataset && el.dataset.k;
     if (!k) return;
     var box = el.closest('.rule'); if (!box) return;
     var r = state.gifRules[parseInt(box.dataset.i, 10)];
-    if (r) { r[k] = el.value; renderExportStyles(); }
+    if (r) { r[k] = el.value; renderExportStyles(); saveExportConfig(); }
   });
   $('ex-rules').addEventListener('click', function (ev) {
     var d = ev.target.dataset && ev.target.dataset.del;
     if (d === undefined) return;
     state.gifRules.splice(parseInt(d, 10), 1);
-    renderRules(); renderExportStyles();
+    renderRules(); renderExportStyles(); saveExportConfig();
   });
-  $('ex-addrule').onclick = function () { state.gifRules.push(newRule()); renderRules(); renderExportStyles(); };
-  $('ex-folder').oninput = function () { state.exportFolder = $('ex-folder').value.trim(); renderExportStyles(); };
+  $('ex-addrule').onclick = function () { state.gifRules.push(newRule()); renderRules(); renderExportStyles(); saveExportConfig(); };
+  $('ex-folder').oninput = function () { state.exportFolder = $('ex-folder').value.trim(); state.driveCache = {}; renderExportStyles(); saveExportConfig(); };
+  $('ex-format').onchange = function () { renderExportStyles(); };
+
+  // folder + rules persist in figma.clientStorage, debounced so typing does not hammer it
+  function saveExportConfig() {
+    clearTimeout(state.pending.saveEx);
+    state.pending.saveEx = setTimeout(function () {
+      parent.postMessage({ pluginMessage: { type: 'save-export-config', config: {
+        folder: state.exportFolder,
+        rules: state.gifRules.map(function (r) { return { category: r.category, gender: r.gender, styleId: r.styleId, gif: r.gif }; })
+      } } }, '*');
+    }, 400);
+  }
+  function loadExportConfig(cfg) {
+    if (!cfg) return;
+    state.exportFolder = cfg.folder || '';
+    $('ex-folder').value = state.exportFolder;
+    state.gifRules = (cfg.rules || []).map(function (r) {
+      var n = newRule(); n.category = r.category || ''; n.gender = r.gender || ''; n.styleId = r.styleId || ''; n.gif = r.gif || ''; return n;
+    });
+    renderRules();
+  }
+  function isComposite(fmt) { return fmt === 'gif' || fmt === 'mp4'; }
 
   // Matching is data: first rule whose filled fields all match wins. No category is named in code.
   function gifFor(ctx) {
@@ -1729,28 +2022,123 @@
     if (!state.reviewed) return;
     var c = exportCandidates()[parseInt(d, 10)];
     if (!c) return;
+    var fmt = $('ex-format').value;
+    var composite = isComposite(fmt) ? fmt : null;
     var g = gifFor(c);
-    var payload = {
-      type: 'export-style',
-      styleId: c.styleId,
-      category: c.category,
-      gender: c.gender,
-      pageId: state.pageId,
-      format: $('ex-format').value,
-      scale: parseInt($('ex-scale').value, 10) || 1,
-      gif: g ? { file: g.gif, rule: { category: g.category, gender: g.gender, styleId: g.styleId } } : null,
-      folder: state.exportFolder || null,
-      reviewed: state.reviewed
-    };
-    $('ex-out').innerHTML = '<div class="note pending"><b>Export requested · ' + esc(c.styleId) + '</b>Waiting on <code>export-style</code>…</div>';
-    parent.postMessage({ pluginMessage: payload }, '*');
+    // check everything the composite needs BEFORE asking Figma to render a large PNG
+    if (composite) {
+      var why = !g || !g.gif ? 'No GIF rule matches style ' + c.styleId + '. Add a rule in step 2.'
+        : (!state.backend ? 'No backend set. Open Settings and enter the backend URL.'
+        : (!(state.session && state.googleEmail) ? 'Connect Google first. The GIF is read from your Drive.'
+        : (!looksLikeDriveId(g.gif) && !state.exportFolder ? 'Set the GIF source folder in step 1.' : '')));
+      if (why) { exportNote('warn', 'Cannot export ' + c.styleId, esc(why)); return; }
+    }
+    var reqId = 'x' + Date.now();
+    state.exportJob = { reqId: reqId, styleId: c.styleId, composite: composite, gif: g ? g.gif : null };
+    parent.postMessage({ pluginMessage: {
+      type: 'export-style', reqId: reqId,
+      styleId: c.styleId, pageId: state.pageId,
+      // a composite is built on a PNG of the A+; the backend turns it into the GIF/MP4
+      format: composite ? 'PNG' : fmt,
+      composite: composite,
+      scale: parseInt($('ex-scale').value, 10) || 1
+    } }, '*');
+    exportNote('pending', 'Exporting ' + c.styleId, 'Rendering the frame in Figma…');
     clearTimeout(state.pending.exp);
     state.pending.exp = setTimeout(function () {
-      $('ex-out').innerHTML = '<div class="note warn"><b>No handler — nothing was exported</b>' +
-        'The message was posted and <code>main.js</code> did not answer. The export path is not built, and the GIF step cannot be ' +
-        'until the output format is decided — Figma cannot emit an animated GIF. Nothing was written to Drive or to disk.</div>';
-    }, 1500);
+      if (!state.exportJob || state.exportJob.reqId !== reqId) return;
+      state.exportJob = null;
+      exportNote('warn', 'Figma did not answer', 'The plugin code did not reply within 60 s. Close and reopen the plugin, then try again. If it keeps happening, the installed <code>code.js</code> is out of date: rebuild it with <code>node plugin-src/build.js</code>.');
+    }, 60000);
   });
+
+  function exportNote(kind, title, html) {
+    $('ex-out').innerHTML = '<div class="note ' + kind + '"><b>' + esc(title) + '</b>' + html + '</div>';
+  }
+  function looksLikeDriveId(s) {
+    s = String(s || '').trim();
+    return /drive\.google\.com|docs\.google\.com/.test(s) || /^[A-Za-z0-9_-]{25,}$/.test(s);
+  }
+  function u8ToB64(u8) {
+    var s = '', CH = 0x8000;
+    for (var i = 0; i < u8.length; i += CH) s += String.fromCharCode.apply(null, u8.subarray(i, i + CH));
+    return btoa(s);
+  }
+  function b64ToU8(b64) {
+    var bin = atob(b64), out = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+  function fmtBytes(n) { return n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB'; }
+  // Saves the file and also leaves a link to save it again, in case the automatic save was blocked.
+  function saveFile(u8, mime, name) {
+    if (state.lastExportUrl) URL.revokeObjectURL(state.lastExportUrl);
+    var url = URL.createObjectURL(new Blob([u8], { type: mime }));
+    state.lastExportUrl = url;
+    var a = document.createElement('a'); a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    return '<a href="' + url + '" download="' + esc(name) + '">Save ' + esc(name) + ' again</a>';
+  }
+  async function postJson(path, body) {
+    var res;
+    try {
+      res = await fetch(base() + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    } catch (e) { throw new Error('Backend not reachable at ' + base() + '. Is it running?'); }
+    var data = null; try { data = await res.json(); } catch (e) {}
+    if (!res.ok) throw new Error((data && data.error) || ('HTTP ' + res.status));
+    return data;
+  }
+  // A rule's GIF is either a Drive link/id, or a file name looked up in the source folder.
+  async function resolveGifFile(gif) {
+    if (looksLikeDriveId(gif)) return { id: gif, name: gif };
+    state.driveCache = state.driveCache || {};
+    var list = state.driveCache[state.exportFolder];
+    if (!list) {
+      list = await postJson('/api/drive/list', { session: state.session, folder: state.exportFolder });
+      state.driveCache[state.exportFolder] = list;
+    }
+    var want = String(gif).trim().toLowerCase(), files = list.files || [];
+    var hit = files.filter(function (f) {
+      var n = String(f.name).toLowerCase();
+      return n === want || n.replace(/\.[^.]+$/, '') === want;
+    })[0];
+    if (!hit) {
+      throw new Error('"' + gif + '" is not in ' + (list.folderName ? '"' + list.folderName + '"' : 'the folder') + '. ' +
+        (files.length ? 'GIFs there: ' + files.slice(0, 8).map(function (f) { return f.name; }).join(', ') + (files.length > 8 ? '…' : '') : 'It has no GIFs.'));
+    }
+    return hit;
+  }
+  async function finishExport(m) {
+    var job = state.exportJob;
+    if (!job || job.reqId !== m.reqId) return;          // a stale reply from an earlier click
+    clearTimeout(state.pending.exp);
+    var dupe = m.matches > 1 ? '<br>' + m.matches + ' frames match this style ID. Exported "' + esc(m.frameName) + '". Select a frame to pick a different one.' : '';
+    try {
+      if (!job.composite) {
+        var ext = m.format.toLowerCase(), mime = { png: 'image/png', jpg: 'image/jpeg', svg: 'image/svg+xml', pdf: 'application/pdf' }[ext];
+        var link = saveFile(m.bytes, mime, job.styleId + '.' + ext);
+        exportNote('info', 'Exported ' + job.styleId + ' · ' + m.format,
+          esc(m.frameName) + ' · ' + m.width + '×' + m.height + ' · ' + fmtBytes(m.bytes.length) + '<br>' + link + dupe);
+        return;
+      }
+      exportNote('pending', 'Exporting ' + job.styleId, 'Finding the GIF "' + esc(job.gif) + '" in Drive…');
+      var file = await resolveGifFile(job.gif);
+      exportNote('pending', 'Exporting ' + job.styleId, 'Building the ' + job.composite.toUpperCase() + ' with "' + esc(file.name) + '" on the backend. Large A+ pages can take 10 to 30 s…');
+      var r = await postJson('/api/compose', { session: state.session, aplusPng: u8ToB64(m.bytes), driveFileId: file.id, format: job.composite });
+      var out = b64ToU8(r.base64);
+      var link2 = saveFile(out, r.mimeType, job.styleId + '.' + job.composite);
+      var amz = r.amazon || {};
+      exportNote(amz.acceptedByAmazonAPlus === false ? 'pending' : 'info',
+        'Exported ' + job.styleId + ' · ' + job.composite.toUpperCase(),
+        esc(r.output.width + '×' + r.output.height + ' · ' + r.output.frames + ' frames · ' + fmtBytes(out.length) + ' · GIF: ' + file.name) +
+        '<br>' + link2 + dupe +
+        (amz.reason ? '<br><br><b>Amazon:</b> ' + esc(amz.reason) : ''));
+    } catch (e) {
+      exportNote('warn', 'Export failed · ' + job.styleId, esc(String((e && e.message) || e)));
+    } finally {
+      if (state.exportJob === job) state.exportJob = null;
+    }
+  }
 
   // ---------- the page the plugin is building on ----------
   function setPage(name, frameCount, id) {
@@ -1766,16 +2154,24 @@
     var m = e.data.pluginMessage; if (!m) return;
     if (m.type === 'init') {
       $('link').value = m.sheetLink || '';
-      $('backend').value = m.backendUrl || '';
-      state.backend = m.backendUrl || '';
+      // A first run has nothing saved. Rather than gate on "set a backend first", assume the
+      // documented default and probe it — the user then gets the real blocker ("nothing is
+      // running on 8787") instead of a chore. Nothing is persisted until they press Use.
+      state.backend = m.backendUrl || DEFAULT_BACKEND;
       state.session = m.session || '';
+      $('backend').value = state.backend;
+      $('gate-backend').value = state.backend;
       state.registry = m.registry;
       window.BUNDLED_MANIFESTS = m.manifests || {};
       if (m.page) setPage(m.page);                 // legacy init.page, still honoured
       renderCats(); setBackend(false); setGoogle('off');
       applyLinkScope();
+      loadExportConfig(m.exportConfig);   // after the registry, so rule rows can list categories
       renderReview(); renderExportStyles();
-      if (state.backend) { refreshRegistry(); checkGoogle(); }
+      // the gate stands until a saved session is confirmed connected
+      showGate(true);
+      if (state.backend) refreshRegistry();
+      gateProbe();
       parent.postMessage({ pluginMessage: { type: 'ping-page' } }, '*');
     }
     if (m.type === 'page') setPage(m.name, m.frameCount, m.id);
@@ -1804,17 +2200,28 @@
       html += '<div class="hint">Next: drop in photos, then export slices 1 and 2.</div>';
       $('report').innerHTML = html;
     }
-    // Answers for the two panels that are not wired yet. If main.js ever sends these,
-    // they render for real — until then the timeout above tells the truth.
-    if (m.type === 'capture-result' || m.type === 'capture-error') {
-      clearTimeout(state.pending.capture);
-      $('ad-out').innerHTML = '<div class="note ' + (m.type === 'capture-error' ? 'warn' : 'info') + '"><b>' +
-        (m.type === 'capture-error' ? 'Capture failed' : 'Capture result') + '</b>' + esc(m.message || JSON.stringify(m)) + '</div>';
+    // ---- capture (Add design) ----
+    if (m.type === 'capture-progress') {
+      clearTimeout(state.pending.capture);   // the handler exists; the fallback must not fire
+      renderCaptureProgress(m);
     }
-    if (m.type === 'export-result' || m.type === 'export-error') {
+    if (m.type === 'capture-result') {
+      clearTimeout(state.pending.capture);
+      renderDesignSelection();
+      renderCaptureResult(m);
+    }
+    if (m.type === 'capture-error') {
+      clearTimeout(state.pending.capture);
+      renderDesignSelection();
+      $('ad-out').innerHTML = '<div class="note warn"><b>Capture failed</b>' +
+        esc(m.message || 'No reason given.') + '</div>';
+    }
+    if (m.type === 'export-bytes') { finishExport(m); }
+    if (m.type === 'export-error') {
+      if (state.exportJob && m.reqId && state.exportJob.reqId !== m.reqId) return;
       clearTimeout(state.pending.exp);
-      $('ex-out').innerHTML = '<div class="note ' + (m.type === 'export-error' ? 'warn' : 'info') + '"><b>' +
-        (m.type === 'export-error' ? 'Export failed' : 'Export result') + '</b>' + esc(m.message || JSON.stringify(m)) + '</div>';
+      state.exportJob = null;
+      exportNote('warn', 'Export failed' + (m.styleId ? ' · ' + m.styleId : ''), esc(m.message || 'No reason given.'));
     }
   };
 

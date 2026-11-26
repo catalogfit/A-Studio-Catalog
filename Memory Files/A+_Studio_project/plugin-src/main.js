@@ -122,13 +122,24 @@ function syncToUi() {
   var saved = await figma.clientStorage.getAsync('sheetLink');
   var backend = await figma.clientStorage.getAsync('backendUrl');
   var session = await figma.clientStorage.getAsync('googleSession');
+  var exportConfig = await figma.clientStorage.getAsync('exportConfig');
+  // Templates captured from a frame live in clientStorage. They are folded into the same
+  // registry and manifest map the bundled Running templates use, so they show up in the
+  // category → gender → template picker and route from the sheet with no special casing.
+  var captured = { index: [], manifests: {} };
+  try { captured = await capLoadTemplates(); }
+  catch (e) { figma.notify('A+: saved templates could not be read (' + (e && e.message) + ')'); }
+  Object.keys(captured.manifests).forEach(function (k) { FALLBACK_MANIFESTS[k] = captured.manifests[k]; });
+  capMergeIntoRegistry(FALLBACK_REGISTRY, captured.index);
   figma.ui.postMessage({
     type: 'init',
     sheetLink: saved || '',
     backendUrl: backend || '',
     session: session || '',
+    exportConfig: exportConfig || null,  // GIF folder + category→GIF rules from the Export tab
     registry: FALLBACK_REGISTRY,
     manifests: FALLBACK_MANIFESTS,   // so the UI can draw template previews with no backend
+    captured: captured.index,        // which of the above came from a captured frame
     page: figma.currentPage.name
   });
   postPage();                // same shape the UI gets on every later page change
@@ -140,6 +151,56 @@ function syncToUi() {
 figma.on('selectionchange', syncToUi);
 figma.on('currentpagechange', syncToUi);
 
+// ---------- export ----------
+// Finds the A+ frame for a style ID on the current page and exports it with exportAsync.
+// Figma can only emit PNG/JPG/SVG/PDF; when the user asked for an animated composite the UI
+// receives the PNG here and sends it to the backend's /api/compose with the matched Drive GIF.
+function styleFrameCandidates() {
+  var pool = [];
+  figma.currentPage.children.forEach(function (n) {
+    if (n.type === 'FRAME') pool.push(n);
+    else if (n.type === 'SECTION') n.children.forEach(function (c) { if (c.type === 'FRAME') pool.push(c); });
+  });
+  return pool;
+}
+function findStyleFrames(styleId) {
+  // a selected frame wins, so "select the A+ and press Export" always exports what you selected
+  var sel = figma.currentPage.selection.filter(function (n) { return n.type === 'FRAME'; });
+  var pool = sel.concat(styleFrameCandidates().filter(function (n) { return sel.indexOf(n) < 0; }));
+  var byName = pool.filter(function (n) { return (String(n.name).match(/\d{6}/g) || []).indexOf(styleId) >= 0; });
+  if (byName.length) return byName;
+  return pool.filter(function (n) {
+    var ids = idsFromNode(n);
+    if (!ids.length) ids = nearbyLabelIds(n);
+    return ids.indexOf(styleId) >= 0;
+  });
+}
+async function handleExportStyle(msg) {
+  var reqId = msg.reqId;
+  try {
+    if (msg.pageId && msg.pageId !== figma.currentPage.id) {
+      throw new Error('You changed pages after this list was drawn. Go back to the page holding style ' + msg.styleId + ', or refresh the Export tab.');
+    }
+    var hits = findStyleFrames(String(msg.styleId || ''));
+    if (!hits.length) throw new Error('No frame for style ' + msg.styleId + ' on this page. Build it on the Automate tab first, or select its frame.');
+    var frame = hits[0];
+    var fmt = String(msg.format || 'PNG').toUpperCase();
+    if (['PNG', 'JPG', 'SVG', 'PDF'].indexOf(fmt) < 0) throw new Error('Figma cannot export "' + fmt + '".');
+    var scale = Math.max(1, Math.min(4, Number(msg.scale) || 1));
+    var settings = (fmt === 'PNG' || fmt === 'JPG') ? { format: fmt, constraint: { type: 'SCALE', value: scale } } : { format: fmt };
+    var bytes = await frame.exportAsync(settings);
+    figma.ui.postMessage({
+      type: 'export-bytes', reqId: reqId, styleId: msg.styleId, format: fmt, composite: msg.composite || null,
+      frameName: frame.name, frameId: frame.id, matches: hits.length,
+      width: Math.round(frame.width * (settings.constraint ? scale : 1)),
+      height: Math.round(frame.height * (settings.constraint ? scale : 1)),
+      bytes: bytes
+    });
+  } catch (e) {
+    figma.ui.postMessage({ type: 'export-error', reqId: reqId, styleId: msg.styleId, message: String((e && e.message) || e) });
+  }
+}
+
 // a page rename with no page switch is not pushed. The hook that would catch it,
 // figma.on('documentchange'), requires figma.loadAllPagesAsync() first under
 // "documentAccess": "dynamic-page", which loads every page of the file just to watch a
@@ -150,9 +211,16 @@ figma.ui.onmessage = async function (msg) {
   if (msg.type === 'save-link') { await figma.clientStorage.setAsync('sheetLink', msg.link || ''); return; }
   if (msg.type === 'save-backend') { await figma.clientStorage.setAsync('backendUrl', msg.url || ''); return; }
   if (msg.type === 'save-session') { await figma.clientStorage.setAsync('googleSession', msg.session || ''); return; }
+  if (msg.type === 'save-export-config') { await figma.clientStorage.setAsync('exportConfig', msg.config || null); return; }
+
+  // ---------- export one style's A+ frame (the UI composites a GIF onto it if asked) ----------
+  if (msg.type === 'export-style') { await handleExportStyle(msg); return; }
   // the pings answer unconditionally — the UI asked, so the de-dup above must not swallow it
   if (msg.type === 'ping-selection') { postSelection(true); return; }
   if (msg.type === 'ping-page') { postPage(); return; }
+
+  // ---------- capture the selected frame as a reusable template ----------
+  if (msg.type === 'capture-template') { await capHandleCaptureTemplate(msg); return; }
 
   // ---------- add the fit comparison card to the frames that are selected ----------
   if (msg.type === 'add-comparison') {
@@ -189,10 +257,13 @@ figma.ui.onmessage = async function (msg) {
   var keys = msg.keys || [];
   var errors = msg.errors || [];
   var manifests = msg.manifests || {};
+  // A manifest is buildable if one of the two renderers in this bundle understands it:
+  // 'aplus-standard-v1' is the hand-built A+ layout, 'aplus-capture-v1' is a frame captured
+  // from the canvas. Anything else is a manifest written for a renderer we do not have.
   function manifestFor(key) {
     if (!key) return null;
     var m = manifests[key] || fallbackManifest(key);
-    if (m && m.renderer && m.renderer !== 'aplus-standard-v1') return null;
+    if (m && m.renderer && m.renderer !== 'aplus-standard-v1' && m.renderer !== CAP_RENDERER) return null;
     return m;
   }
   if (!msg.rows || !msg.rows.length) {
@@ -224,7 +295,9 @@ figma.ui.onmessage = async function (msg) {
         try {
           var fonts = await loadFontsFromManifest(manifest);
           fonts.missing.forEach(function (f) { missingFonts[f] = 1; });
-          var res = await buildFromManifest(manifest, row, { F: fonts.F, icons: icons, x: x, y: y });
+          var res = manifest.renderer === CAP_RENDERER
+            ? await capBuildFromManifest(manifest, row, { x: x, y: y })
+            : await buildFromManifest(manifest, row, { F: fonts.F, icons: icons, x: x, y: y });
           created.push(res.frame, res.label);
           report.push({ name: name + '  ·  ' + manifest.meta.label, ok: true, warnings: res.warnings });
           lastLabel = manifest.meta.label;

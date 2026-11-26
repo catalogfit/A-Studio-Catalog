@@ -85,5 +85,7 @@ function resolve(categoryId, genderId, templateId) {
 module.exports = {
   merge: merge, load: load, resolve: resolve, registry: registry,
   findCategory: findCategory, findGender: findGender, findTemplate: findTemplate,
+  safeRel: safeRel,
+  SEGMENT: SEGMENT,   // reused by store.js so captured ids get the same no-traversal guard
   TEMPLATES: TEMPLATES
 };

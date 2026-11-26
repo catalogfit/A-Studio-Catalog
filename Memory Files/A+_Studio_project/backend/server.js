@@ -23,8 +23,14 @@
 //   POST /api/drive/file      -> { session, fileId } -> that file's metadata
 //   POST /api/drive/download  -> { session, fileId } -> the file's bytes (binary, or base64 JSON)
 //   Export:
-//   POST /api/compose     -> { session?, aplusPng, gif|driveFileId, format } -> animated GIF / MP4
+//   POST /api/compose     -> { session, aplusPng, gif|driveFileId, format } -> animated GIF / MP4
 //                            !! an animated GIF is NOT accepted by Amazon A+ — see compose.js
+//                            !! requires a signed-in session and is concurrency-capped
+//   Captured templates (the "Add to template" flow — docs/add-to-template-plan.md):
+//   POST   /api/templates                              -> { session, category, gender, id, label, manifest }
+//   DELETE /api/templates/:category/:gender/:id        -> removes a CAPTURED template only
+//   AI labelling (advisory names only — docs/ai-labelling.md):
+//   POST /api/label       -> { session, skeleton } -> { roles: { layerId: { role, confidence } } }
 
 require('./env');
 
@@ -35,14 +41,21 @@ var google = require('./google');
 var manifests = require('./manifests');
 var compose = require('./compose');
 var sessionStore = require('./session');
+var store = require('./store');
+var labeller = require('./label');
+var llm = require('./llm');
 
 var PORT = process.env.PORT || 8787;
-// Optional, for the AI-assisted template labelling described in docs/add-to-template-plan.md.
-// NOT implemented yet — this is env plumbing only. The key must never reach the plugin: plugin
-// code ships as a readable file, so anything in it is public. /health reports presence, never value.
-var ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
-var ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5';
 var MAX_BODY_BYTES = Number(process.env.MAX_BODY_BYTES || 96 * 1024 * 1024);
+// A captured manifest is tens of KB, not tens of MB. Capping this route separately means a
+// hostile POST /api/templates cannot buffer 96 MB before being rejected.
+var MAX_TEMPLATE_BODY_BYTES = Number(process.env.MAX_TEMPLATE_BODY_BYTES || 4 * 1024 * 1024);
+var MAX_LABEL_BODY_BYTES = Number(process.env.MAX_LABEL_BODY_BYTES || 4 * 1024 * 1024);
+// /api/compose can hold ~500 MB of pixel buffers and tens of seconds of CPU for one job, so it is
+// no longer anonymous and no longer unbounded. Set REQUIRE_SESSION=false only for local work.
+var REQUIRE_SESSION = String(process.env.REQUIRE_SESSION || 'true').toLowerCase() !== 'false';
+var COMPOSE_MAX_CONCURRENT = Number(process.env.COMPOSE_MAX_CONCURRENT || 2);
+var composeInFlight = 0;
 var ROOT = __dirname;
 var TEMPLATES = path.join(ROOT, 'templates');
 var SAFE = /^[a-z0-9][a-z0-9-]*$/i; // category / template id guard (no path traversal)
@@ -51,7 +64,7 @@ function send(res, code, body, type) {
   res.writeHead(code, {
     'Content-Type': type || 'application/json; charset=utf-8',
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
     'Access-Control-Max-Age': '86400',
     'Access-Control-Allow-Headers': 'Content-Type',
     'Cache-Control': 'no-cache'
@@ -63,16 +76,17 @@ function query(u) { var q = {}, i = u.indexOf('?'); if (i >= 0) u.slice(i + 1).s
 
 // A+ PNGs arrive base64-encoded inside the JSON body, so this buffers up to ~96 MB by default.
 // It is capped so a malformed or hostile request cannot grow the heap without bound.
-function readBody(req) {
+function readBody(req, maxBytes) {
+  var cap = Number(maxBytes) > 0 ? Number(maxBytes) : MAX_BODY_BYTES;
   return new Promise(function (resolve, reject) {
     var c = [], n = 0, done = false;
     req.on('data', function (d) {
       if (done) return;
       n += d.length;
-      if (n > MAX_BODY_BYTES) {
+      if (n > cap) {
         done = true;
         req.destroy();
-        var e = new Error('Request body is larger than the ' + Math.round(MAX_BODY_BYTES / 1048576) + ' MB limit.');
+        var e = new Error('Request body is larger than the ' + Math.round(cap / 1048576) + ' MB limit for this endpoint.');
         e.statusCode = 413;
         return reject(e);
       }
@@ -84,10 +98,27 @@ function readBody(req) {
 }
 // Accept the session from the body or the query string, under either name.
 function sessionOf(b, q) { return String((b && (b.session || b.sessionId)) || (q && (q.session || q.sessionId)) || ''); }
+
+// Gate for the endpoints that spend real resources: /api/compose (≈500 MB and seconds of CPU per
+// job), /api/label (real money at an LLM provider), and the template writes. google.status() opens
+// the sealed session locally — no network call, no token refresh — so this costs nothing.
+// Returns null when the caller may proceed, or an { code, message } to refuse with.
+function denySession(ref) {
+  if (!REQUIRE_SESSION) return null;
+  if (!google.configured()) {
+    return { code: 503, message: 'This endpoint requires a signed-in session, but Google sign-in is not configured on this backend. Set GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET, or set REQUIRE_SESSION=false for local development only.' };
+  }
+  var st;
+  try { st = google.status(ref); } catch (e) { st = null; }
+  if (!st || !st.connected) return { code: 401, message: 'Not connected — sign in with Google first.' };
+  return null;
+}
 function statusOf(e, fallback) { return (e && e.statusCode) || fallback; }
 function page(res, title, msg) { send(res, 200, '<!doctype html><meta charset="utf-8"><title>' + title + '</title><div style="font:16px system-ui;max-width:460px;margin:16vh auto;text-align:center;color:#1e1e1e"><div style="font-size:40px">' + (title.indexOf('Connected') === 0 ? '✅' : '⚠️') + '</div><h2>' + title + '</h2><p style="color:#666">' + msg + '</p><p style="color:#999;font-size:13px">You can close this tab and return to Figma.</p></div>', 'text/html; charset=utf-8'); }
 
-var registry = manifests.registry;
+// The registry the API serves is the built-in index.json with every captured template folded in,
+// so a captured template is selectable in the plugin exactly like a hand-built one.
+function registry() { return store.mergeRegistry(manifests.registry()); }
 
 var server = http.createServer(async function (req, res) {
   if (req.method === 'OPTIONS') return send(res, 204, '');
@@ -105,7 +136,10 @@ var server = http.createServer(async function (req, res) {
         scopes: google.SCOPE_LIST,
         sessions: sessionStore.info(),
         ffmpeg: { available: tool.available, version: tool.version, libx264: !!tool.encoders.libx264, error: tool.error },
-        anthropic: { configured: !!ANTHROPIC_API_KEY, model: ANTHROPIC_MODEL, implemented: false } // presence only — never the key
+        // Presence booleans and the model id only — never the key, never a dollar figure.
+        llm: llm.info(),
+        templateStore: store.info(),
+        limits: { requireSession: REQUIRE_SESSION, composeMaxConcurrent: COMPOSE_MAX_CONCURRENT, composeInFlight: composeInFlight }
       });
     }
     if (url === '/' ) return send(res, 200, { service: 'aplus-template-backend', try: '/api/templates' });
@@ -183,6 +217,15 @@ var server = http.createServer(async function (req, res) {
     // Body is JSON with base64 payloads (see docs/export-pipeline.md for why, not multipart).
     if (url === '/api/compose' && req.method === 'POST') {
       var bc = await readBody(req);
+      // A single compose job holds the PNG, the GIF and ffmpeg's scratch frames — hundreds of MB
+      // and seconds of CPU. Two guards, in this order: who you are, then how many at once.
+      var denyC = denySession(sessionOf(bc, q));
+      if (denyC) return err(res, denyC.code, denyC.message);
+      if (composeInFlight >= COMPOSE_MAX_CONCURRENT) {
+        res.setHeader('Retry-After', '10');
+        return err(res, 429, 'The server is already running ' + COMPOSE_MAX_CONCURRENT + ' export job(s). Try again in a few seconds.');
+      }
+      composeInFlight++;
       try {
         var r = await compose.compose(bc, { downloadDriveFile: google.downloadFile });
         var buf = r.buffer;
@@ -206,10 +249,60 @@ var server = http.createServer(async function (req, res) {
         r.base64 = buf.toString('base64');
         return send(res, 200, r);
       } catch (e) { return err(res, statusOf(e, 400), String((e && e.message) || e)); }
+      finally { composeInFlight--; }
+    }
+
+    // ----- AI semantic labelling (advisory names only) -----
+    // The model never decides geometry, paint or z-order — see backend/label.js and
+    // docs/ai-labelling.md. If the model is unreachable this still returns 200 with heuristics.
+    if (url === '/api/label' && req.method === 'POST') {
+      var bL = await readBody(req, MAX_LABEL_BODY_BYTES);
+      var denyL = denySession(sessionOf(bL, q));
+      if (denyL) return err(res, denyL.code, denyL.message);
+      try { return send(res, 200, await labeller.label(bL)); }
+      catch (e) { return err(res, statusOf(e, 400), llm.scrub(String((e && e.message) || e))); }
+    }
+
+    // ----- the labelling role vocabulary, for a review UI's dropdown -----
+    if (url === '/api/label/roles' && (req.method === 'GET' || req.method === 'POST')) {
+      return send(res, 200, { schema: labeller.SCHEMA_VERSION, roles: labeller.ROLES, llm: llm.info(), maxLayers: labeller.MAX_LAYERS });
     }
 
     if (parts[0] === 'api' && parts[1] === 'templates') {
-      // /api/templates
+      // ----- save a captured template -----
+      // POST /api/templates { session, category, gender, id, label, manifest }
+      if (parts.length === 2 && req.method === 'POST') {
+        var bT = await readBody(req, MAX_TEMPLATE_BODY_BYTES);
+        var denyT = denySession(sessionOf(bT, q));
+        if (denyT) return err(res, denyT.code, denyT.message);
+
+        var rec;
+        try { rec = store.validate(bT); }
+        catch (e) { return err(res, statusOf(e, 400), String((e && e.message) || e)); }
+
+        // A captured template may never shadow a hand-built one. The four Running manifests are
+        // files in the image; overwriting one from the network is not a feature.
+        var regT = manifests.registry();
+        var catT = manifests.findCategory(regT, rec.category);
+        var genT = manifests.findGender(catT, rec.gender);
+        if (manifests.findTemplate(genT, rec.id)) {
+          return err(res, 409, '"' + rec.category + '/' + rec.gender + '/' + rec.id + '" is a built-in template and cannot be overwritten by a capture. Choose a different id.');
+        }
+
+        try {
+          var saved = store.put(rec);
+          return send(res, saved.replaced ? 200 : 201, {
+            ok: true,
+            replaced: saved.replaced,
+            template: saved.entry,
+            url: '/api/templates/' + rec.category + '/' + rec.gender + '/' + rec.id,
+            persistence: store.info()   // says plainly whether this survives a restart
+          });
+        } catch (e) { return err(res, statusOf(e, 500), String((e && e.message) || e)); }
+      }
+
+      // /api/templates — built-ins plus anything captured, in one registry the plugin can't
+      // tell apart except by the `source` field.
       if (parts.length === 2) return send(res, 200, registry());
 
       var category = parts[2];
@@ -231,13 +324,33 @@ var server = http.createServer(async function (req, res) {
 
       var templateId = parts[4];
       if (!SAFE.test(templateId)) return err(res, 400, 'Bad template id');
-      if (!manifests.findTemplate(gen, templateId)) {
+      var tplEntry = manifests.findTemplate(gen, templateId);
+      if (!tplEntry) {
         return err(res, 404, 'Unknown template "' + templateId + '" in "' + category + '/' + genderId + '"');
+      }
+      var isCaptured = tplEntry.source === 'captured';
+
+      // DELETE /api/templates/:category/:gender/:template — captured templates only.
+      // The four built-in Running manifests are files in the Docker image and are never deletable
+      // through the API; removing one is a code change and a deploy, by design.
+      if (parts.length === 5 && req.method === 'DELETE') {
+        var bD = await readBody(req, 64 * 1024);
+        var denyD = denySession(sessionOf(bD, q));
+        if (denyD) return err(res, denyD.code, denyD.message);
+        if (!isCaptured || !store.has(category, genderId, templateId)) {
+          return err(res, 403, '"' + category + '/' + genderId + '/' + templateId + '" is a built-in template and cannot be deleted through the API.');
+        }
+        var removed = store.remove(category, genderId, templateId);
+        return send(res, 200, { ok: true, deleted: removed, template: category + '/' + genderId + '/' + templateId });
       }
 
       // /api/templates/:category/:gender/:template  -> the resolved manifest
       if (parts.length === 5) {
-        try { return send(res, 200, manifests.resolve(category, genderId, templateId)); }
+        try {
+          var resolved = isCaptured ? store.resolve(category, genderId, templateId) : manifests.resolve(category, genderId, templateId);
+          if (!resolved) return err(res, 404, 'The manifest for "' + category + '/' + genderId + '/' + templateId + '" is registered but its file is missing. If this is a captured template, the store it was written to did not survive a restart — see /health -> templateStore.');
+          return send(res, 200, resolved);
+        }
         catch (e) { return err(res, 404, String((e && e.message) || e)); }
       }
 
@@ -270,6 +383,12 @@ server.listen(PORT, function () {
   console.log('  ffmpeg: ' + (tool.available
     ? tool.version + (tool.encoders.libx264 ? ' (libx264 ok)' : ' (NO libx264 — format:"mp4" unavailable)')
     : 'NOT FOUND — /api/compose will return 503. Use the Docker image or install ffmpeg.'));
-  if (ANTHROPIC_API_KEY) console.log('  ANTHROPIC_API_KEY: set (AI template labelling is not implemented yet).');
+  var li = llm.info();
+  console.log('  AI labelling: ' + (li.configured
+    ? 'provider=' + li.provider + ' model=' + li.model + ' (advisory roles only — see docs/ai-labelling.md)'
+    : 'NOT configured — POST /api/label still works and returns heuristic roles.'));
+  console.log('  Captured templates: ' + store.info().dir + ' [' + store.info().durability + ']');
+  console.log('  /api/compose: session required=' + REQUIRE_SESSION + ', max concurrent=' + COMPOSE_MAX_CONCURRENT);
   sessionStore.warnIfEphemeral();
+  store.warnIfEphemeral();
 });
