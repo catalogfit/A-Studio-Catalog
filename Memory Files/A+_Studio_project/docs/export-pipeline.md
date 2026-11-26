@@ -104,13 +104,14 @@ drives are included (`supportsAllDrives` / `includeItemsFromAllDrives`).
   "session":     "<sealed token>",   // only needed when using driveFileId
   "aplusPng":    "<base64>",         // required; a data: URL prefix is tolerated
   "gif":         "<base64>",         // either this…
-  "driveFileId": "<id or link>",     // …or this
+  "driveFileId": "<id or link>",     // …or this. Either can be an animated GIF or a video
+                                     //   clip (MP4/MOV/WebM, e.g. Gifs/Running.mp4) — sniffed from the bytes
 
   "format":      "gif",              // "gif" (default) | "mp4"
   "width":       1572,               // output width; default = the PNG's own width
   "fps":         12,                 // default: the asset's own rate, clamped to 1..30
   "maxColors":   256,                // 4..256
-  "dither":      "sierra2_4a",       // sierra2_4a | floyd_steinberg | sierra2 | sierra3 | bayer | none
+  "dither":      "bayer",            // bayer (default) | sierra2_4a | floyd_steinberg | sierra2 | sierra3 | none
   "bayerScale":  3,                  // 0..5, only with dither:"bayer"
   "loop":        0,                  // 0 = forever, -1 = play once, N = N extra loops
   "gap":         0,                  // px of solid background between the two
@@ -198,7 +199,7 @@ ffmpeg -y -hide_banner -nostdin \
 | `palettegen stats_mode=**full**` | **not `diff`.** `diff` weights the palette toward pixels that *change* — i.e. the small animated strip — which would starve the big static A+ design of colours. `full` is correct whenever most of the canvas is static, which is exactly this case. This is the single most consequential quality choice in the chain |
 | `reserve_transparent=0` | nothing here is transparent; reclaims a palette entry |
 | `paletteuse diff_mode=**rectangle**` + `-gifflags +transdiff` | **the size lever.** Confines each frame's update to the bounding box of what actually changed, so frames 2..N carry only the animated strip instead of a fresh full-canvas frame. Measured below: it is worth ~7× |
-| `dither=sierra2_4a` | ffmpeg's best error diffusion for photographic gradients. `bayer` is offered as an alternative because it is *temporally stable* (no crawling dither noise on static regions), at the cost of visible crosshatch — measured 25 % **larger** here, so it is a look choice, not a size one |
+| `dither=bayer:bayer_scale=5` (default) | Temporally stable: the pattern is fixed, so it does not crawl from frame to frame. On real moving footage (2026-11-26, `Gifs/Running.mp4`, 582 px wide, 155 frames) it gave **3.1 MB** against **14.7 MB** for `sierra2_4a`, with no visible difference at 100 %. Error diffusion re-randomises its noise on every frame of live-action video, so frames never repeat and LZW cannot compress them. On a synthetic test clip earlier, bayer was 25 % *larger*. `sierra2_4a` is still available for clips where its finer gradients matter |
 | `new=0` | one palette for the whole animation; `new=1` would re-emit a local colour table per frame and bloat the file |
 
 ---

@@ -314,7 +314,9 @@ function driveError(status, text) {
 var DRIVE_COMMON = 'supportsAllDrives=true&includeItemsFromAllDrives=true';
 
 // List a folder. `ref` may be a share URL or a bare id. By default returns only animated-GIF
-// candidates (image/gif); pass { all: true } to list everything, or { mimeTypes: [...] }.
+// candidates — animated GIFs and the short video loops the team keeps as MP4/MOV/WebM
+// (e.g. Gifs/Running.mp4); pass { all: true } to list everything, or { mimeTypes: [...] }.
+var ANIMATION_MIMES = ['image/gif', 'video/mp4', 'video/quicktime', 'video/webm'];
 async function listFolder(ref, opts) {
   opts = opts || {};
   var sess = resolveSession(opts.session);
@@ -324,7 +326,7 @@ async function listFolder(ref, opts) {
   var folderId = parseFolderRef(ref);
   if (!folderId) throw new Error('That does not look like a Google Drive folder link or id.');
 
-  var mimes = opts.all ? null : (opts.mimeTypes && opts.mimeTypes.length ? opts.mimeTypes : ['image/gif']);
+  var mimes = opts.all ? null : (opts.mimeTypes && opts.mimeTypes.length ? opts.mimeTypes : ANIMATION_MIMES);
   var q = "'" + folderId.replace(/'/g, "\\'") + "' in parents and trashed = false";
   if (mimes) q += ' and (' + mimes.map(function (m) { return "mimeType = '" + m.replace(/'/g, "\\'") + "'"; }).join(' or ') + ')';
 

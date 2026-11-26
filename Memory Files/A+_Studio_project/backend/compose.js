@@ -94,6 +94,23 @@ function gifSize(buf) {
   return { width: buf.readUInt16LE(6), height: buf.readUInt16LE(8) };
 }
 
+// The animated asset can be a GIF or a short video clip — the team's Drive keeps the category
+// loops as MP4 (e.g. Gifs/Running.mp4). Sniffed from the bytes, never trusted from the name.
+// Matters because `-ignore_loop` is a GIF-demuxer option: ffmpeg aborts with
+// "Option ignore_loop not found" if it is passed for an MP4.
+function assetKind(buf) {
+  if (buf.length >= 3 && buf.slice(0, 3).toString('ascii') === 'GIF') return { isGif: true, ext: '.gif' };
+  if (buf.length >= 12 && buf.slice(4, 8).toString('ascii') === 'ftyp') {
+    return { isGif: false, ext: /^qt/.test(buf.slice(8, 12).toString('ascii')) ? '.mov' : '.mp4' };
+  }
+  if (buf.length >= 4 && buf.readUInt32BE(0) === 0x1A45DFA3) return { isGif: false, ext: '.webm' };
+  if (buf.length >= 12 && buf.slice(0, 4).toString('ascii') === 'RIFF' && buf.slice(8, 12).toString('ascii') === 'WEBP') return { isGif: false, ext: '.webp' };
+  return { isGif: false, ext: '.bin' }; // let ffprobe decide; it rejects anything unreadable below
+}
+function assetInputArgs(o) {
+  return (o.assetIsGif ? ['-ignore_loop', '1'] : []).concat(['-i', o.gif]);
+}
+
 function run(bin, args, opts) {
   opts = opts || {};
   return new Promise(function (resolve, reject) {
@@ -204,7 +221,7 @@ function paletteGenArgs(o) {
   return []
     .concat(['-y', '-hide_banner', '-nostdin'])
     .concat(['-loop', '1', '-framerate', String(o.fps), '-i', o.png])
-    .concat(['-ignore_loop', '1', '-i', o.gif])
+    .concat(assetInputArgs(o))
     .concat(['-filter_complex',
       sourceGraph(o.width, o.fps, o.gap, o.background).join(';') +
       ';[stacked]palettegen=max_colors=' + o.maxColors + ':stats_mode=full:reserve_transparent=0[pal]'])
@@ -218,7 +235,7 @@ function paletteUseArgs(o) {
   return []
     .concat(['-y', '-hide_banner', '-nostdin'])
     .concat(['-loop', '1', '-framerate', String(o.fps), '-i', o.png])
-    .concat(['-ignore_loop', '1', '-i', o.gif])
+    .concat(assetInputArgs(o))
     .concat(['-i', o.palette])
     .concat(['-filter_complex',
       sourceGraph(o.width, o.fps, o.gap, o.background).join(';') +
@@ -231,7 +248,7 @@ function mp4Args(o) {
   return []
     .concat(['-y', '-hide_banner', '-nostdin'])
     .concat(['-loop', '1', '-framerate', String(o.fps), '-i', o.png])
-    .concat(['-ignore_loop', '1', '-i', o.gif])
+    .concat(assetInputArgs(o))
     .concat(['-filter_complex',
       sourceGraph(o.width, o.fps, o.gap, o.background).join(';') +
       ';[stacked]format=yuv420p,scale=trunc(iw/2)*2:trunc(ih/2)*2[out]'])
@@ -264,9 +281,13 @@ function normalize(body, pngDim, gifDim) {
   o.maxColors = Math.round(Number(body.maxColors || 256));
   if (!isFinite(o.maxColors) || o.maxColors < 4 || o.maxColors > 256) throw new Error('maxColors must be between 4 and 256.');
 
-  o.dither = String(body.dither || 'sierra2_4a');
+  // Default is ordered (bayer) dithering, measured 2026-11-26 on Gifs/Running.mp4 at 582 px:
+  // sierra2_4a 14.7 MB, bayer:5 3.1 MB, none 2.9 MB, with no visible difference at 100%.
+  // Error diffusion re-randomises the noise on every frame of moving footage, so frames never
+  // repeat and LZW cannot compress them; bayer's fixed pattern does not crawl.
+  o.dither = String(body.dither || 'bayer');
   if (DITHERS.indexOf(o.dither) < 0) throw new Error('dither must be one of: ' + DITHERS.join(', '));
-  o.bayerScale = Math.round(Number(body.bayerScale != null ? body.bayerScale : 3));
+  o.bayerScale = Math.round(Number(body.bayerScale != null ? body.bayerScale : 5));
   if (!isFinite(o.bayerScale) || o.bayerScale < 0 || o.bayerScale > 5) throw new Error('bayerScale must be 0-5.');
 
   o.loop = Math.round(Number(body.loop != null ? body.loop : 0));
@@ -286,8 +307,8 @@ function normalize(body, pngDim, gifDim) {
   if (PRESETS.indexOf(o.preset) < 0) throw new Error('preset must be one of: ' + PRESETS.join(', '));
 
   // Predicted output geometry, from the real input dimensions.
-  var topH = even(Math.round(pngDim.height * (o.width / pngDim.width)));
-  var botH = gifDim && gifDim.width ? even(Math.round(gifDim.height * (o.width / gifDim.width))) : null;
+  var topH = even(pngDim.height * (o.width / pngDim.width));
+  var botH = gifDim && gifDim.width ? even(gifDim.height * (o.width / gifDim.width)) : null;
   o.predicted = { width: o.width, topHeight: topH, bottomHeight: botH, gap: o.gap, height: botH != null ? topH + o.gap + botH : null };
   if (o.predicted.height && o.width * o.predicted.height > MAX_PIXELS) {
     throw new Error('Output would be ' + o.width + ' x ' + o.predicted.height + ' (' +
@@ -296,7 +317,9 @@ function normalize(body, pngDim, gifDim) {
   }
   return o;
 }
-function even(n) { return n - (n % 2); }
+// nearest even number — the same rounding ffmpeg's scale=W:-2 applies, so the predicted
+// geometry matches the file that comes out (flooring here was 2 px short on some inputs)
+function even(n) { return Math.round(n / 2) * 2; }
 
 // ---------------------------------------------------------------------------------------------
 // size estimate (dryRun) — deliberately a RANGE, not a single number
@@ -372,17 +395,19 @@ async function compose(body, deps) {
   var dir = tmpdir();
   try {
     var pngFile = path.join(dir, 'aplus.png');
-    var gifFile = path.join(dir, 'asset' + (path.extname(gifName) || '.gif'));
+    var kind = assetKind(gifBuf);
+    var gifFile = path.join(dir, 'asset' + kind.ext);
     fs.writeFileSync(pngFile, png);
     fs.writeFileSync(gifFile, gifBuf);
 
     var anim = await probeAnimation(gifFile);
-    if (!anim.width || !anim.height) throw new Error('"' + gifName + '" has no readable video stream — is it really an animated image?');
+    if (!anim.width || !anim.height) throw new Error('"' + gifName + '" has no readable video stream — use an animated GIF or a video (MP4, MOV, WebM).');
     if (anim.frames === 1) throw new Error('"' + gifName + '" has only one frame — there is nothing to animate.');
 
     // Re-derive the geometry now that we have ffprobe's real dimensions (the GIF header's
     // logical screen size can differ from the stream's).
     opts = normalize(body, pngDim, { width: anim.width, height: anim.height });
+    opts.assetIsGif = kind.isGif;
     if (!opts.fps) opts.fps = clamp(Math.round(anim.fps || 12), 1, 30);
     var outFrames = anim.duration ? Math.max(1, Math.round(anim.duration * opts.fps)) : (anim.frames || 1);
 

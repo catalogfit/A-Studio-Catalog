@@ -766,20 +766,20 @@
   <div class="view" id="view-export">
     <div class="note info" style="margin-top:14px">
       <b>Static or animated</b>
-      PNG, JPG, SVG and PDF come straight from Figma. GIF and MP4 put the A+ on top and the GIF matched below
-      underneath it. The backend builds them (Figma can't make animated files), so they need Google connected.
+      PNG, JPG, SVG and PDF come straight from Figma. GIF and MP4 put the A+ on top and the matched animation (a GIF or
+      a video such as <code>Running.mp4</code>) playing underneath it. The backend builds them (Figma can't make animated files), so they need Google connected.
       <br><br><b>Amazon:</b> A+ image modules reject animated GIFs. Upload the A+ as a PNG or JPG, and use the MP4
       only in a Premium A+ video module or outside Amazon.
     </div>
 
     <div class="sec">
-      <div class="lab"><span class="n"><i>1</i> GIF source folder</span></div>
+      <div class="lab"><span class="n"><i>1</i> Animation folder (Drive)</span></div>
       <input id="ex-folder" placeholder="Google Drive folder link or ID">
       <div class="hint">Needed for GIF and MP4 only. Saved, along with the rules below, for next time.</div>
     </div>
 
     <div class="sec">
-      <div class="lab"><span class="n"><i>2</i> Category → GIF rules</span><span class="meta" id="ex-rulemeta"></span></div>
+      <div class="lab"><span class="n"><i>2</i> Category → animation rules</span><span class="meta" id="ex-rulemeta"></span></div>
       <div class="hint" style="margin-top:0">First matching rule wins; a blank field matches anything.</div>
       <div class="rules" id="ex-rules"></div>
       <button class="btn ghost" id="ex-addrule" style="width:100%">+ Add rule</button>
@@ -1919,7 +1919,7 @@
         '</select></div>' +
         '<div><label>Gender</label><input data-k="gender" value="' + esc(r.gender) + '" placeholder="any"></div>' +
         '<div><label>Style ID</label><input data-k="styleId" value="' + esc(r.styleId) + '" placeholder="any"></div>' +
-        '<div><label>GIF file</label><input data-k="gif" value="' + esc(r.gif) + '" placeholder="file name in the folder"></div>' +
+        '<div><label>GIF / video</label><input data-k="gif" value="' + esc(r.gif) + '" placeholder="e.g. Running.mp4"></div>' +
         '</div>' +
         '<button class="btn ghost x" data-del="' + i + '">Remove rule</button>' +
         '</div>';
@@ -2104,7 +2104,7 @@
     })[0];
     if (!hit) {
       throw new Error('"' + gif + '" is not in ' + (list.folderName ? '"' + list.folderName + '"' : 'the folder') + '. ' +
-        (files.length ? 'GIFs there: ' + files.slice(0, 8).map(function (f) { return f.name; }).join(', ') + (files.length > 8 ? '…' : '') : 'It has no GIFs.'));
+        (files.length ? 'Animations there: ' + files.slice(0, 8).map(function (f) { return f.name; }).join(', ') + (files.length > 8 ? '…' : '') : 'It has no GIF or video files.'));
     }
     return hit;
   }
@@ -2121,7 +2121,7 @@
           esc(m.frameName) + ' · ' + m.width + '×' + m.height + ' · ' + fmtBytes(m.bytes.length) + '<br>' + link + dupe);
         return;
       }
-      exportNote('pending', 'Exporting ' + job.styleId, 'Finding the GIF "' + esc(job.gif) + '" in Drive…');
+      exportNote('pending', 'Exporting ' + job.styleId, 'Finding "' + esc(job.gif) + '" in Drive…');
       var file = await resolveGifFile(job.gif);
       exportNote('pending', 'Exporting ' + job.styleId, 'Building the ' + job.composite.toUpperCase() + ' with "' + esc(file.name) + '" on the backend. Large A+ pages can take 10 to 30 s…');
       var r = await postJson('/api/compose', { session: state.session, aplusPng: u8ToB64(m.bytes), driveFileId: file.id, format: job.composite });
