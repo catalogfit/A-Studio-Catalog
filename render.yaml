@@ -1,0 +1,63 @@
+# ===== Cult A+ Design Lab — backend Render blueprint =====
+# This file MUST live at the repository root; Render does not look anywhere else.
+# The project itself sits a couple of folders down, so `rootDir` points at it and every
+# other path below is relative to that.
+#
+# Deploy:  Render dashboard -> New -> Blueprint -> pick catalogfit/A-Studio-Catalog.
+# Render reads this file, builds the Docker image (which carries ffmpeg) and prompts for
+# the secrets marked `sync: false`.
+#
+# After the FIRST deploy you must do two things, or Google sign-in will fail:
+#   1. Add  https://<your-service>.onrender.com/auth/callback
+#      to the OAuth client's "Authorised redirect URIs" in Google Cloud Console.
+#   2. Set GOOGLE_REDIRECT_URI to that exact same string. Google matches it literally.
+
+services:
+  - type: web
+    name: cult-aplus-backend
+    runtime: docker
+    rootDir: Memory Files/A+_Studio_project
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    # Measured: a 1572x5700 / 24-frame composite completes in ~3 s on 1 GB, ~9 s on 512 MB.
+    # `starter` (512 MB) works; move to `standard` if compose jobs get long or concurrent.
+    plan: starter
+    region: singapore
+    branch: main
+    autoDeploy: true
+    healthCheckPath: /health
+    envVars:
+      # Render generates this once and keeps it stable across deploys, which is what makes
+      # Google sign-ins survive a redeploy. Changing it signs everyone out — that is the
+      # revocation lever. Never print it, never copy it into the plugin.
+      - key: SESSION_SECRET
+        generateValue: true
+
+      # Secrets — entered in the Render dashboard, never committed.
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      # Must exactly match an "Authorised redirect URI" on the OAuth client.
+      - key: GOOGLE_REDIRECT_URI
+        sync: false
+
+      # Semantic labelling for captured templates. The user's key is an OpenRouter key,
+      # so that is the primary; the Anthropic slot is kept for switching providers later.
+      # Keys live here and NEVER in the plugin — plugin code is readable by anyone.
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+
+      - key: NODE_ENV
+        value: production
+      # ffmpeg scratch space for a single compose job; cleaned up after every request.
+      - key: APLUS_TMP_DIR
+        value: /tmp/aplus
+      - key: COMPOSE_TIMEOUT_MS
+        value: "300000"
+
+      # NOTE: SESSION_DIR is deliberately NOT set. Sessions are sealed tokens held by the
+      # plugin (backend/session.js), so the service is stateless and needs no disk. If you
+      # ever attach one, mount it and set SESSION_DIR to the mount path.
