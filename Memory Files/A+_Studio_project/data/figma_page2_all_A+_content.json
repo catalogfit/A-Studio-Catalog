@@ -1,0 +1,529 @@
+{
+ "figma_file": "https://www.figma.com/design/DyUWRDA1JPo75nWMj5UoJe",
+ "page": "Page 2 (16:22)",
+ "read_on": "2026-10-29",
+ "note": "Text is read from layer names. A few names are stale: hero word layers named COMFORT show RUN, and the Seamless tagline layer carries the Running line but shows \"Seamless comfort in every move.\"",
+ "designs": [
+  {
+   "figma_node_id": "616:28",
+   "category": "RUNNING",
+   "product": "Men's Shorts: Colourblock 1",
+   "style_ids": [
+    "706524"
+   ],
+   "height_px": 5380,
+   "text_layers_top_to_bottom": [
+    "COMFORT",
+    "unstoppable",
+    "Gear up to outrun the ordinary.",
+    "Fabric in Focus",
+    "FLY-DRY™ is our patented fabric technology that wicks moisture from the skin for faster evaporation keeping you dry and comfortable. Lightweight by design, it moves with you effortlessly.",
+    "92% Polyester | 8% Elastane",
+    "Sweat-Wicking",
+    "Lightweight",
+    "ALWAYS IN PLACE",
+    "A secure fit you can count on the elasticated waistband keeps everything in place with a bold pop of identity.",
+    "BREATHE EASY",
+    "With breathable panels built for airflow, you'll stay cool and focused, no matter the intensity.",
+    "FREEDOM TO MOVE",
+    "Side slits give you the flexibility to move with ease, so nothing slows you down.",
+    "ESSENTIALS WITHIN REACH",
+    "Side pockets keep your must-haves secure and easily accessible, so you’re always ready to go."
+   ]
+  },
+  {
+   "figma_node_id": "616:174",
+   "category": "RUNNING",
+   "product": "Men's Shorts: Colourblock 2",
+   "style_ids": [
+    "708587",
+    "708589"
+   ],
+   "height_px": 5380,
+   "text_layers_top_to_bottom": [
+    "COMFORT",
+    "unstoppable",
+    "Gear up to outrun the ordinary.",
+    "Fabric in Focus",
+    "FLY-DRY™ is our patented fabric technology that wicks moisture from the skin for faster evaporation keeping you dry and comfortable. Lightweight by design, it moves with you effortlessly.",
+    "100% Polyester",
+    "Sweat-Wicking",
+    "Lightweight",
+    "ALWAYS IN PLACE",
+    "A secure fit you can count on the elasticated waistband keeps everything in place with a bold pop of identity.",
+    "FIT IT YOUR WAY",
+    "The inner drawcord lets you personalise your fit, keeping distractions out of your session.",
+    "FREEDOM TO MOVE",
+    "Side slits give you the flexibility to move with ease, so nothing slows you down.",
+    "ESSENTIALS WITHIN REACH",
+    "Side pockets keep your must-haves secure and easily accessible, so you’re always ready to go."
+   ]
+  },
+  {
+   "figma_node_id": "616:321",
+   "category": "RUNNING",
+   "product": "Men's Joggers: Colourblock",
+   "style_ids": [
+    "708518"
+   ],
+   "height_px": 5380,
+   "text_layers_top_to_bottom": [
+    "COMFORT",
+    "unstoppable",
+    "Gear up to outrun the ordinary.",
+    "Fabric in Focus",
+    "The high lycra content offers Super Stretch freedom while maintaining structure through every motion. FLY-DRY™ is our patented fabric technology that wicks moisture from the skin for faster evaporation keeping you dry and comfortable.",
+    "90% Polyester | 10% Spandex",
+    "Stretchy",
+    "Sweat-Wicking",
+    "ALWAYS IN PLACE",
+    "A secure fit you can count on the elasticated waistband keeps everything in place with a bold pop of identity.",
+    "FIT IT YOUR WAY",
+    "The inner drawcord lets you personalise your fit, keeping distractions out of your session.",
+    "MADE TO MOVE",
+    "With these seams for mobility, nothing holds you back—move freely and with confidence.",
+    "ESSENTIALS WITHIN REACH",
+    "Side pockets keep your must-haves secure and easily accessible, so you’re always ready to go."
+   ]
+  },
+  {
+   "figma_node_id": "616:473",
+   "category": "TRAINING",
+   "product": "Men's T-shirts: Self Design",
+   "style_ids": [
+    "707485",
+    "707488"
+   ],
+   "height_px": 4743,
+   "text_layers_top_to_bottom": [
+    "TRAIN",
+    "Fearless",
+    "For the bold and the relentless",
+    "Fabric in Focus",
+    "COMFORtech™ is our signature fabric, brushed for cotton-like smoothness with an odour-free finish that lasts.",
+    "100% Polyester",
+    "Odour-free",
+    "Soft",
+    "TEXTURE WITH A TWIST",
+    "The textured fabric brings a unique blend of depth and dimension, adding just the right edge to your look.",
+    "FIT FOR ANYTHING",
+    "The regular fit strikes the right balance of comfort and timeless versatility for all-day wear.",
+    "KEEP IT CLASSIC",
+    "Designed with a classic crew neck, it ensures coverage, comfort, and effortless versatility."
+   ]
+  },
+  {
+   "figma_node_id": "616:587",
+   "category": "TRAINING",
+   "product": "Men's T-shirt: Colourblock",
+   "style_ids": [
+    "707475",
+    "707476"
+   ],
+   "height_px": 4743,
+   "text_layers_top_to_bottom": [
+    "TRAIN",
+    "Fearless",
+    "For the bold and the relentless",
+    "Fabric in Focus",
+    "The high lycra content offers Super Stretch freedom while maintaining structure through every motion. FLY-DRY™ is our patented fabric technology that wicks moisture from the skin for faster evaporation keeping you dry and comfortable. Lightweight by design, it moves with you effortlessly.",
+    "100% Polyester",
+    "Stretchy",
+    "Sweat-Wicking",
+    "Lightweight",
+    "MOVE LIMITLESSLY",
+    "Every move feels effortless with raglan sleeves, making them perfect for any activity.",
+    "BREATHE EASY",
+    "With breathable panels built for airflow, you'll stay cool and focused, no matter the intensity.",
+    "FIT FOR ANYTHING",
+    "The regular fit strikes the right balance of comfort and timeless versatility for all-day wear."
+   ]
+  },
+  {
+   "figma_node_id": "616:707",
+   "category": "TRAINING",
+   "product": "Men's T-shirt: Graphic",
+   "style_ids": [
+    "707350"
+   ],
+   "height_px": 4743,
+   "text_layers_top_to_bottom": [
+    "TRAIN",
+    "Fearless",
+    "For the bold and the relentless",
+    "Fabric in Focus",
+    "FLY-DRY™ is our patented fabric technology that wicks moisture from the skin for faster evaporation keeping you dry and comfortable. Lightweight by design, it moves with you effortlessly.",
+    "100% Polyester",
+    "Sweat-Wicking",
+    "Lightweight",
+    "MOVE LIMITLESSLY",
+    "Every move feels effortless with raglan sleeves, making them perfect for any activity.",
+    "BREATHE EASY",
+    "With breathable panels built for airflow, you'll stay cool and focused, no matter the intensity.",
+    "FIT FOR ANYTHING",
+    "The regular fit strikes the right balance of comfort and timeless versatility for all-day wear."
+   ]
+  },
+  {
+   "figma_node_id": "616:814",
+   "category": "TRAINING",
+   "product": "Men's Tank Top: Colourblock 1",
+   "style_ids": [
+    "707155"
+   ],
+   "height_px": 4743,
+   "text_layers_top_to_bottom": [
+    "TRAIN",
+    "Fearless",
+    "For the bold and the relentless",
+    "Fabric in Focus",
+    "The high lycra content offers Super Stretch freedom while maintaining structure through every motion. FLY-DRY™ is our patented fabric technology that wicks moisture from the skin for faster evaporation keeping you dry and comfortable. Lightweight by design, it moves with you effortlessly.",
+    "100% Polyester",
+    "Stretchy",
+    "Sweat-Wicking",
+    "Lightweight",
+    "Breathable",
+    "KEEP IT EFFORTLESS",
+    "Feel the difference as deep armholes give you room to stretch and perform with maximum ease.",
+    "STAY DRY, STAY READY",
+    "FLY-DRY™ tech ensures sweat-wicking comfort, so you stay fresh, no matter how intense the session.",
+    "FIT FOR ANYTHING",
+    "The regular fit strikes the right balance of comfort and timeless versatility for all-day wear."
+   ]
+  },
+  {
+   "figma_node_id": "616:935",
+   "category": "TRAINING",
+   "product": "Men's Tank Top: Colourblock 2",
+   "style_ids": [
+    "707158"
+   ],
+   "height_px": 5380,
+   "text_layers_top_to_bottom": [
+    "TRAIN",
+    "Fearless",
+    "For the bold and the relentless",
+    "Fabric in Focus",
+    "The high lycra content offers Super Stretch freedom while maintaining structure through every motion. FLY-DRY™ is our patented fabric technology that wicks moisture from the skin for faster evaporation keeping you dry and comfortable.",
+    "100% Polyester",
+    "Stretchy",
+    "Sweat-Wicking",
+    "KEEP IT EFFORTLESS",
+    "Feel the difference as deep armholes give you room to stretch and perform with maximum ease.",
+    "BREATHE EASY",
+    "With breathable panels built for airflow, you'll stay cool and focused, no matter the intensity.",
+    "FREEDOM TO MOVE",
+    "Side slits give you the flexibility to move with ease, so nothing slows you down.",
+    "TEXTURE WITH A TWIST",
+    "The textured fabric brings a unique blend of depth and dimension, adding just the right edge to your look."
+   ]
+  },
+  {
+   "figma_node_id": "616:1061",
+   "category": "RUNNING",
+   "product": "Men's T-shirt: Solid",
+   "style_ids": [
+    "708133"
+   ],
+   "height_px": 4806,
+   "text_layers_top_to_bottom": [
+    "run",
+    "unstoppable",
+    "Gear up to outrun the ordinary.",
+    "Fabric in Focus",
+    "Hyper Soft is a high-performance polyester fabric crafted for exceptional softness. Smooth against the skin, it delivers lasting comfort without compromising on durability. The high lycra content offers Super Stretch freedom while maintaining structure through every motion.",
+    "90% Polyester | 10% Spandex",
+    "Stretchy",
+    "Sweat-Wicking",
+    "Hyper Soft",
+    "MOVE LIMITLESSLY",
+    "Every move feels effortless with raglan sleeves, making them perfect for any activity.",
+    "FIT TO FLATTER",
+    "A slim fit that hugs just right—sleek, streamlined, and made to move with you.",
+    "STAY DRY, STAY READY",
+    "FLY-DRY™ tech ensures sweat-wicking comfort, so you stay fresh, no matter how intense the session."
+   ]
+  },
+  {
+   "figma_node_id": "616:1176",
+   "category": "RUNNING",
+   "product": "Men's Tank Top: Solid",
+   "style_ids": [
+    "706623"
+   ],
+   "height_px": 5370,
+   "text_layers_top_to_bottom": [
+    "run",
+    "unstoppable",
+    "Gear up to outrun the ordinary.",
+    "Fabric in Focus",
+    "FLY-DRY™ is our patented fabric technology that wicks moisture from the skin for faster evaporation keeping you dry and comfortable. Designed for all-day comfort, it promotes steady airflow and breathable ease through every move.",
+    "100% Polyester",
+    "Sweat-Wicking",
+    "Breathable",
+    "MADE TO MOVE",
+    "With these seams for mobility, nothing holds you back—move freely and with confidence.",
+    "KEEP IT EFFORTLESS",
+    "Feel the difference as deep armholes give you room to stretch and perform with maximum ease.",
+    "FREEDOM TO MOVE",
+    "Side slits give you the flexibility to move with ease, so nothing slows you down.",
+    "COVERED & COMFORTABLE",
+    "The curved high-low hem adds coverage without compromising ease of movement."
+   ]
+  },
+  {
+   "figma_node_id": "616:1316",
+   "category": "RUNNING",
+   "product": "Men's Trackpants: Graphic 1",
+   "style_ids": [
+    "708520"
+   ],
+   "height_px": 5370,
+   "text_layers_top_to_bottom": [
+    "run",
+    "unstoppable",
+    "Gear up to outrun the ordinary.",
+    "Fabric in Focus",
+    "The high lycra content offers Super Stretch freedom while maintaining structure through every motion. FLY-DRY™ is our patented fabric technology that wicks moisture from the skin for faster evaporation keeping you dry and comfortable.",
+    "90% Polyester | 10% Spandex",
+    "Stretchy",
+    "Sweat-Wicking",
+    "ALWAYS IN PLACE",
+    "A secure fit you can count on—the elasticated waistband keeps everything in place.",
+    "FIT IT YOUR WAY",
+    "The inner drawcord lets you personalise your fit, keeping distractions out of your session.",
+    "ESSENTIALS WITHIN REACH",
+    "Side pockets keep your must-haves secure and easily accessible, so you’re always ready to go.",
+    "GLOW UP",
+    "Reflective details keep you safe and seen in low light while adding a sleek, standout edge to your style."
+   ]
+  },
+  {
+   "figma_node_id": "616:1458",
+   "category": "RUNNING",
+   "product": "Men's Trackpants: Graphic 2",
+   "style_ids": [
+    "708611"
+   ],
+   "height_px": 5370,
+   "text_layers_top_to_bottom": [
+    "run",
+    "unstoppable",
+    "Gear up to outrun the ordinary.",
+    "Fabric in Focus",
+    "FLY-DRY™ is our patented fabric technology that wicks moisture from the skin for faster evaporation keeping you dry and comfortable. Lightweight by design, it moves with you effortlessly.",
+    "100% Polyester",
+    "Sweat-Wicking",
+    "Lightweight",
+    "ALWAYS IN PLACE",
+    "A secure fit you can count on—the elasticated waistband keeps everything in place.",
+    "FIT IT YOUR WAY",
+    "The inner drawcord lets you personalise your fit, keeping distractions out of your session.",
+    "ESSENTIALS WITHIN REACH",
+    "Side pockets keep your must-haves secure and easily accessible, so you’re always ready to go.",
+    "GLOW UP",
+    "Reflective details keep you safe and seen in low light while adding a sleek, standout edge to your style."
+   ]
+  },
+  {
+   "figma_node_id": "616:2514",
+   "category": "TEMPLATE (RUNNING - Template 1)",
+   "product": "TEMPLATE TO CHECK",
+   "style_ids": [
+    "706524"
+   ],
+   "height_px": 5380,
+   "text_layers_top_to_bottom": [
+    "COMFORT",
+    "unstoppable",
+    "Gear up to outrun the ordinary.",
+    "Fabric in Focus",
+    "FLY-DRY™ is our patented fabric technology that wicks moisture from the skin for faster evaporation keeping you dry and comfortable. Lightweight by design, it moves with you effortlessly.",
+    "92% Polyester | 8% Elastane",
+    "Sweat-Wicking",
+    "Lightweight",
+    "ALWAYS IN PLACE",
+    "A secure fit you can count on the elasticated waistband keeps everything in place with a bold pop of identity.",
+    "BREATHE EASY",
+    "With breathable panels built for airflow, you'll stay cool and focused, no matter the intensity.",
+    "FREEDOM TO MOVE",
+    "Side slits give you the flexibility to move with ease, so nothing slows you down.",
+    "ESSENTIALS WITHIN REACH",
+    "Side pockets keep your must-haves secure and easily accessible, so you’re always ready to go."
+   ]
+  },
+  {
+   "figma_node_id": "616:1596",
+   "category": "LIFESTYLE",
+   "product": "Men's T-shirt: Graphic 1",
+   "style_ids": [
+    "708266",
+    "708536",
+    "708533",
+    "708534"
+   ],
+   "height_px": 4737,
+   "text_layers_top_to_bottom": [
+    "comfort",
+    "redefined",
+    "Unwind in style with all-day comfort.",
+    "Fabric in Focus",
+    "Super-Soft fabric undergoes a bio-wash treatment that gives it an exceptionally smooth handfeel. Gentle against the skin, it delivers lasting comfort with every wear.",
+    "100% Cotton",
+    "Super-Soft",
+    "Bio-Wash Treated",
+    "STAY SHARP",
+    "With a ribbed neckband that holds its fit, your look stays sharp and effortless every time.",
+    "FIT FOR ANYTHING",
+    "The regular fit strikes the right balance of comfort and timeless versatility for all-day wear.",
+    "STYLE THAT SPEAKS",
+    "Bold prints ensure your outfit stands out, no matter where you go."
+   ]
+  },
+  {
+   "figma_node_id": "616:1708",
+   "category": "LIFESTYLE",
+   "product": "Men's T-shirt: Graphic 2",
+   "style_ids": [
+    "708263"
+   ],
+   "height_px": 4737,
+   "text_layers_top_to_bottom": [
+    "comfort",
+    "redefined",
+    "Unwind in style with all-day comfort.",
+    "Fabric in Focus",
+    "Super-Soft fabric undergoes a bio-wash treatment that gives it an exceptionally smooth handfeel. Gentle against the skin, it delivers lasting comfort with every wear.",
+    "100% Cotton",
+    "Super-Soft",
+    "Bio-Wash Treated",
+    "STAY SHARP",
+    "With a ribbed neckband that holds its fit, your look stays sharp and effortless every time.",
+    "BIG ON COMFORT",
+    "Go bold with an oversized fit that blends comfort and laid-back style effortlessly.",
+    "PUFFED TO PERFECTION",
+    "The puff print adds bold depth and a striking, three-dimensional finish to your style."
+   ]
+  },
+  {
+   "figma_node_id": "616:1814",
+   "category": "LIFESTYLE",
+   "product": "Men's T-shirt: Graphic 3",
+   "style_ids": [
+    "708293"
+   ],
+   "height_px": 4737,
+   "text_layers_top_to_bottom": [
+    "comfort",
+    "redefined",
+    "Unwind in style with all-day comfort.",
+    "Fabric in Focus",
+    "Super-Soft fabric undergoes a bio-wash treatment that gives it an exceptionally smooth handfeel. Gentle against the skin, it delivers lasting comfort with every wear.",
+    "100% Cotton",
+    "Super-Soft",
+    "Bio-Wash Treated",
+    "STAY SHARP",
+    "With a ribbed neckband that holds its fit, your look stays sharp and effortless every time.",
+    "FIT FOR ANYTHING",
+    "The regular fit strikes the right balance of comfort and timeless versatility for all-day wear.",
+    "STYLE THAT SPEAKS",
+    "Bold high density print ensures your outfit stands out, no matter where you go."
+   ]
+  },
+  {
+   "figma_node_id": "616:1924",
+   "category": "LIFESTYLE",
+   "product": "Men's Trackpants: Solid",
+   "style_ids": [
+    "708419"
+   ],
+   "height_px": 4737,
+   "text_layers_top_to_bottom": [
+    "comfort",
+    "redefined",
+    "Unwind in style with all-day comfort.",
+    "Fabric in Focus",
+    "Super-Soft fabric undergoes a bio-wash treatment that gives it an exceptionally smooth handfeel. Gentle against the skin, it delivers lasting comfort with every wear.",
+    "60% Cotton | 40% Polyester",
+    "Sweat-Wicking",
+    "Lightweight",
+    "ALWAYS IN PLACE",
+    "A secure fit you can count on—the elasticated waistband keeps everything in place.",
+    "FIT IT YOUR WAY",
+    "The inner drawcord lets you personalise your fit, keeping distractions out of your session.",
+    "ESSENTIALS WITHIN REACH",
+    "Side pockets with convenient zippers keep your must-haves secure, so you’re always ready to go."
+   ]
+  },
+  {
+   "figma_node_id": "616:2028",
+   "category": "ESSENTIALS",
+   "product": "Men's T-shirt: Solid",
+   "style_ids": [
+    "708719",
+    "708716",
+    "708721",
+    "708720"
+   ],
+   "height_px": 5319,
+   "text_layers_top_to_bottom": [
+    "Elevated essentials for those who never sit still",
+    "Fibres of the Fabric",
+    "Our Soft Form fabric is made from a premium cotton-lycra blend, offering smooth softness and comfort in motion. Finished with a gold finish for an ultra-smooth feel, it offers adaptive stretch while maintaining its shape",
+    "95% Cotton 5% Spandex | 180 GSM",
+    "An easy fit that feels relaxed, stays structured, and moves with you.",
+    "The ribbed neckband holds its shape for a clean, put-together finish.",
+    "High-density print adds a bold, standout finish to your look.",
+    "A shade for",
+    "Every Mood!"
+   ]
+  },
+  {
+   "figma_node_id": "616:2117",
+   "category": "ESSENTIALS",
+   "product": "",
+   "style_ids": [],
+   "height_px": 4096,
+   "text_layers_top_to_bottom": [
+    "Elevated essentials for those who never sit still",
+    "Fibres of the Fabric",
+    "Our Soft Form fabric is made from a premium cotton-lycra blend, offering smooth softness and comfort in motion. Finished with a gold finish for an ultra-smooth feel, it offers adaptive stretch while maintaining its shape",
+    "95% Cotton 5% Spandex | 180 GSM",
+    "An easy fit that feels relaxed, stays structured, and moves with you.",
+    "The ribbed neckband holds its shape for a clean, put-together finish.",
+    "High-density print adds a bold, standout finish to your look.",
+    "A shade for",
+    "Every Mood!"
+   ]
+  },
+  {
+   "figma_node_id": "616:2211",
+   "category": "SEAMLESS",
+   "product": "Men's T-shirt: Self Design",
+   "style_ids": [
+    "708496",
+    "708698"
+   ],
+   "height_px": 5301,
+   "text_layers_top_to_bottom": [
+    "flex",
+    "& flow",
+    "Gear up to outrun the ordinary.",
+    "Fabric in Focus",
+    "Hyper Soft fabric, a high-performance polyester, combines exceptional softness with lasting durability, while the 4-way, Multi-Stretch build moves effortlessly with your body for unrestricted movement.",
+    "78% Nylon | 22% Polyester",
+    "Hyper Soft",
+    "Sweat-Wicking",
+    "4-Way Stretch",
+    "NO SEAMS, NO LIMITS",
+    "Designed for effortless movement, these seamless t-shirts deliver a second-skin fit with zero chafing.",
+    "STAY SHARP",
+    "With a ribbed neckband that holds its fit, your look stays sharp and effortless every time.",
+    "FIT TO FLATTER",
+    "A slim fit that hugs just right—sleek, streamlined, and made to move with you.",
+    "TEXTURE WITH A TWIST",
+    "The textured fabric brings a unique blend of depth and dimension, adding just the right edge to your look."
+   ]
+  }
+ ]
+}

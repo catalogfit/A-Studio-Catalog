@@ -1,0 +1,32 @@
+# ---- secrets: never commit ----
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+client_secret*.json
+service-account*.json
+
+# ---- OAuth sessions / refresh tokens ----
+.data/
+**/.data/
+
+# ---- dependencies & build noise ----
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# ---- macOS ----
+.DS_Store
+.AppleDouble
+Icon?
+
+# ---- editors ----
+.vscode/
+.idea/
+*.swp
+
+# ---- scratch ----
+tmp/
+*.tmp
+~$*.xlsx

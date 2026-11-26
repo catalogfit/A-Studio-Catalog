@@ -1,0 +1,12 @@
+{
+  "name": "aplus-template-backend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Stores and serves the per-category A+ template manifests the A+ Studio Figma plugin fills.",
+  "main": "server.js",
+  "engines": { "node": ">=16" },
+  "scripts": {
+    "start": "node server.js",
+    "validate": "node scripts/validate.js"
+  }
+}

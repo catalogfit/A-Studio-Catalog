@@ -1,0 +1,12 @@
+{
+  "extends": "running/_base",
+  "meta": {
+    "gender": "men",
+    "genderLabel": "Men",
+    "label": "Running · Men · Standard",
+    "notes": "The everyday men's Running A+: hero, Fabric in Focus, then 3 or 4 alternating callouts. Matches 706524 (shorts), 708518 (joggers), 706623 (tank) and 708520 (trackpants) on Page 2."
+  },
+  "hero": {
+    "model": { "name": "Hero model photo · men's running", "label": "Hero model photo · men's running" }
+  }
+}

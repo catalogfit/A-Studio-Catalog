@@ -1,0 +1,13 @@
+{
+  "extends": "running/_base",
+  "meta": {
+    "gender": "men",
+    "genderLabel": "Men",
+    "label": "Running · Men · With fit comparison",
+    "notes": "Same as Men · Standard, plus the Regular-fit vs Slim-fit comparison card at the bottom. Use it for styles where the fit is the story."
+  },
+  "hero": {
+    "model": { "name": "Hero model photo · men's running", "label": "Hero model photo · men's running" }
+  },
+  "comparison": { "enabled": true }
+}

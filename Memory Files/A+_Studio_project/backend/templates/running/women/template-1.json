@@ -1,0 +1,10 @@
+{
+  "extends": "running/_women",
+  "meta": {
+    "label": "Running · Women · Standard",
+    "notes": "The everyday women's Running A+: hero, Fabric in Focus, then 3 or 4 alternating callouts. Matches 706591 (tights), 706399 (graphic tee) and 706877 (sports bra) on Page 2."
+  },
+  "hero": {
+    "model": { "name": "Hero model photo · women’s running", "label": "Hero model photo · women’s running" }
+  }
+}

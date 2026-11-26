@@ -1,0 +1,78 @@
+{
+  "extends": "running/_base",
+  "meta": {
+    "gender": "women",
+    "genderLabel": "Women",
+    "notes": "Women's Running shares the men's geometry but NOT its art direction. Measured off 706327 (solid tee) and cross-checked against 706591 (tights): the hero's bottom shade fades from white rather than near-black, the Fabric in Focus veil is white rather than red-black, the hero's right-hand shade is a lighter grey, and the fabric close-up is a larger circle with a white ring. The hero backing plate is a different size too."
+  },
+  "hero": {
+    "bgPhoto": {
+      "name": "Hero background plate (full bleed)", "x": -21, "y": -2, "w": 1614, "h": 1614,
+      "fillOpacity": 0.45, "labelCorner": true, "label": "Hero background plate (full bleed)"
+    },
+    "comment": "The women's files stack the hero differently from the men's: the backing plate is the bottom-most layer, and the texture sits BELOW the bottom shade rather than above it. Order here is 706327's, layer for layer.",
+    "layers": [
+      { "role": "bgPhoto" },
+      { "name": "Hero glow", "shape": "ellipse", "x": 601.76, "y": -530.76, "w": 1572, "h": 1311.69, "opacity": 0.64,
+        "fills": [ { "radial": true, "gt": [[0.13, 1.13, -0.19], [-1.13, 0.07, 1]],
+          "stops": [ [0.22, [255, 255, 255], 1], [1, [212, 212, 212], 0] ] } ] },
+      { "name": "Hero shade · right", "rt": [[0.95, -0.314, 960.046], [0.314, 0.95, -237.721]], "w": 1205.98, "h": 1971.47,
+        "fills": [ { "gt": [[-0.82, -0.54, 1.48], [3.55, -16.71, 8.49]],
+          "stops": [ [0, [72, 72, 74], 1], [1, [217, 217, 217], 0] ] } ] },
+      { "name": "image 394 · texture", "x": -1085.19, "y": -66.69, "w": 2961.45, "h": 1681.68,
+        "fills": [ { "image": "28773688fac2f933786c5bb29507ca5cefb5429b", "scale": "FILL", "opacity": 0.07,
+          "scalingFactor": 0.5, "filters": { "exposure": -1 } } ] },
+      { "name": "Hero shade · bottom", "rt": [[0.745, 0.668, -321.641], [0.668, -0.745, 1372.86]], "w": 1584.85, "h": 2361.4,
+        "fills": [ { "gt": [[-1.74, -0.21, 1.8], [0.25, -2.84, 1.36]],
+          "stops": [ [0, [255, 255, 255], 1], [1, [217, 217, 217], 0] ] } ] },
+      { "role": "tagline" },
+      { "role": "word" },
+      { "role": "italic" },
+      { "role": "model" }
+    ]
+  },
+  "fabric": {
+    "closeup": { "name": "Fabric close-up", "x": 539.18, "y": 51.94, "w": 503.63, "h": 503.63, "circle": true, "labelSize": 32, "label": "Fabric close-up" },
+    "ring": { "name": "Fabric close-up ring", "x": 539.18, "y": 51.94, "w": 503.63, "h": 503.63,
+      "strokeRole": "white", "strokeOpacity": 0.47, "strokeWeight": 1.94 },
+    "layers": [
+      { "role": "bgPhoto" },
+      { "name": "Photo wash", "x": 55.67, "y": 54, "w": 1473.96, "h": 1288.03, "opacity": 0.35,
+        "visible": false,
+        "fills": [ { "solid": [217, 217, 217] } ] },
+      { "name": "Light overlay", "x": 0, "y": 0, "w": 1578.76, "h": 1346.12, "radius": 5.67,
+        "fills": [ { "opacity": 0.35, "gt": [[0.56, 0.4, -0.04], [-0.4, 0.4, 0.54]],
+          "stops": [ [0, [255, 255, 255], 1], [0.54, [255, 255, 255], 0.28], [1, [255, 255, 255], 0.51] ] } ] },
+      { "role": "closeup" },
+      { "role": "ring" }
+    ]
+  },
+  "background": {
+    "layers": [
+      { "name": "BG gradient", "x": -9.72, "y": 1619.51, "w": 1697.24, "hToFramePlus": 108,
+        "fills": [ { "gt": [[0, 1.66, -0.69], [-1.66, 0, 1.33]],
+          "stops": [ [0, [162, 173, 179], 1], [0.39, [255, 255, 255], 1], [1, [204, 209, 213], 1] ] } ] },
+      { "name": "Glow · left upper", "shape": "ellipse", "x": -627.63, "y": 2121.09, "w": 1720.8, "h": 1734.97, "opacity": 0.61,
+        "fills": [ { "radial": true, "gt": [[0, 1, 0], [-1, 0, 1]],
+          "stops": [ [0.21, [255, 255, 255], 1], [1, [191, 196, 200], 0] ] } ] },
+      { "name": "Glow · right lower", "shape": "ellipse", "x": 904.35, "y": 3912.2, "w": 1052.16, "h": 774.15,
+        "fills": [ { "radial": true, "gt": [[0, 1, 0], [-1, 0, 1]],
+          "stops": [ [0, [255, 255, 255], 1], [1, [191, 200, 199], 0] ] } ] },
+      { "name": "Glow · right upper", "shape": "ellipse", "x": 737.09, "y": 3171.14, "w": 1370.97, "h": 969.54,
+        "fills": [ { "radial": true, "gt": [[0, 1, 0], [-1, 0, 1]],
+          "stops": [ [0.22, [255, 255, 255], 1], [1, [191, 196, 200], 0] ] } ] },
+      { "name": "Glow · left lower", "shape": "ellipse", "x": -498.93, "y": 3799.37, "w": 1720.8, "h": 1734.97,
+        "fills": [ { "radial": true, "gt": [[0, 1, 0], [-1, 0, 1]],
+          "stops": [ [0.21, [255, 255, 255], 1], [1, [191, 196, 200], 0] ] } ] },
+      { "name": "Wash · fabric", "rt": [[0.932, -0.363, 194.096], [-0.363, -0.932, 3382.993]], "w": 2298.48, "h": 1808.04,
+        "fills": [ { "gt": [[-0.56, -0.4, 1.29], [3.47, -11.67, 1.42]],
+          "stops": [ [0, [113, 113, 113], 1], [1, [217, 217, 217], 0] ] } ] },
+      { "name": "Wash · upper", "rt": [[0.909, 0.417, 162.27], [-0.417, 0.909, 2152.15]], "w": 1083.76, "h": 2786.28,
+        "fills": [ { "opacity": 0.32, "gt": [[-1.2, 0.36, 0.93], [0.5, -25.56, 13.24]],
+          "stops": [ [0, [163, 172, 177], 1], [1, [217, 217, 217], 0] ] } ] },
+      { "name": "Wash · lower", "rt": [[-0.909, -0.417, 1126.104], [0.417, -0.909, 5312.91]], "yFromBottom": 67.09, "w": 1083.76, "h": 2786.28,
+        "fills": [ { "gt": [[-0.63, 0.15, 0.99], [0.38, -13.33, 7.13]],
+          "stops": [ [0, [31, 30, 31], 1], [1, [217, 217, 217], 0] ] } ] }
+    ]
+  }
+}

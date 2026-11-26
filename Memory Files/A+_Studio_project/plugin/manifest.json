@@ -1,0 +1,13 @@
+{
+  "name": "Cult A+ Design Lab",
+  "id": "cult-aplus-design-lab",
+  "api": "1.0.0",
+  "main": "code.js",
+  "ui": "ui.html",
+  "editorType": ["figma"],
+  "documentAccess": "dynamic-page",
+  "networkAccess": {
+    "allowedDomains": ["*"],
+    "reasoning": "Reads the A+ content sheet (published Google CSV link) and fetches category template manifests from the A+ Studio backend (localhost in dev, a Render URL later). The backend URL is user-configurable, so all domains are allowed while this stays a dev/team plugin. Tighten to the exact Google + backend domains before any public publish."
+  }
+}

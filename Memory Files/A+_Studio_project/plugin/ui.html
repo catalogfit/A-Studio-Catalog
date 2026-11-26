@@ -1,0 +1,1827 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* ============================================================================
+     Cult A+ Design Lab — plugin chrome
+     Implements docs/ui-design-tokens.md. Black-first by design: this panel does
+     NOT invert for Figma's light theme, exactly as the reference images read.
+     Hex values are the sampled working approximations recorded in that doc —
+     replace with the cultstore Figma variable set when it is available.
+     ========================================================================= */
+
+  /* ==========================================================================
+     >>> FONT INSERTION POINT — the ONLY place fonts are declared. <<<
+
+     Sora and Inter are NOT in this project and nothing here downloads them.
+     Each @font-face below carries `local()` only, so the face is used if the
+     machine happens to have it installed, and otherwise the rule resolves to
+     nothing and the stacks in --font-display / --font-ui take over. That
+     fallback is the live state today and is designed to look deliberate.
+
+     TO INSTALL the real faces: uncomment the `src` continuation on each rule
+     and paste the subset woff2 as base64. Nothing else in this file changes.
+         src: local('Sora SemiBold'), local('Sora-SemiBold'),
+              url(data:font/woff2;base64,<BASE64>) format('woff2');
+
+     Files needed — Latin subset, woff2, ~15-25KB each:
+       Sora   600, 700   · github.com/jonathanabennett/Sora  (OFL)
+       Inter  400, 500, 600 · github.com/rsms/inter/releases (OFL)
+     Put them through a Latin subsetter, then base64 them in here.
+
+     Deliberately NO Google Fonts <link>: that only works because
+     plugin/manifest.json still sets networkAccess.allowedDomains to ["*"],
+     which the manifest itself flags for tightening before any publish — so a
+     <link> would break silently later. Self-hosted base64 survives that.
+     ====================================================================== */
+  @font-face { font-family: 'Sora'; font-style: normal; font-weight: 600; font-display: swap;
+               src: local('Sora SemiBold'), local('Sora-SemiBold'); }
+  @font-face { font-family: 'Sora'; font-style: normal; font-weight: 700; font-display: swap;
+               src: local('Sora Bold'), local('Sora-Bold'); }
+  @font-face { font-family: 'Inter'; font-style: normal; font-weight: 400; font-display: swap;
+               src: local('Inter Regular'), local('Inter-Regular'); }
+  @font-face { font-family: 'Inter'; font-style: normal; font-weight: 500; font-display: swap;
+               src: local('Inter Medium'), local('Inter-Medium'); }
+  @font-face { font-family: 'Inter'; font-style: normal; font-weight: 600; font-display: swap;
+               src: local('Inter SemiBold'), local('Inter-SemiBold'); }
+
+  :root {
+    /* ---- foundation ---- */
+    --bg: #000000;
+    --surface: #0D0D0E;
+    --surface-2: #161618;
+    --line: #242428;
+    --text: #FFFFFF;
+    --text-2: #A6A6AD;
+    --text-3: #6B6B73;          /* 3.98:1 on black — decorative / disabled only, never body */
+
+    /* ---- warm accent ramp — identity and emphasis ---- */
+    --warm-cream:  #FDF6EC;
+    --warm-blush:  #EDB79B;
+    --warm-coral:  #E2603C;
+    --warm-peach:  #E8A882;
+    --warm-sienna: #6E2E1E;     /* 2.07:1 on black — FILL ONLY, must never carry text */
+    --warm-clay:   #8A4332;     /* 2.93:1 on black — fill / border only */
+    --warm-orange: #E8742F;
+    --warm-gold:   #F2C94C;
+    --warm-red:    #E2563A;
+
+    --grad-primary: linear-gradient(180deg, var(--warm-orange) 0%, var(--warm-gold) 100%);
+
+    --accent:      var(--warm-coral);
+    --accent-hot:  var(--warm-gold);
+    --accent-deep: var(--warm-sienna);
+
+    /* ---- cult mark accents — status and panel coding only ---- */
+    --cult-pink:   #E8456B;
+    --cult-blue:   #5BB8E8;
+    --cult-yellow: #F5D04E;
+    --ok:          #4ADE80;
+    --danger:      var(--cult-pink);   /* referenced inline by the review renderer */
+
+    /* ---- per-view accent; each panel overrides it ---- */
+    --panel-accent: var(--warm-coral);
+    --panel-ink: var(--bg);            /* readable text colour on --panel-accent */
+
+    /* ---- type ---- */
+    --font-display: 'Sora', 'Avenir Next', Avenir, 'Segoe UI Variable Display',
+                    -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-ui:      'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+                    'Helvetica Neue', Arial, sans-serif;
+    --font-mono:    ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+    --radius: 12px;
+    --ring: 0 0 0 3px color-mix(in srgb, var(--panel-accent) 38%, transparent);
+    --shadow: 0 10px 30px rgba(0,0,0,.6);
+
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 16px 16px 26px;
+    font: 400 12px/1.55 var(--font-ui);
+    color: var(--text); background: var(--bg);
+    -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "cv05" 1, "ss01" 1;
+  }
+  ::selection { background: var(--warm-gold); color: var(--bg); }
+  ::-webkit-scrollbar { width: 9px; height: 9px; }
+  ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 9px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--warm-clay); }
+  ::-webkit-scrollbar-track { background: transparent; }
+
+  /* ---------- masthead: typographic lockup, editorial, on the ground itself ----------
+     The cult mark is deliberately NOT redrawn. `.mark` below is the swap slot:
+     drop plugin/assets/cult-mark.svg in as an <img class="mark-art"> (or inline
+     <svg class="mark-art">) inside `.mark` and delete `.mark-type` — no other
+     rule needs to change. ---------------------------------------------------- */
+  .head { position: relative; padding: 2px 0 0; }
+  .head .top { display: flex; align-items: center; gap: 11px; }
+  /* the mark sits on the ground itself — no tile. currentColor makes the black
+     strokes of the cult mark read white here; the three accents stay brand-fixed. */
+  .logo {
+    height: 36px; flex: none; color: var(--text);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .mark-art { height: 100%; width: auto; display: block; }
+  .wordmark {
+    font-family: var(--font-display); font-size: 14px; font-weight: 700;
+    letter-spacing: .13em; text-transform: uppercase; color: var(--text); line-height: 1;
+  }
+  .wordmark em { font-style: normal; color: var(--warm-gold); }
+  .head .tag {
+    margin-left: auto; font-size: 9.5px; font-weight: 500; letter-spacing: .16em;
+    text-transform: uppercase; color: var(--text-2);
+    border: 1px solid var(--line); border-radius: 999px; padding: 4px 9px;
+  }
+  .pagebar {
+    position: relative; margin-top: 12px; padding-top: 10px;
+    display: flex; align-items: baseline; gap: 7px;
+  }
+  .pagebar::before {
+    content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2px;
+    background: var(--grad-primary); border-radius: 2px;
+  }
+  .pagebar .k {
+    font-family: var(--font-display); font-size: 9px; font-weight: 600; flex: none;
+    letter-spacing: .12em; text-transform: uppercase; color: var(--warm-gold);
+  }
+  .pagebar #page {
+    font-family: var(--font-ui); font-size: 11.5px; line-height: 1.3; font-weight: 600;
+    letter-spacing: 0; color: var(--text);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+  }
+  .pagebar .sub { font-size: 10px; color: var(--text-2); white-space: nowrap; flex: none; }
+
+  /* ---------- top-level tabs — each carries its panel's colour ---------- */
+  .tabs { display: flex; gap: 2px; margin: 20px 0 2px; border-bottom: 1px solid var(--line); }
+  .tabs button {
+    flex: 1; border: 0; background: transparent; color: var(--text-2); cursor: pointer;
+    font-family: var(--font-display); font-weight: 600; font-size: 10px;
+    letter-spacing: .12em; text-transform: uppercase;
+    padding: 10px 4px 11px; border-bottom: 2px solid transparent; margin-bottom: -1px;
+    transition: color .15s, border-color .15s;
+  }
+  .tabs button:hover { color: var(--text); }
+  .tabs button.on { color: var(--text); }
+  .tabs button[data-tab="automate"].on { border-bottom-color: var(--warm-coral); }
+  .tabs button[data-tab="design"].on   { border-bottom-color: var(--cult-blue); }
+  .tabs button[data-tab="export"].on   { border-bottom-color: var(--warm-gold); }
+  .view { display: none; }
+  .view.on { display: block; }
+  #view-automate { --panel-accent: var(--warm-coral); --panel-ink: var(--bg); }
+  #view-design   { --panel-accent: var(--cult-blue);  --panel-ink: var(--bg); }
+  #view-export   { --panel-accent: var(--warm-gold);  --panel-ink: var(--bg); }
+
+  /* ---------- status pills ---------- */
+  .status { display: flex; gap: 7px; margin: 16px 0 4px; }
+  .pill {
+    flex: 1; display: flex; align-items: center; gap: 8px; padding: 9px 11px;
+    border: 1px solid var(--line); border-radius: 10px; background: var(--surface);
+    cursor: pointer; transition: border-color .15s, background .15s; min-width: 0;
+  }
+  .pill:hover { border-color: var(--warm-clay); background: var(--surface-2); }
+  .pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-3); flex: none; }
+  .pill.on .dot { background: var(--ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 20%, transparent); }
+  .pill .t { min-width: 0; }
+  .pill .t b {
+    display: block; font-family: var(--font-display); font-size: 10px; font-weight: 600;
+    letter-spacing: .1em; text-transform: uppercase; color: var(--text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .pill .t span { display: block; font-size: 10px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* ---------- section labels ---------- */
+  .sec { margin-top: 26px; }
+  .lab { display: flex; justify-content: space-between; align-items: baseline; margin: 0 0 10px; gap: 10px; }
+  .lab .n {
+    display: inline-flex; align-items: center; gap: 9px;
+    font-family: var(--font-display); font-size: 10px; font-weight: 600;
+    letter-spacing: .12em; text-transform: uppercase; color: var(--text);
+  }
+  .lab .n i {
+    width: 17px; height: 17px; border-radius: 5px; flex: none;
+    background: var(--panel-accent); color: var(--panel-ink);
+    font-family: var(--font-display); font-style: normal; font-size: 9px; font-weight: 700;
+    letter-spacing: 0; display: inline-flex; align-items: center; justify-content: center;
+  }
+  .lab .meta {
+    font-size: 9.5px; font-weight: 500; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--text-2); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  /* ---------- pickers ---------- */
+  .cats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .cat {
+    border: 1px solid var(--line); background: var(--surface); color: var(--text);
+    border-radius: 10px; padding: 11px; text-align: left; cursor: pointer;
+    font-family: var(--font-ui); font-size: 12px;
+    transition: border-color .15s, background .15s, transform .05s; position: relative;
+  }
+  .cat:hover:not(:disabled) { border-color: var(--warm-clay); background: var(--surface-2); }
+  .cat:active:not(:disabled) { transform: translateY(1px); }
+  .cat b { display: block; font-family: var(--font-display); font-size: 12px; font-weight: 600; letter-spacing: -.01em; }
+  .cat span { color: var(--text-2); font-size: 10px; }
+  .cat.on { border-color: var(--panel-accent); background: var(--surface-2); }
+  .cat.on::after {
+    content: ""; position: absolute; left: 11px; right: 11px; bottom: 6px; height: 3px;
+    background: var(--panel-accent); border-radius: 2px;
+  }
+  .cat:disabled { opacity: .4; cursor: default; }
+
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip {
+    border: 1px solid var(--line); background: var(--surface); color: var(--text);
+    border-radius: 999px; padding: 7px 16px; cursor: pointer;
+    font-family: var(--font-display); font-weight: 600; font-size: 11px; letter-spacing: .04em;
+    transition: border-color .15s, background .15s, color .15s;
+  }
+  .chip:hover:not(:disabled) { border-color: var(--warm-clay); background: var(--surface-2); }
+  .chip.on { border-color: transparent; background: var(--panel-accent); color: var(--panel-ink); }
+  .chip:disabled { opacity: .35; cursor: default; }
+
+  .tpls { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+  .tpl {
+    border: 1px solid var(--line); background: var(--surface); border-radius: 11px; padding: 10px;
+    cursor: pointer; font-family: var(--font-ui); color: var(--text); text-align: left;
+    transition: border-color .15s, background .15s; position: relative;
+  }
+  .tpl:hover:not(:disabled) { border-color: var(--warm-clay); background: var(--surface-2); }
+  .tpl.on { border-color: var(--panel-accent); background: var(--surface-2); }
+  .tpl.on::after {
+    content: ""; position: absolute; left: 10px; top: 10px; width: 18px; height: 3px;
+    background: var(--panel-accent); border-radius: 2px;
+  }
+  .tpl.on b { margin-top: 8px; }
+  .tpl b { display: block; font-family: var(--font-display); font-size: 11.5px; font-weight: 600; }
+  .tpl span { display: block; color: var(--text-2); font-size: 10px; line-height: 1.45; }
+  .tpl:disabled { opacity: .4; cursor: default; }
+
+  /* the source switcher — class kept, the JS binds to `.seg button` */
+  .seg { display: flex; gap: 3px; background: var(--surface); padding: 3px; border-radius: 10px; border: 1px solid var(--line); }
+  .seg button {
+    flex: 1; border: 0; background: transparent; color: var(--text-2); padding: 8px 4px;
+    border-radius: 7px; cursor: pointer;
+    font-family: var(--font-display); font-weight: 600; font-size: 10px;
+    letter-spacing: .1em; text-transform: uppercase; transition: background .15s, color .15s;
+  }
+  .seg button:hover { color: var(--text); }
+  .seg button.on { background: var(--panel-accent); color: var(--panel-ink); }
+
+  /* ---------- fields ---------- */
+  input, textarea, select {
+    width: 100%; border: 1px solid var(--line); border-radius: 9px; padding: 10px 11px;
+    font: 400 12px/1.5 var(--font-ui); color: var(--text); background: var(--surface-2);
+    transition: border-color .15s, box-shadow .15s;
+  }
+  input::placeholder, textarea::placeholder { color: var(--text-3); }
+  input:focus, textarea:focus, select:focus { outline: none; border-color: var(--panel-accent); box-shadow: var(--ring); }
+  textarea { height: 108px; resize: vertical; font-family: var(--font-mono); font-size: 11px; font-weight: 500; }
+  select { appearance: none; cursor: pointer; padding-right: 26px;
+    background-image: linear-gradient(45deg, transparent 50%, var(--text-2) 50%), linear-gradient(135deg, var(--text-2) 50%, transparent 50%);
+    background-position: calc(100% - 14px) 50%, calc(100% - 9px) 50%;
+    background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; }
+  .row { display: flex; gap: 8px; }
+  .hint { color: var(--text-2); font-size: 10.5px; margin-top: 9px; line-height: 1.62; }
+  .hint b { color: var(--text); font-weight: 600; }
+  .hint code { background: var(--surface-2); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; font-family: var(--font-mono); font-size: 10px; color: var(--warm-peach); }
+
+  /* ---------- (?) progressive disclosure — reference detail, revealed on demand ----------
+     Reference material that used to sit inline as a paragraph now lives behind this.
+     No library, no dependency: a plain <details>. Tokens only, nothing new declared. */
+  .more { margin-top: 8px; }
+  .more > summary {
+    list-style: none; cursor: pointer; width: 17px; height: 17px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: 1px solid var(--line); background: var(--surface-2); color: var(--text-2);
+    font-family: var(--font-ui); font-size: 10px; font-weight: 600; line-height: 1;
+    transition: border-color .15s, color .15s;
+  }
+  .more > summary::-webkit-details-marker { display: none; }
+  .more > summary:hover { border-color: var(--warm-clay); color: var(--text); }
+  .more[open] > summary { border-color: var(--panel-accent); color: var(--text); }
+  .more .hint { margin-top: 8px; }
+
+  /* ---------- buttons ---------- */
+  .btn {
+    border: 0; border-radius: 9px; padding: 10px 14px;
+    font-family: var(--font-display); font-weight: 600; font-size: 11.5px; cursor: pointer;
+    transition: filter .15s, opacity .15s, background .15s, border-color .15s; white-space: nowrap;
+  }
+  .btn:active { filter: brightness(.94); }
+  .ghost { background: var(--surface-2); color: var(--text); border: 1px solid var(--line); }
+  .ghost:hover:not(:disabled) { border-color: var(--panel-accent); }
+  .ghost:disabled { opacity: .4; cursor: default; }
+  .google {
+    background: var(--surface); color: var(--text); border: 1px solid var(--line); width: 100%;
+    margin-top: 9px; display: inline-flex; align-items: center; justify-content: center;
+    gap: 10px; padding: 11px;
+  }
+  .google:hover { border-color: var(--warm-clay); background: var(--surface-2); }
+  .gmark { width: 15px; height: 15px; flex: none; }
+  .primary {
+    background: var(--grad-primary); color: var(--bg); width: 100%; margin-top: 22px;
+    font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; padding: 14px;
+    box-shadow: 0 8px 26px color-mix(in srgb, var(--warm-orange) 26%, transparent);
+  }
+  .primary:hover:not(:disabled) { filter: brightness(1.06); }
+  .primary:disabled { background: var(--surface-2); color: var(--text-3); cursor: default; box-shadow: none; }
+  .dark {
+    background: var(--panel-accent); color: var(--panel-ink); width: 100%;
+    font-weight: 700; letter-spacing: .09em; text-transform: uppercase; font-size: 11px; padding: 13px;
+  }
+  .dark:hover:not(:disabled) { filter: brightness(1.07); }
+  .dark:disabled { background: var(--surface-2); color: var(--text-3); cursor: default; }
+
+  /* ---------- found / report ---------- */
+  .found {
+    margin-top: 11px; padding: 11px; background: var(--surface); border: 1px solid var(--line);
+    border-left: 3px solid var(--panel-accent); border-radius: 9px; max-height: 130px; overflow: auto;
+  }
+  .found .h {
+    font-family: var(--font-display); font-weight: 600; font-size: 10px;
+    letter-spacing: .12em; text-transform: uppercase; margin-bottom: 6px; color: var(--text);
+  }
+  .found div.r { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-2); font-size: 11px; padding: 2px 0; }
+  .report { margin-top: 16px; }
+  .item { border-top: 1px solid var(--line); padding: 9px 0; font-size: 11.5px; color: var(--text-2); }
+  .item b { color: var(--text); font-weight: 600; }
+  .item b.ok { color: var(--ok); } .item b.bad { color: var(--danger); }
+  .item ul { margin: 5px 0 0 16px; padding: 0; color: var(--text-2); }
+  .err { color: var(--danger); margin-top: 11px; font-size: 11px; min-height: 0; font-weight: 500; }
+  .authlink { margin-top: 9px; font-size: 11px; color: var(--text-2); }
+  .authlink a { color: var(--cult-blue); font-weight: 600; }
+
+  /* ---------- collapsible panels ---------- */
+  .panel { margin-top: 14px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); overflow: hidden; }
+  .panel > .ph {
+    display: flex; align-items: center; gap: 9px; padding: 11px 13px; cursor: pointer;
+    font-family: var(--font-display); font-weight: 600; font-size: 10px;
+    letter-spacing: .11em; text-transform: uppercase; color: var(--text);
+  }
+  .panel > .ph:hover { background: var(--surface-2); }
+  .panel > .ph .chev { margin-left: auto; color: var(--text-2); transition: transform .15s; }
+  .panel.open > .ph .chev { transform: rotate(90deg); }
+  .panel.open > .ph { border-bottom: 1px solid var(--line); }
+  .panel .body { padding: 13px; }
+  .panel:not(.open) .body { display: none; }
+
+  /* ---------- template preview ---------- */
+  .preview {
+    margin-top: 11px; height: 300px; overflow-y: auto; overflow-x: hidden;
+    border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); position: relative;
+  }
+  .preview svg { display: block; width: 100%; height: auto; }
+  .preview .empty { padding: 30px 12px; text-align: center; color: var(--text-2); font-size: 11px; }
+  .hidden { display: none !important; }
+  .muted { color: var(--text-2); }
+  .selbox {
+    margin-top: 11px; padding: 11px; background: var(--surface); border: 1px solid var(--line);
+    border-radius: 9px; font-size: 11px; color: var(--text-2);
+  }
+  .selbox b { color: var(--text); font-weight: 600; }
+
+  /* ---------- honest state notes ---------- */
+  .note {
+    margin-top: 11px; padding: 11px 12px; border-radius: 9px; font-size: 10.5px; line-height: 1.65;
+    border: 1px solid var(--line); background: var(--surface); color: var(--text-2);
+  }
+  .note b {
+    display: block; font-family: var(--font-display); font-size: 9.5px; font-weight: 600;
+    letter-spacing: .13em; text-transform: uppercase; margin-bottom: 5px; color: var(--text);
+  }
+  .note code { background: var(--surface-2); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; font-family: var(--font-mono); font-size: 10px; color: var(--warm-peach); }
+  .note.pending { border-left: 3px solid var(--cult-yellow); }
+  .note.info    { border-left: 3px solid var(--cult-blue); }
+  .note.warn    { border-left: 3px solid var(--cult-pink); }
+  .note label { color: var(--text-2); }
+
+  /* ---------- review ---------- */
+  .rv {
+    margin-top: 11px; max-height: 430px; overflow: auto;
+    border: 1px solid var(--line); border-radius: 11px; background: var(--surface); padding: 5px;
+  }
+  .rv .card { background: var(--bg); border: 1px solid var(--line); border-radius: 9px; padding: 11px; margin: 5px; }
+  .rv .card h4 {
+    margin: 0; font-family: var(--font-display); font-size: 12px; font-weight: 700;
+    letter-spacing: -.01em; color: var(--text); display: flex; align-items: baseline; gap: 8px;
+  }
+  .rv .card h4 em {
+    font-style: normal; font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+    letter-spacing: .04em; text-transform: uppercase; color: var(--warm-peach);
+  }
+  .rv .tgt { font-size: 10px; color: var(--text-2); margin: 4px 0 9px; }
+  .rv .tgt.bad { color: var(--danger); }
+  .rv .f { margin-top: 8px; }
+  .rv .f label {
+    display: block; font-family: var(--font-display); font-size: 9px; font-weight: 600;
+    letter-spacing: .12em; text-transform: uppercase; color: var(--text-2); margin-bottom: 4px;
+  }
+  .rv-in { height: auto; min-height: 32px; font-family: var(--font-ui); font-size: 11px; padding: 7px 9px; resize: vertical; }
+  .rv .empty { padding: 24px 12px; text-align: center; color: var(--text-2); font-size: 11px; }
+  .okbar {
+    display: flex; align-items: center; gap: 10px; margin-top: 11px; padding: 11px 12px;
+    border: 1px solid var(--line); border-radius: 9px; background: var(--surface);
+    font-size: 11px; color: var(--text-2);
+  }
+  .okbar label { color: var(--text); }
+  .okbar input { width: auto; flex: none; }
+  input[type="checkbox"] { accent-color: var(--panel-accent); width: auto; flex: none; }
+
+  /* ---------- export tables ---------- */
+  .rules { margin-top: 11px; }
+  .rule { border: 1px solid var(--line); border-radius: 9px; padding: 10px; background: var(--surface); margin-bottom: 8px; }
+  .rule .g { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+  .rule label {
+    display: block; font-family: var(--font-display); font-size: 9px; font-weight: 600;
+    letter-spacing: .12em; text-transform: uppercase; color: var(--text-2); margin-bottom: 4px;
+  }
+  .rule input, .rule select { font-size: 11px; padding: 7px 9px; }
+  .rule .x { margin-top: 8px; width: 100%; font-size: 10px; padding: 7px; }
+  .styles .srow { display: flex; align-items: center; gap: 9px; border-top: 1px solid var(--line); padding: 9px 0; }
+  .styles .srow .sid { font-family: var(--font-mono); font-weight: 500; font-size: 11px; letter-spacing: 0; color: var(--text); }
+  .styles .srow .sg { font-size: 10px; color: var(--text-2); }
+  .styles .srow .sp { margin-left: auto; }
+  .styles .srow .sp button { font-size: 10px; padding: 7px 12px; letter-spacing: .09em; text-transform: uppercase; }
+</style>
+</head>
+<body>
+  <div class="head">
+    <div class="top">
+      <!-- ===================== LOGO SWAP POINT =====================
+           The mark below is a RECONSTRUCTION traced from a supplied PNG, kept in
+           sync with plugin/assets/cult-mark.svg. It is not source artwork.
+
+           The official component is "V man + cult fit logo on white" in the
+           Aurora App Design System library. When that library's file key is
+           available, export it and paste it here in place of the <svg> below,
+           keeping class="mark-art". No CSS change is needed.
+
+           It must stay INLINE: Figma loads this file as __html__, so a relative
+           <img src="assets/..."> would not resolve inside the plugin.
+           ========================================================== -->
+      <div class="logo">
+        <svg class="mark-art" viewBox="0 0 100 109" role="img" aria-label="cult">
+          <g fill="none" stroke-linecap="round">
+            <line x1="50.5" y1="4.6" x2="50.5" y2="9.8" stroke="#EE3C6E" stroke-width="9.2"/>
+            <circle cx="50" cy="33.7" r="9.5" stroke="currentColor" stroke-width="7.6"/>
+            <line x1="8.6" y1="31.8" x2="26.3" y2="41.7" stroke="currentColor" stroke-width="8.8"/>
+            <line x1="91.4" y1="31.8" x2="73.7" y2="41.7" stroke="currentColor" stroke-width="8.8"/>
+            <line x1="6.8" y1="58.7" x2="93.2" y2="58.7" stroke="currentColor" stroke-width="11.2"/>
+            <line x1="9.6" y1="84.4" x2="28.4" y2="72.6" stroke="#5BC2EF" stroke-width="8.8"/>
+            <line x1="90.4" y1="84.4" x2="71.6" y2="72.6" stroke="#FFD93E" stroke-width="8.8"/>
+            <path d="M19.6 101.8 L50 71.6 L80.4 101.8" stroke="currentColor" stroke-width="10" stroke-linejoin="round"/>
+            <line x1="50.5" y1="95.6" x2="50.5" y2="104.4" stroke="currentColor" stroke-width="7.2"/>
+          </g>
+        </svg>
+      </div>
+      <div class="wordmark">Cult <em>A+</em> Design Lab</div>
+    </div>
+    <div class="pagebar">
+      <span class="k">Page</span>
+      <span id="page">Untitled page</span>
+      <span class="sub" id="page-sub"></span>
+    </div>
+  </div>
+
+  <div class="tabs" id="tabs">
+    <button class="on" data-tab="automate">Automate A+</button>
+    <button data-tab="design">Add design</button>
+    <button data-tab="export">Export</button>
+  </div>
+
+  <div class="status">
+    <div class="pill" id="pill-google" title="Google account">
+      <span class="dot"></span>
+      <div class="t"><b id="g-title">Google</b><span id="g-sub">not connected</span></div>
+    </div>
+    <div class="pill" id="pill-backend" title="Template backend">
+      <span class="dot"></span>
+      <div class="t"><b>Backend</b><span id="b-sub">bundled</span></div>
+    </div>
+  </div>
+
+  <!-- ==================== PANEL 1 — AUTOMATE A+ ==================== -->
+  <div class="view on" id="view-automate">
+
+    <div class="sec">
+      <div class="lab"><span class="n"><i>1</i> Content source</span><span class="meta" id="scopemeta"></span></div>
+      <div class="seg">
+        <button class="on" data-src="link">Sheet link</button>
+        <button data-src="paste">Paste rows</button>
+        <button data-src="selection">Selection</button>
+      </div>
+
+      <div id="src-link" style="margin-top:10px">
+        <div class="row">
+          <input id="link" placeholder="Google Sheet link">
+          <button class="btn ghost" id="load">Load</button>
+        </div>
+        <div id="scope-note"></div>
+        <button class="btn google" id="gconnect">
+          <svg class="gmark" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+          <span id="gconnect-label">Connect Google</span>
+        </button>
+        <div class="authlink hidden" id="authlink"></div>
+        <div class="hint" id="link-hint">Not connected — use a <b>Publish to web → CSV</b> link.</div>
+        <!-- moved out of two inline paragraphs; #link-hint is rewritten by setGoogle, so this sits outside it -->
+        <details class="more">
+          <summary title="Link formats">?</summary>
+          <div class="hint">
+            <b>Without Google:</b> File → Share → Publish to web → the tab → CSV.<br>
+            <b>One row only:</b> right-click the row's cell → <b>Get link to this cell</b>,
+            or append <code>&amp;range=A5</code>, <code>&amp;range=5:9</code> or
+            <code>&amp;range=Sheet1!A5:J9</code>. The scope is shown above before you run.
+          </div>
+        </details>
+      </div>
+
+      <div id="src-paste" class="hidden" style="margin-top:10px">
+        <textarea id="paste" placeholder="Paste rows, columns A–J"></textarea>
+        <details class="more">
+          <summary title="Column schema">?</summary>
+          <div class="hint">A Style IDs · <b>B Category</b> · <b>C Gender</b> (men / women) · D Card 1 Hero · E Card 2 Fabric · F–I Cards 3–6 · J Fit comparison. One line per text box in a cell. Bold = **word**.</div>
+        </details>
+      </div>
+
+      <div id="src-selection" class="hidden" style="margin-top:10px">
+        <div class="selbox" id="selinfo">Select an A+ frame.</div>
+        <div class="hint">Your picks below override columns B and C — load the sheet first.</div>
+      </div>
+
+      <div class="found hidden" id="found"></div>
+    </div>
+
+    <div class="sec">
+      <div class="lab"><span class="n"><i>2</i> Category</span><span class="meta" id="regsrc"></span></div>
+      <div class="cats" id="cats"></div>
+    </div>
+
+    <div class="sec">
+      <div class="lab"><span class="n"><i>3</i> Gender</span></div>
+      <div class="chips" id="genders"></div>
+    </div>
+
+    <div class="sec">
+      <div class="lab"><span class="n"><i>4</i> Template</span><span class="meta" id="tplmeta"></span></div>
+      <div class="tpls" id="tpls"></div>
+      <div class="preview" id="preview"><div class="empty">Pick a template.</div></div>
+      <div class="hint" id="tplnote"></div>
+    </div>
+
+    <div class="sec">
+      <div class="lab"><span class="n"><i>5</i> Review</span><span class="meta" id="rv-count"></span></div>
+      <div class="hint" style="margin-top:0">Edits apply to this run; the sheet is never written back.</div>
+      <div class="rv" id="review"><div class="empty">Load a sheet.</div></div>
+      <div class="okbar">
+        <input type="checkbox" id="rv-ok">
+        <label for="rv-ok">I have reviewed these values. <span class="muted">Required to export.</span></label>
+      </div>
+    </div>
+
+    <div class="err" id="err"></div>
+
+    <button class="btn primary" id="run" disabled>Run A+</button>
+    <div class="hint">Photo slots are left empty — drop images in.</div>
+
+    <div class="panel" id="extras">
+      <div class="ph" id="extras-h"><span>✚ Add a block to the selection</span><span class="chev">›</span></div>
+      <div class="body">
+        <div class="hint" style="margin-top:0">Select the finished A+ frame(s), then add.</div>
+        <div class="row" style="margin-top:8px">
+          <input id="cmp-left" placeholder="Regular fit">
+          <input id="cmp-right" placeholder="Slim fit">
+        </div>
+        <button class="btn ghost" id="addcmp" style="width:100%;margin-top:8px" disabled>Add fit comparison</button>
+      </div>
+    </div>
+
+    <div class="report" id="report"></div>
+  </div>
+
+  <!-- ==================== PANEL 2 — ADD DESIGN ==================== -->
+  <div class="view" id="view-design">
+    <div class="sec">
+      <div class="lab"><span class="n"><i>1</i> Frame on this page</span><span class="meta" id="ad-selmeta"></span></div>
+      <div class="selbox" id="ad-sel">Select one frame to capture.</div>
+    </div>
+
+    <div class="sec">
+      <div class="lab"><span class="n"><i>2</i> Template identity</span></div>
+      <input id="ad-name" placeholder="Template name">
+      <div class="row" style="margin-top:7px">
+        <select id="ad-cat"></select>
+        <select id="ad-gender"></select>
+      </div>
+      <div class="row" style="margin-top:7px">
+        <input id="ad-id" placeholder="Template id — split-hero">
+      </div>
+      <div class="hint">Keyed as <code>category/gender/id</code>.</div>
+    </div>
+
+    <div class="sec">
+      <div class="lab"><span class="n"><i>3</i> Capture</span></div>
+      <button class="btn dark" id="ad-go" disabled>Add as template</button>
+      <div id="ad-out"></div>
+      <div class="hint">
+        Capture isn’t built yet — nothing is written to the canvas or the backend.
+        <details class="more">
+          <summary title="Planned build">?</summary>
+          <div class="hint">Phase 0 (capture + raw dump) then Phase 1 (skeletonise + round-trip diff, which
+          must pass before a template saves) — <code>docs/add-to-template-plan.md</code>.</div>
+        </details>
+      </div>
+      <div class="row" style="align-items:center;gap:8px;margin-top:9px">
+        <input type="checkbox" id="ad-ai" disabled style="width:auto;flex:none">
+        <label for="ad-ai" style="font-size:10.5px">Semantic labelling — runs on the backend, no key here</label>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== PANEL 3 — EXPORT ==================== -->
+  <div class="view" id="view-export">
+    <div class="note warn" style="margin-top:14px">
+      <b>Pending your decision on output format</b>
+      Figma cannot render or export an animated GIF. An imported GIF becomes a single static first frame, and
+      <code>exportAsync</code> emits PNG, JPG, SVG or PDF only. So the GIF compositing step below is a shell: the
+      folder, the mapping rules and the per-style actions are real and editable, the compositing itself is not built
+      and will not be until you pick an output route.
+    </div>
+
+    <div class="sec">
+      <div class="lab"><span class="n"><i>1</i> GIF source folder</span></div>
+      <input id="ex-folder" placeholder="Google Drive folder link or ID">
+      <div class="hint">Session only — not persisted yet.</div>
+    </div>
+
+    <div class="sec">
+      <div class="lab"><span class="n"><i>2</i> Category → GIF rules</span><span class="meta" id="ex-rulemeta"></span></div>
+      <div class="hint" style="margin-top:0">First matching rule wins; a blank field matches anything.</div>
+      <div class="rules" id="ex-rules"></div>
+      <button class="btn ghost" id="ex-addrule" style="width:100%">+ Add rule</button>
+    </div>
+
+    <div class="sec">
+      <div class="lab"><span class="n"><i>3</i> Export by style ID</span><span class="meta" id="ex-stylemeta"></span></div>
+      <div class="row">
+        <select id="ex-format">
+          <option value="PNG">PNG</option>
+          <option value="JPG">JPG</option>
+          <option value="SVG">SVG</option>
+          <option value="PDF">PDF</option>
+        </select>
+        <select id="ex-scale">
+          <option value="1">1×</option>
+          <option value="2">2×</option>
+          <option value="3">3×</option>
+        </select>
+      </div>
+      <div class="styles" id="ex-styles"></div>
+      <div id="ex-out"></div>
+    </div>
+  </div>
+
+  <div class="panel" id="settings">
+    <div class="ph" id="settings-h"><span>⚙︎ Backend &amp; connection</span><span class="chev">›</span></div>
+    <div class="body">
+      <div class="row">
+        <input id="backend" placeholder="http://localhost:8787">
+        <button class="btn ghost" id="bsave">Use</button>
+      </div>
+      <div class="hint">Blank uses the bundled templates. Start your own with <code>node server.js</code> in <code>backend/</code>.</div>
+      <div id="g-manage" class="hidden" style="margin-top:9px">
+        <button class="btn ghost" id="gdisconnect" style="width:100%">Disconnect <span id="g-email" class="muted"></span></button>
+      </div>
+    </div>
+  </div>
+
+<script>
+  var state = {
+    cat: null, gender: null, templateId: null,
+    src: 'link', rows: [], registry: null,
+    backend: '', session: '', googleEmail: null, poll: null,
+    selection: { frames: [], ids: [] },
+    manifestCache: {},
+    // --- added by the panel restructure ---
+    pageId: null, pageName: '',
+    rowNums: [],        // 1-based sheet row number per entry of state.rows
+    rowScope: null,     // null = whole sheet; otherwise an array of sheet row numbers (link source only)
+    scopeBlocked: false, // true = the link's range= could not be resolved; Run stays disabled
+    scopeNote: null,    // { kind: 'ok'|'warn', text: '' }
+    edits: {},          // state.rows index -> { columnIndex: correctedValue }
+    reviewed: false,
+    gifRules: [],
+    exportFolder: '',
+    pending: {}
+  };
+  var $ = function (id) { return document.getElementById(id); };
+  var base = function () { return state.backend.replace(/\/+$/, ''); };
+  var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); };
+
+  // ---------- CSV / TSV parser ----------
+  function parseTable(text) {
+    var delim = text.indexOf('\t') >= 0 ? '\t' : ',';
+    var rows = [], row = [], cell = '', q = false;
+    for (var i = 0; i < text.length; i++) {
+      var ch = text[i];
+      if (q) { if (ch === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; } else cell += ch; }
+      else if (ch === '"' && cell === '') q = true;
+      else if (ch === delim) { row.push(cell); cell = ''; }
+      else if (ch === '\n' || ch === '\r') { if (ch === '\r' && text[i + 1] === '\n') i++; row.push(cell); rows.push(row); row = []; cell = ''; }
+      else cell += ch;
+    }
+    if (cell !== '' || row.length) { row.push(cell); rows.push(row); }
+    return rows;
+  }
+
+  // ---------- sheet schema: column B = category, column C = gender ----------
+  function sheetSchema() {
+    return (state.registry && state.registry.sheet) || {
+      styleIdColumn: 0, categoryColumn: 1, genderColumn: 2, heroColumn: 3, fabricColumn: 4,
+      cardColumns: [5, 6, 7, 8], comparisonColumn: 9,
+      categoryAliases: { run: 'running', running: 'running', train: 'training', training: 'training', lifestyle: 'lifestyle', comfort: 'lifestyle', seamless: 'seamless', flex: 'seamless' },
+      genderAliases: { m: 'men', men: 'men', mens: 'men', w: 'women', women: 'women', womens: 'women', unisex: 'unisex' }
+    };
+  }
+  function words(v) { return String(v || '').toLowerCase().split(/[^a-z]+/).filter(Boolean); }
+  // Reads category and gender out of columns B and C. Gender may also be written into
+  // column B ("Running Women"), which is how the older sheets were filled in.
+  function parseCatGender(bRaw, cRaw) {
+    var sc = sheetSchema(), ca = sc.categoryAliases || {}, ga = sc.genderAliases || {};
+    var cat = '', gen = '';
+    words(bRaw).forEach(function (t) { if (!cat && ca[t]) cat = ca[t]; if (!gen && ga[t]) gen = ga[t]; });
+    words(cRaw).forEach(function (t) { if (!gen && ga[t]) gen = ga[t]; });
+    return { cat: cat, gender: gen };
+  }
+  function catById(id) { return (((state.registry || {}).categories) || []).find(function (c) { return c.id === id; }); }
+  function genderById(cat, id) { return (((cat || {}).genders) || []).find(function (g) { return g.id === id; }); }
+  function activeTemplate(gen) { return gen && ((gen.templates || []).find(function (t) { return t.status === 'active'; }) || (gen.templates || [])[0]); }
+  function hasFeature(tpl, f) { return !!(tpl && (tpl.features || []).indexOf(f) >= 0); }
+  function genderReady(g) { return g && g.status === 'active' && activeTemplate(g); }
+
+  // force = the designer's picks win (used by the "Selection" source)
+  function resolveRowTarget(r, force) {
+    var sc = sheetSchema();
+    var catId, genId;
+    if (force) { catId = state.cat; genId = state.gender; }
+    else {
+      var p = parseCatGender(r[sc.categoryColumn], r[sc.genderColumn]);
+      // an unrecognised word in column B is passed through so the error can name it,
+      // rather than silently falling back to whatever is selected in the panel
+      var typed = words(r[sc.categoryColumn]);
+      catId = p.cat || (typed.length ? typed[0] : state.cat);
+      genId = p.gender || null;
+    }
+    if (!catId) return { error: 'No category in column B and none selected above.' };
+    var cat = catById(catId);
+    if (!cat) return { error: 'Unknown category "' + catId + '" in column B.' };
+    genId = genId || cat.defaultGender || ((cat.genders || [])[0] || {}).id;
+    var gen = genderById(cat, genId);
+    if (!gen) return { error: 'Unknown gender "' + genId + '" for ' + cat.label + ' (column C).' };
+    // the picked template applies to rows that match the picked category + gender
+    var tpl = (catId === state.cat && genId === state.gender && state.templateId
+      && (gen.templates || []).find(function (t) { return t.id === state.templateId; })) || activeTemplate(gen);
+    // The sheet decides: a row that carries fit-comparison copy needs a template that can
+    // draw that card, so upgrade to one. In Selection mode the designer's pick is final.
+    var note = '';
+    if (!force && sc.comparisonColumn !== undefined && String(r[sc.comparisonColumn] || '').trim()
+      && !hasFeature(tpl, 'fitComparison')) {
+      var up = (gen.templates || []).find(function (t) { return t.status === 'active' && hasFeature(t, 'fitComparison'); });
+      if (up) { tpl = up; note = 'fit card'; }
+    }
+    if (cat.status !== 'active' || !genderReady(gen) || !tpl) {
+      return { error: cat.label + ' · ' + (gen.label || genId) + ' is not built yet.' };
+    }
+    return { key: catId + '/' + genId + '/' + tpl.id, catId: catId, genderId: genId, templateId: tpl.id,
+      label: cat.label + ' · ' + gen.label + (note ? ' · ' + note : '') };
+  }
+
+  // Which columns actually carry content, whichever sheet layout is configured.
+  function contentColumns(sc) {
+    var cc = sc.cardColumns || [];
+    return [sc.heroColumn, sc.fabricColumn, sc.headlineColumn, sc.taglineColumn,
+      sc.fabricCopyColumn, sc.compositionColumn, sc.iconsColumn]
+      .concat(cc).filter(function (c) { return c !== undefined; });
+  }
+  function contentRows(table) {
+    var sc = sheetSchema();
+    var cols = contentColumns(sc).concat([sc.styleIdColumn, sc.categoryColumn, sc.genderColumn,
+      sc.comparisonColumn, sc.statusColumn].filter(function (c) { return c !== undefined; }));
+    var maxCol = Math.max.apply(null, cols) + 1;
+    var contentCols = contentColumns(sc);
+    // A row counts as content when its style-ID cell holds a six-digit ID, or any content
+    // column has text. The header row is skipped by name, and spacer rows fall out naturally.
+    return (table || []).filter(function (r) {
+      var first = String(r[sc.styleIdColumn] || '');
+      if (/^\s*(style\s*id|format\b)/i.test(first)) return false;
+      if (/^\s*(group|category)\s*$/i.test(String(r[0] || ''))) return false;
+      return /\d{6}/.test(first) || contentCols.some(function (ci) { return String(r[ci] || '').trim(); });
+    }).map(function (r) { return r.slice(0, maxCol); });
+  }
+
+  // rows the Run button will actually build (Selection mode narrows to the selected styles)
+  function activeRows() {
+    if (state.src !== 'selection') return state.rows;
+    var sc = sheetSchema(), want = state.selection.ids;
+    if (!want.length) return [];
+    return state.rows.filter(function (r) {
+      var ids = String(r[sc.styleIdColumn] || '').match(/\d{6}/g) || [];
+      return ids.some(function (i) { return want.indexOf(i) >= 0; });
+    });
+  }
+
+  function showRows(rows, nums) {
+    state.rows = rows;
+    state.rowNums = nums || [];
+    state.edits = {};
+    setReviewed(false);
+    renderFound();
+  }
+  function renderFound() {
+    var rows = editedRows(), f = $('found'), sc = sheetSchema(), cc = sc.cardColumns || [5, 6, 7, 8];
+    var force = state.src === 'selection';
+    if (!rows.length) {
+      f.classList.add('hidden'); $('run').disabled = true;
+      // Distinguish "dropped by the row scope" from "genuinely nothing matched". Saying the
+      // second when the first is true would be a lie about the user's own data.
+      if (scopeIsActive() && activeRows().length) {
+        f.classList.remove('hidden');
+        f.innerHTML = '<div class="h">All rows filtered out by the row scope</div>' +
+          '<div class="r">' + esc(scopeLabel()) + ' holds no content row</div>';
+      } else if (force && state.rows.length && state.selection.ids.length) {
+        f.classList.remove('hidden');
+        f.innerHTML = '<div class="h">No sheet row matches the selected style ID(s)</div><div class="r">' + esc(state.selection.ids.join(', ')) + '</div>';
+      }
+      return;
+    }
+    if (state.scopeBlocked) { f.classList.add('hidden'); $('run').disabled = true; return; }
+    f.classList.remove('hidden');
+    f.innerHTML = '<div class="h">' + rows.length + ' A+ row' + (rows.length > 1 ? 's' : '') + ' ready</div>' + rows.map(function (r) {
+      var ids = (String(r[sc.styleIdColumn] || '').match(/\d{6}/g) || ['(no style ID)']).join(', ');
+      var cards = cc.filter(function (ci) { return String(r[ci] || '').trim(); }).length;
+      var t = resolveRowTarget(r, force);
+      var where = t.error ? 'no template' : t.label;
+      var flag = '';
+      if (sc.statusColumn !== undefined) {
+        var st = String(r[sc.statusColumn] || '').trim();
+        if (st && !/^ok$/i.test(st)) flag = ' · status: ' + st;
+      }
+      if (cards < 3) flag += ' · only ' + cards + ' features';
+      var bad = t.error || cards < 3;
+      return '<div class="r"' + (bad ? ' style="color:var(--danger)"' : '') + '>' + esc(ids) + ' · ' + esc(where) + ' · ' + cards + ' cards' + esc(flag) + '</div>';
+    }).join('');
+    $('run').disabled = false;
+  }
+  function setErr(m) { $('err').textContent = m || ''; }
+
+  // ---------- live template preview, drawn from the manifest itself ----------
+  function pcol(M, role) { var p = M.palette && M.palette[role]; return p ? 'rgb(' + p.join(',') + ')' : '#9aa0a6'; }
+  var GT = { TB: [[0, 1, 0], [-1, 0, 1]], LR: [[1, 0, 0], [0, 1, 0]], RL: [[-1, 0, 1], [0, 1, 0]] };
+
+  // Turn one manifest paint into an SVG fill, adding any gradient to `defs`.
+  // A Figma gradientTransform maps object space into gradient space, where the ramp runs
+  // along x from 0 to 1 — so the SVG endpoints are recovered by inverting that mapping.
+  function svgPaint(M, p, id, defs) {
+    if (!p) return 'none';
+    if (p.solid !== undefined) {
+      var c = Array.isArray(p.solid) ? 'rgb(' + p.solid.join(',') + ')' : pcol(M, p.solid);
+      return { fill: c, op: p.opacity === undefined ? 1 : p.opacity };
+    }
+    // an image fill shows as a flat tint at its real opacity — the texture itself cannot be
+    // embedded here, and exaggerating it would misrepresent how subtle it is on the canvas
+    if (p.image) return { fill: '#b9bec4', op: p.opacity === undefined ? 1 : p.opacity };
+    if (!p.stops) return 'none';
+    var stops = p.stops.map(function (s) {
+      return '<stop offset="' + s[0] + '" stop-color="rgb(' + s[1].join(',') + ')" stop-opacity="' + s[2] + '"/>';
+    }).join('');
+    if (p.radial) {
+      defs.push('<radialGradient id="' + id + '" cx="0.5" cy="0.5" r="0.55">' + stops + '</radialGradient>');
+    } else {
+      var m = p.gt || GT[p.transform] || GT.TB;
+      var a = m[0][0], b = m[0][1], tx = m[0][2];
+      var den = a * a + b * b || 1;
+      var x1 = -tx * a / den, y1 = -tx * b / den;
+      defs.push('<linearGradient id="' + id + '" x1="' + x1 + '" y1="' + y1 +
+        '" x2="' + (x1 + a / den) + '" y2="' + (y1 + b / den) + '">' + stops + '</linearGradient>');
+    }
+    return { fill: 'url(#' + id + ')', op: p.opacity === undefined ? 1 : p.opacity };
+  }
+
+  // One manifest layer as an SVG element. Figma rotates anticlockwise about the node origin,
+  // SVG rotates clockwise, hence the negated angle.
+  function svgLayer(M, L, uid, i, defs, H) {
+    if (L.visible === false) return '';
+    var y = L.yFromBottom !== undefined ? (H - L.yFromBottom) : L.y;
+    var h = L.hToFramePlus !== undefined ? (H - y + L.hToFramePlus) : L.h;
+    var paints = (L.fills || []).map(function (p, k) { return svgPaint(M, p, uid + '_' + i + '_' + k, defs); })
+      .filter(function (p) { return p !== 'none'; });
+    if (!paints.length) return '';
+    var op = (L.opacity === undefined ? 1 : L.opacity);
+    // a Figma relativeTransform [[a,b,tx],[c,d,ty]] becomes SVG matrix(a c b d tx ty)
+    var xf = '', ox = L.x, oy = y;
+    if (L.rt) {
+      var ty = L.yFromBottom !== undefined ? (H - L.yFromBottom) : L.rt[1][2];
+      xf = ' transform="matrix(' + [L.rt[0][0], L.rt[1][0], L.rt[0][1], L.rt[1][1], L.rt[0][2], ty].join(' ') + ')"';
+      ox = 0; oy = 0;
+    } else if (L.rotation) {
+      xf = ' transform="rotate(' + (-L.rotation) + ' ' + L.x + ' ' + y + ')"';
+    }
+    return paints.map(function (p) {
+      var o = Math.min(1, op * p.op);
+      if (L.shape === 'ellipse') {
+        return '<ellipse cx="' + (ox + L.w / 2) + '" cy="' + (oy + h / 2) + '" rx="' + (L.w / 2) + '" ry="' + (h / 2) +
+          '" fill="' + p.fill + '" opacity="' + o + '"' + xf + '/>';
+      }
+      return '<rect x="' + ox + '" y="' + oy + '" width="' + L.w + '" height="' + h + '"' +
+        (L.radius ? ' rx="' + L.radius + '"' : '') + ' fill="' + p.fill + '" opacity="' + o + '"' + xf + '/>';
+    }).join('');
+  }
+  function svgLayers(M, layers, uid, tag, defs, H, roles) {
+    return (layers || []).map(function (L, i) {
+      if (L.role) return (roles && roles[L.role]) ? roles[L.role]() : '';
+      return svgLayer(M, L, uid + tag, i, defs, H);
+    }).join('');
+  }
+  // A schematic but geometrically honest preview: every number comes from the manifest,
+  // so the thumbnail can never drift from what the plugin will actually draw.
+  function previewSvg(M, uid) {
+    if (!M || !M.callouts) return '';
+    var W = (M.meta && M.meta.width) || 1572;
+    var cf = M.callouts.frame, calloutH = cf.h4;
+    var cmpOn = !!(M.comparison && M.comparison.enabled);
+    var pad = M.frame.bottomPad === undefined ? 108.76 : M.frame.bottomPad;
+    var cmpTop = cf.y + calloutH + (cmpOn ? M.comparison.gap : 0);
+    var H = Math.round(cmpTop + (cmpOn ? M.comparison.h : 0) + pad);
+    var defs = [], s = [];
+    var hm = M.hero, fb = M.fabric, co = M.callouts;
+    var hd = (M.content && M.content.heroDefaults) || ['RUN', 'UNSTOPPABLE', ''];
+
+    defs.push('<linearGradient id="barL' + uid + '" x1="0" y1="0" x2="1" y2="0">' + co.bar.gradientStops.map(function (st) { return '<stop offset="' + st[0] + '" stop-color="rgb(' + st[1].join(',') + ')" stop-opacity="' + st[2] + '"/>'; }).join('') + '</linearGradient>');
+    defs.push('<linearGradient id="barR' + uid + '" x1="1" y1="0" x2="0" y2="0">' + co.bar.gradientStops.map(function (st) { return '<stop offset="' + st[0] + '" stop-color="rgb(' + st[1].join(',') + ')" stop-opacity="' + st[2] + '"/>'; }).join('') + '</linearGradient>');
+    defs.push('<clipPath id="hc' + uid + '"><rect x="' + hm.x + '" y="' + hm.y + '" width="' + hm.w + '" height="' + hm.h + '"/></clipPath>');
+
+    s.push('<rect x="0" y="0" width="' + W + '" height="' + H + '" fill="' + pcol(M, M.frame.fillRole || 'white') + '"/>');
+    s.push(svgLayers(M, M.background.layers, uid, 'bg', defs, H));
+
+    // hero — same layer stack the renderer walks, so the preview shows the real graphics
+    var hw = svgPaint(M, (hm.word.fills || [])[0], 'hw' + uid, defs);
+    s.push('<g clip-path="url(#hc' + uid + ')">');
+    s.push('<rect x="' + hm.x + '" y="' + hm.y + '" width="' + hm.w + '" height="' + hm.h + '" fill="rgb(' + hm.fill.join(',') + ')"/>');
+    s.push(svgLayers(M, hm.layers, uid, 'he', defs, H, {
+      bgPhoto: function () {
+        var bp = hm.bgPhoto;
+        return bp ? slot(M, bp.x, bp.y, bp.w, bp.h, false) : '';
+      },
+      word: function () {
+        return '<text x="' + (hm.w / 2) + '" y="' + (hm.word.y + hm.word.size * 0.78) + '" text-anchor="middle" font-family="Poppins, Inter, sans-serif" font-weight="800" font-size="' + hm.word.size + '" fill="' + hw.fill + '" opacity="' + hm.word.opacity + '" textLength="' + hm.word.maxWidth + '" lengthAdjust="spacingAndGlyphs">' + esc(hd[0]) + '</text>';
+      },
+      italic: function () {
+        return '<text x="' + (hm.w / 2) + '" y="' + (hm.italic.y + hm.italic.size * 0.8) + '" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="' + hm.italic.size + '" fill="' + pcol(M, hm.italic.colorRole) + '" opacity="' + hm.italic.opacity + '" textLength="' + hm.italic.maxWidth + '" lengthAdjust="spacingAndGlyphs">' + esc(hd[1]) + '</text>';
+      },
+      model: function () { return slot(M, hm.model.x, hm.model.y, hm.model.w, hm.model.h, false); },
+      tagline: function () {
+        return '<rect x="' + hm.tagline.x + '" y="' + hm.tagline.y + '" width="' + hm.tagline.width + '" height="' + (hm.tagline.size * 2.2) + '" rx="6" fill="' + pcol(M, 'tag') + '" opacity=".35"/>';
+      }
+    }));
+    s.push('</g>');
+
+    // fabric
+    var fx = fb.box.x, fy = fb.box.y;
+    s.push('<rect x="' + fx + '" y="' + fy + '" width="' + fb.box.w + '" height="' + fb.box.h + '" rx="' + (fb.box.radius || 0) + '" fill="' + pcol(M, fb.box.fillRole) + '"/>');
+    s.push('<g transform="translate(' + fx + ' ' + fy + ')">');
+    s.push(svgLayers(M, fb.layers, uid, 'fa', defs, H, {
+      bgPhoto: function () { return ''; },
+      closeup: function () { return slot(M, fb.closeup.x, fb.closeup.y, fb.closeup.w, fb.closeup.h, true); },
+      ring: function () {
+        var r = fb.ring;
+        return r ? '<circle cx="' + (r.x + r.w / 2) + '" cy="' + (r.y + r.h / 2) + '" r="' + (r.w / 2) +
+          '" fill="none" stroke="' + pcol(M, r.strokeRole || 'white') + '" stroke-width="' + (r.strokeWeight || 2) +
+          '" opacity="' + (r.strokeOpacity === undefined ? 1 : r.strokeOpacity) + '"/>' : '';
+      }
+    }));
+    s.push('</g>');
+    var ts = fb.textStack;
+    s.push('<text x="' + (W / 2) + '" y="' + (ts.y + ts.heading.size * 0.8) + '" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-weight="700" font-size="' + ts.heading.size + '" fill="' + pcol(M, 'white') + '">FABRIC IN FOCUS</text>');
+    for (var li = 0; li < 3; li++) {
+      var lw = [1100, 1240, 900][li];
+      s.push('<rect x="' + ((W - lw) / 2) + '" y="' + (ts.y + 150 + li * 62) + '" width="' + lw + '" height="30" rx="15" fill="' + pcol(M, 'white') + '" opacity=".4"/>');
+    }
+    s.push('<rect x="' + ((W - ts.divider.w) / 2) + '" y="' + (ts.y + 370) + '" width="' + ts.divider.w + '" height="4" fill="' + pcol(M, 'white') + '" opacity=".85"/>');
+    for (var ic = 0; ic < 3; ic++) {
+      s.push('<circle cx="' + (W / 2 + (ic - 1) * 230) + '" cy="' + (ts.y + 520) + '" r="76" fill="none" stroke="' + pcol(M, 'white') + '" stroke-width="5" opacity=".75"/>');
+    }
+
+    // callouts
+    co.cards.slice(0, 4).forEach(function (L, i) {
+      var by = cf.y + L.bar.y;
+      s.push('<rect x="' + (cf.x + L.bar.x) + '" y="' + by + '" width="' + L.bar.w + '" height="' + co.barHeight + '" fill="url(#' + (L.bar.flip ? 'barR' : 'barL') + uid + ')"/>');
+      s.push(slot(M, cf.x + L.photo.x, cf.y + L.photo.y, L.photo.d, L.photo.d, true));
+      var tx = L.text.left !== undefined ? (cf.x + L.text.left) : (cf.x + L.text.right - L.text.w);
+      var mid = by + co.barHeight / 2;
+      s.push('<rect x="' + (L.text.align === 'RIGHT' ? tx + L.text.w - 520 : tx) + '" y="' + (mid - 110) + '" width="520" height="56" rx="10" fill="' + pcol(M, 'ink') + '" opacity=".8"/>');
+      [0, 1, 2].forEach(function (k) {
+        var cw = [L.text.copyW, L.text.copyW * 0.92, L.text.copyW * 0.6][k];
+        s.push('<rect x="' + (L.text.align === 'RIGHT' ? tx + L.text.w - cw : tx) + '" y="' + (mid - 26 + k * 44) + '" width="' + cw + '" height="26" rx="13" fill="' + pcol(M, 'ink') + '" opacity=".35"/>');
+      });
+    });
+
+    // fit comparison
+    if (cmpOn) {
+      var cp = M.comparison, lb2 = cp.label, ph2 = cp.photo;
+      for (var ci2 = 0; ci2 < 2; ci2++) {
+        s.push('<rect x="' + (cp.x + lb2.xs[ci2]) + '" y="' + (cmpTop + (lb2.y || 0)) + '" width="' + lb2.w + '" height="' + lb2.size + '" rx="8" fill="' + pcol(M, 'ink') + '" opacity=".8"/>');
+        s.push(slot(M, cp.x + ph2.xs[ci2], cmpTop + ph2.y, ph2.w, ph2.h, false));
+      }
+      var gd = cp.guides, gcol = pcol(M, gd.colorRole);
+      (gd.vertical || []).forEach(function (v) {
+        s.push('<rect x="' + (cp.x + v.x) + '" y="' + (cmpTop + v.y) + '" width="' + gd.thickness + '" height="' + v.h + '" fill="' + gcol + '" opacity="' + gd.opacity + '"/>');
+      });
+      (gd.horizontal || []).forEach(function (hz) {
+        s.push('<rect x="' + (cp.x + hz.x) + '" y="' + (cmpTop + hz.y) + '" width="' + hz.w + '" height="' + gd.thickness + '" fill="' + gcol + '" opacity="' + gd.opacity + '"/>');
+      });
+    }
+
+    // slice divider
+    (M.slices || []).forEach(function (sl) {
+      if (!sl.y) return;
+      s.push('<rect x="0" y="' + sl.y + '" width="' + W + '" height="3" fill="#5b5bd6" opacity=".5"/>');
+    });
+
+    return '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMin meet" xmlns="http://www.w3.org/2000/svg">' +
+      '<defs>' + defs.join('') + '</defs>' + s.join('') + '</svg>';
+  }
+  function slot(M, x, y, w, h, circle) {
+    var fill = pcol(M, 'slotFill'), stroke = pcol(M, 'slotStroke');
+    if (circle) {
+      return '<circle cx="' + (x + w / 2) + '" cy="' + (y + h / 2) + '" r="' + (w / 2) + '" fill="' + fill + '" stroke="' + stroke + '" stroke-width="4" stroke-dasharray="18 14" opacity=".9"/>';
+    }
+    return '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" fill="' + fill + '" stroke="' + stroke + '" stroke-width="4" stroke-dasharray="18 14" opacity=".75"/>';
+  }
+
+  // ---------- category / gender / template pickers ----------
+  function renderCats() {
+    var cats = (state.registry && state.registry.categories) || [];
+    $('cats').innerHTML = cats.map(function (c) {
+      var ready = c.status === 'active' && (c.genders || []).some(genderReady);
+      var hero = ((c.genders || [])[0] || {}).hero || [];
+      return '<button class="cat" data-cat="' + esc(c.id) + '"' + (ready ? '' : ' disabled') +
+        '><b>' + esc(c.label) + ' A+</b><span>' + esc(ready ? hero.join(' · ') : 'coming next') + '</span></button>';
+    }).join('');
+    document.querySelectorAll('.cat').forEach(function (b) {
+      b.onclick = function () {
+        if (b.disabled) return;
+        document.querySelectorAll('.cat').forEach(function (x) { x.classList.toggle('on', x === b); });
+        state.cat = b.dataset.cat; state.gender = null; state.templateId = null;
+        renderGenders();
+      };
+    });
+    var cur = state.cat && document.querySelector('.cat[data-cat="' + state.cat + '"]:not([disabled])');
+    (cur || document.querySelector('.cat:not([disabled])') || { click: function () {} }).click();
+  }
+
+  function renderGenders() {
+    var cat = catById(state.cat), gens = (cat && cat.genders) || [];
+    $('genders').innerHTML = gens.map(function (g) {
+      return '<button class="chip" data-g="' + esc(g.id) + '"' + (genderReady(g) ? '' : ' disabled') + '>' +
+        esc(g.label) + (genderReady(g) ? '' : ' · soon') + '</button>';
+    }).join('') || '<span class="muted">No genders defined for this category.</span>';
+    document.querySelectorAll('#genders .chip').forEach(function (b) {
+      b.onclick = function () {
+        if (b.disabled) return;
+        document.querySelectorAll('#genders .chip').forEach(function (x) { x.classList.toggle('on', x === b); });
+        state.gender = b.dataset.g; state.templateId = null;
+        renderTemplates();
+      };
+    });
+    var want = state.gender && document.querySelector('#genders .chip[data-g="' + state.gender + '"]:not([disabled])');
+    var first = want || document.querySelector('#genders .chip:not([disabled])');
+    if (first) first.click(); else { state.gender = null; renderTemplates(); }
+  }
+
+  function renderTemplates() {
+    var cat = catById(state.cat), gen = genderById(cat, state.gender);
+    var tpls = (gen && gen.templates) || [];
+    if (!tpls.length) {
+      $('tpls').innerHTML = '<span class="muted">No template yet.</span>';
+      $('tplnote').textContent = ''; $('tplmeta').textContent = '';
+      state.templateId = null; drawPreview(); return;
+    }
+    $('tpls').innerHTML = tpls.map(function (t) {
+      return '<button class="tpl" data-tpl="' + esc(t.id) + '"' + (t.status === 'active' ? '' : ' disabled') + '>' +
+        '<b>' + esc(t.label) + '</b><span>' + esc(t.sub || '') + '</span></button>';
+    }).join('');
+    document.querySelectorAll('.tpl').forEach(function (b) {
+      b.onclick = function () {
+        if (b.disabled) return;
+        document.querySelectorAll('.tpl').forEach(function (x) { x.classList.toggle('on', x === b); });
+        state.templateId = b.dataset.tpl;
+        var t = tpls.find(function (x) { return x.id === state.templateId; });
+        $('tplnote').textContent = (t && t.sub) ? t.sub : '';
+        drawPreview();
+        renderFound();
+      };
+    });
+    var want = state.templateId && document.querySelector('.tpl[data-tpl="' + state.templateId + '"]:not([disabled])');
+    (want || document.querySelector('.tpl:not([disabled])') || { click: function () {} }).click();
+    primeManifests(tpls);
+  }
+
+  // The preview is the selected template's own manifest, drawn to scale and scrollable —
+  // the whole A+, not a crop, so the callout rhythm and the fit card are both visible.
+  function drawPreview() {
+    var host = $('preview');
+    if (!state.cat || !state.gender || !state.templateId) { host.innerHTML = '<div class="empty">Pick a template.</div>'; return; }
+    var key = state.cat + '/' + state.gender + '/' + state.templateId;
+    var M = state.manifestCache[key];
+    if (!M) { host.innerHTML = '<div class="empty">Loading preview…</div>'; return; }
+    host.innerHTML = previewSvg(M, 'pv' + key.replace(/\W/g, ''));
+    host.scrollTop = 0;
+    $('tplmeta').textContent = 'scrollable';
+  }
+
+  // Fetch each template's manifest once so the preview is the real thing.
+  async function primeManifests(tpls) {
+    for (var i = 0; i < tpls.length; i++) {
+      var t = tpls[i], key = state.cat + '/' + state.gender + '/' + t.id;
+      if (!state.manifestCache[key]) {
+        var M = await fetchManifest(state.cat, state.gender, t.id);
+        if (M) state.manifestCache[key] = M;
+      }
+    }
+    drawPreview();
+  }
+  async function fetchManifest(cat, gen, tpl) {
+    var key = cat + '/' + gen + '/' + tpl;
+    if (state.manifestCache[key]) return state.manifestCache[key];
+    if (state.backend) {
+      try {
+        var res = await fetch(base() + '/api/templates/' + cat + '/' + gen + '/' + tpl);
+        if (res.ok) { var m = await res.json(); if (m && m.meta) { state.manifestCache[key] = m; return m; } }
+      } catch (e) {}
+    }
+    var fb = (window.BUNDLED_MANIFESTS || {})[key];
+    if (fb) { state.manifestCache[key] = fb; return fb; }
+    return null;
+  }
+
+  // ---------- segmented tabs ----------
+  document.querySelectorAll('.seg button').forEach(function (b) {
+    b.onclick = function () {
+      document.querySelectorAll('.seg button').forEach(function (x) { x.classList.toggle('on', x === b); });
+      state.src = b.dataset.src;
+      $('src-link').classList.toggle('hidden', state.src !== 'link');
+      $('src-paste').classList.toggle('hidden', state.src !== 'paste');
+      $('src-selection').classList.toggle('hidden', state.src !== 'selection');
+      // switching source changes which rows are in play — the review sign-off no longer applies
+      setReviewed(false);
+      renderFound();
+    };
+  });
+  $('paste').oninput = function () {
+    var t = parseTable($('paste').value);
+    setErr(''); showRows(contentRows(t), sheetRowNumbers(t));
+  };
+
+  // ---------- selection ----------
+  function renderSelection() {
+    var sel = state.selection, n = sel.frames.length;
+    $('addcmp').disabled = !n;
+    if (!n) { $('selinfo').innerHTML = 'Select an A+ frame.'; }
+    else {
+      $('selinfo').innerHTML = '<b>' + n + ' frame' + (n > 1 ? 's' : '') + ' selected</b>' +
+        (sel.ids.length ? ' · style ' + esc(sel.ids.join(', ')) : ' · <span style="color:var(--danger)">no style ID in the frame name</span>');
+    }
+    renderFound();
+  }
+
+  // ---------- Google ----------
+  function setGoogle(stateStr) {
+    var p = $('pill-google');
+    if (stateStr === 'connected') {
+      p.classList.add('on'); $('g-title').textContent = 'Google'; $('g-sub').textContent = state.googleEmail || 'connected';
+      $('gconnect-label').textContent = 'Connected' + (state.googleEmail ? ' · ' + state.googleEmail : ''); $('gconnect').disabled = true;
+      $('g-manage').classList.remove('hidden'); $('g-email').textContent = state.googleEmail ? '(' + state.googleEmail + ')' : '';
+      $('link-hint').innerHTML = 'Connected — paste any sheet link you can open.';
+      $('link').placeholder = 'Google Sheet link';
+    } else {
+      p.classList.remove('on'); $('g-title').textContent = 'Google'; $('g-sub').textContent = stateStr === 'connecting' ? 'connecting…' : 'not connected';
+      $('gconnect-label').textContent = stateStr === 'connecting' ? 'Waiting for Google…' : 'Connect Google';
+      $('gconnect').disabled = stateStr === 'connecting';
+      $('g-manage').classList.add('hidden');
+      $('link-hint').innerHTML = 'Not connected — use a <b>Publish to web → CSV</b> link.';
+    }
+  }
+  function showAuthLink(url, blocked) {
+    $('authlink').classList.remove('hidden');
+    $('authlink').innerHTML = (blocked ? 'Popup blocked — ' : '') + '<a href="' + esc(url) + '" target="_blank" rel="noopener">Open the Google sign-in page</a>';
+  }
+  function hideAuthLink() { $('authlink').classList.add('hidden'); $('authlink').innerHTML = ''; }
+  async function connectGoogle() {
+    setErr('');
+    if (!state.backend) { setErr('Set the backend URL first (Backend & connection).'); $('settings').classList.add('open'); return; }
+    setGoogle('connecting');
+    try {
+      var res = await fetch(base() + '/auth/new', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      if (res.status === 503) { setErr('This backend has no Google credentials — see backend/.env.example.'); setGoogle(state.googleEmail ? 'connected' : 'off'); return; }
+      var data = await res.json();
+      state.session = data.sessionId;
+      parent.postMessage({ pluginMessage: { type: 'save-session', session: state.session } }, '*');
+      var w = null; try { w = window.open(data.authUrl, '_blank', 'noopener'); } catch (e) {}
+      showAuthLink(data.authUrl, !w);
+      pollAuth();
+    } catch (e) { setErr('Could not start Google sign-in: ' + (e.message || e)); setGoogle('off'); }
+  }
+  function pollAuth() {
+    clearInterval(state.poll); var tries = 0;
+    state.poll = setInterval(async function () {
+      if (++tries > 60) { clearInterval(state.poll); setGoogle(state.googleEmail ? 'connected' : 'off'); return; }
+      try {
+        var res = await fetch(base() + '/auth/status?session=' + encodeURIComponent(state.session));
+        var s = await res.json();
+        if (s.connected) { clearInterval(state.poll); state.googleEmail = s.email; setGoogle('connected'); hideAuthLink(); }
+      } catch (e) {}
+    }, 2500);
+  }
+  async function checkGoogle() {
+    if (!state.backend || !state.session) { setGoogle('off'); return; }
+    try { var res = await fetch(base() + '/auth/status?session=' + encodeURIComponent(state.session)); var s = await res.json(); if (s.connected) { state.googleEmail = s.email; setGoogle('connected'); } else setGoogle('off'); }
+    catch (e) { setGoogle('off'); }
+  }
+  async function disconnectGoogle() {
+    try { await fetch(base() + '/auth/logout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ session: state.session }) }); } catch (e) {}
+    state.googleEmail = null; setGoogle('off');
+  }
+  $('gconnect').onclick = connectGoogle;
+  $('gdisconnect').onclick = disconnectGoogle;
+  $('pill-google').onclick = function () { if (state.googleEmail) { $('settings').classList.add('open'); } else connectGoogle(); };
+
+  // ---------- backend ----------
+  function setBackend(live) {
+    $('pill-backend').classList.toggle('on', !!live);
+    $('b-sub').textContent = live ? 'live' : 'bundled';
+    $('regsrc').textContent = live ? 'live' : 'bundled';
+  }
+  async function refreshRegistry() {
+    if (!state.backend) { setBackend(false); return; }
+    try {
+      var res = await fetch(base() + '/api/templates');
+      var reg = await res.json();
+      if (!reg.categories) throw new Error('bad');
+      state.registry = reg; state.manifestCache = {}; renderCats(); setBackend(true);
+    } catch (e) { setBackend(false); }
+  }
+  $('bsave').onclick = function () {
+    state.backend = $('backend').value.trim();
+    parent.postMessage({ pluginMessage: { type: 'save-backend', url: state.backend } }, '*');
+    refreshRegistry(); checkGoogle();
+  };
+  $('settings-h').onclick = function () { $('settings').classList.toggle('open'); };
+  $('extras-h').onclick = function () { $('extras').classList.toggle('open'); };
+  $('pill-backend').onclick = function () { $('settings').classList.toggle('open'); };
+
+  // ---------- link loading ----------
+  function toCsvUrl(link) {
+    link = link.trim();
+    if (/output=csv|format=csv/.test(link)) return link;
+    var m = link.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+    var g = link.match(/[#&?]gid=(\d+)/);
+    if (m && !/\/d\/e\//.test(link)) return 'https://docs.google.com/spreadsheets/d/' + m[1] + '/export?format=csv' + (g ? '&gid=' + g[1] : '');
+    return link;
+  }
+  $('load').onclick = async function () {
+    setErr(''); var link = $('link').value.trim();
+    if (!link) { setErr('Paste the sheet link first.'); return; }
+    parent.postMessage({ pluginMessage: { type: 'save-link', link: link } }, '*');
+    $('load').disabled = true; $('load').textContent = 'Loading…';
+    try {
+      var rows;
+      if (state.backend && state.session && state.googleEmail) {
+        var res = await fetch(base() + '/api/sheet', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ session: state.session, url: link }) });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'read failed');
+        rows = data.rows;
+      } else {
+        var r2 = await fetch(toCsvUrl(link)); var text = await r2.text();
+        if (!r2.ok || /<html/i.test(text.slice(0, 200))) throw new Error('not csv');
+        rows = parseTable(text);
+      }
+      showRows(contentRows(rows), sheetRowNumbers(rows));
+      if (!state.rows.length) setErr('No rows with content in that sheet.');
+    } catch (e) {
+      setErr(state.googleEmail ? ('Could not read that sheet: ' + (e.message || e)) : 'Could not read that link — connect Google, or use a “Publish to web → CSV” link.');
+      showRows([], []);
+    }
+    $('load').disabled = false; $('load').textContent = 'Load';
+  };
+
+  // ---------- run ----------
+  $('run').onclick = async function () {
+    // defensive: the button is disabled while the range is unresolved, but never trust that alone
+    if (state.scopeBlocked) { setErr('Fix or clear the range= in the sheet link before running.'); return; }
+    var rows = editedRows();
+    if (!rows.length) return;
+    setErr(''); $('report').innerHTML = '';
+    $('run').disabled = true; $('run').textContent = 'Preparing…';
+    var force = state.src === 'selection';
+    var targets = rows.map(function (r) { return resolveRowTarget(r, force); });
+    var keys = targets.map(function (t) { return t.key || null; });
+    var errors = targets.map(function (t) { return t.error || null; });
+    if (!keys.some(function (k) { return k; })) {
+      setErr('No row could be routed — check columns B and C.');
+      $('run').disabled = !!state.scopeBlocked; $('run').textContent = 'Run A+'; return;
+    }
+    var manifests = {}, distinct = {};
+    targets.forEach(function (t) { if (t.key) distinct[t.key] = t; });
+    for (var k in distinct) {
+      var m = await fetchManifest(distinct[k].catId, distinct[k].genderId, distinct[k].templateId);
+      if (m) manifests[k] = m;
+    }
+    var source = (state.backend && Object.keys(manifests).length) ? 'backend' : 'bundled';
+    $('run').textContent = 'Building 0 / ' + rows.length + '…';
+    parent.postMessage({ pluginMessage: { type: 'run', rows: rows, keys: keys, errors: errors, manifests: manifests, source: source } }, '*');
+  };
+
+  // ---------- add fit comparison to the selected frames ----------
+  $('addcmp').onclick = async function () {
+    setErr(''); $('report').innerHTML = '';
+    if (!state.cat || !state.gender || !state.templateId) { setErr('Pick a category, gender and template first.'); return; }
+    var key = state.cat + '/' + state.gender + '/' + state.templateId;
+    var M = await fetchManifest(state.cat, state.gender, state.templateId);
+    if (!M) { setErr('Could not load that template.'); return; }
+    if (!M.comparison) { setErr('This template has no fit comparison block.'); return; }
+    var man = {}; man[key] = M;
+    var l = $('cmp-left').value.trim(), r = $('cmp-right').value.trim();
+    $('addcmp').disabled = true; $('addcmp').textContent = 'Adding…';
+    parent.postMessage({ pluginMessage: { type: 'add-comparison', key: key, manifests: man, labels: [l, r], source: state.backend ? 'backend' : 'bundled' } }, '*');
+  };
+
+  /* ======================================================================
+     Everything below is the panel restructure. The engine above is untouched
+     except for three call sites that now read the reviewed copy of the rows
+     (editedRows) and the row-number bookkeeping in showRows.
+     ====================================================================== */
+
+  // ---------- row numbers, row scope, inline corrections ----------
+  // contentRows' filter is per-row and stateless, so running it on a one-row table is a
+  // faithful way to ask "does this row survive?" without duplicating the predicate.
+  function sheetRowNumbers(table) {
+    var out = [];
+    (table || []).forEach(function (r, i) { if (contentRows([r]).length) out.push(i + 1); });
+    return out;
+  }
+  function rowNumberOf(r) {
+    var i = state.rows.indexOf(r);
+    return i >= 0 ? state.rowNums[i] : undefined;
+  }
+  // state.rowScope holds SHEET row numbers, taken from `range=` in the link box. Those numbers
+  // only mean anything for the Sheet-link source: pasted rows are numbered from 1 and a canvas
+  // selection has no sheet rows at all, so applying the scope there silently drops good rows.
+  function scopeIsActive() {
+    return state.src === 'link' && !!(state.rowScope && state.rowScope.length);
+  }
+  function scopeLabel() {
+    if (!scopeIsActive()) return '';
+    var lo = state.rowScope[0], hi = state.rowScope[state.rowScope.length - 1];
+    return lo === hi ? ('Sheet row ' + lo) : ('Sheet rows ' + lo + '–' + hi);
+  }
+  function scopeRows(rows) {
+    if (!scopeIsActive()) return rows;
+    return rows.filter(function (r) {
+      var n = rowNumberOf(r);
+      return n !== undefined && state.rowScope.indexOf(n) >= 0;
+    });
+  }
+  function editRow(r) {
+    var i = state.rows.indexOf(r);
+    var e = i >= 0 ? state.edits[i] : null;
+    if (!e) return r;
+    var copy = r.slice();
+    for (var c in e) copy[c] = e[c];
+    return copy;
+  }
+  // the rows the UI reports on and the Run button sends: scoped by the link, corrected in Review
+  function editedRows() { return scopeRows(activeRows()).map(editRow); }
+
+  // ---------- Google Sheets link → row scope ----------
+  // Handles: a plain tab link, "Get link to this cell" (#gid=..&range=A5),
+  // an A1 span (range=A5:J9), a whole-row span (range=5:9), range=R5C2 notation,
+  // and any of those carrying a tab prefix (range=Sheet1!A5:J9, range='My tab'!A5:J9).
+  function parseLinkScope(link) {
+    link = String(link || '').trim();
+    if (!link) return { kind: 'none' };
+    var hasRange = /[#&?]range=/i.test(link);
+    if (!hasRange) return { kind: 'all' };
+    var raw = (link.match(/[#&?]range=([^&#\s]+)/i) || [])[1] || '';
+    try { raw = decodeURIComponent(raw); } catch (e) {}
+    // the tab name selects a tab, not rows — strip it and scope on what follows
+    var body = raw.replace(/^(?:'(?:[^']|'')*'|[^'!]*)!/, '');
+    var parts = body.split(':');
+    function rowOf(tok) {
+      var m = /^[A-Za-z]*(\d+)$/.exec(tok);                 // A5 or 5
+      if (m) return parseInt(m[1], 10);
+      var r = /^R(\d+)C\d+$/i.exec(tok);                    // R5C2
+      if (r) return parseInt(r[1], 10);
+      return null;
+    }
+    var a = rowOf(parts[0]), b = parts.length > 1 ? rowOf(parts[1]) : a;
+    if (!a || !b) return { kind: 'unresolved', raw: raw };
+    var lo = Math.min(a, b), hi = Math.max(a, b), rows = [];
+    for (var n = lo; n <= hi; n++) rows.push(n);
+    return { kind: 'rows', rows: rows, lo: lo, hi: hi, raw: raw };
+  }
+  function applyLinkScope() {
+    var sc = parseLinkScope($('link').value);
+    var host = $('scope-note'), meta = $('scopemeta');
+    state.rowScope = null; state.scopeBlocked = false; meta.textContent = '';
+    if (sc.kind === 'none' || sc.kind === 'all') { host.innerHTML = ''; }
+    else if (sc.kind === 'unresolved') {
+      // An unresolved range must not fall through to "run the whole tab" on the next click.
+      state.scopeBlocked = true;
+      meta.textContent = 'scope unresolved';
+      host.innerHTML = '<div class="note warn"><b>Row link not understood</b>That link carries <code>range=' +
+        esc(sc.raw) + '</code>, which this plugin cannot turn into row numbers. <b>Nothing has been scoped</b> — ' +
+        'it would run every row in the tab. Use <code>&amp;range=A5</code> or <code>&amp;range=5:9</code>, or clear the range to run the whole tab on purpose. ' +
+        '<b>Run is disabled until the range is corrected or cleared.</b></div>';
+    } else {
+      state.rowScope = sc.rows;
+      meta.textContent = sc.lo === sc.hi ? ('row ' + sc.lo) : ('rows ' + sc.lo + '–' + sc.hi);
+      host.innerHTML = '<div class="note info"><b>Scoped to ' + (sc.lo === sc.hi ? ('sheet row ' + sc.lo) : ('sheet rows ' + sc.lo + '–' + sc.hi)) +
+        '</b>Remove <code>range=</code> to run the whole tab.</div>';
+    }
+    // The row set the user is signing off on just changed — the sign-off no longer applies.
+    setReviewed(false);
+  }
+  $('link').oninput = function () { applyLinkScope(); renderFound(); };
+
+  // ---------- top-level panels ----------
+  document.querySelectorAll('#tabs button').forEach(function (b) {
+    b.onclick = function () {
+      document.querySelectorAll('#tabs button').forEach(function (x) { x.classList.toggle('on', x === b); });
+      ['automate', 'design', 'export'].forEach(function (v) {
+        $('view-' + v).classList.toggle('on', v === b.dataset.tab);
+      });
+      if (b.dataset.tab === 'export') renderExportStyles();
+      if (b.dataset.tab === 'design') renderDesignSelection();
+      window.scrollTo(0, 0);
+    };
+  });
+
+  // ---------- the review stage ----------
+  function reviewFields() {
+    var sc = sheetSchema(), f = [];
+    function add(c, l, big) { if (c !== undefined) f.push({ c: c, l: l, big: !!big }); }
+    add(sc.styleIdColumn, 'Style IDs');
+    add(sc.categoryColumn, 'Category');
+    add(sc.genderColumn, 'Gender');
+    add(sc.heroColumn, 'Card 1 · hero', true);
+    add(sc.headlineColumn, 'Headline', true);
+    add(sc.taglineColumn, 'Tagline', true);
+    add(sc.fabricColumn, 'Card 2 · fabric', true);
+    add(sc.fabricCopyColumn, 'Fabric copy', true);
+    add(sc.compositionColumn, 'Composition');
+    add(sc.iconsColumn, 'Fabric icons');
+    (sc.cardColumns || []).forEach(function (c, i) { add(c, 'Feature ' + (i + 1), true); });
+    add(sc.comparisonColumn, 'Fit comparison', true);
+    add(sc.statusColumn, 'Status');
+    return f;
+  }
+  function targetLine(row) {
+    var t = resolveRowTarget(row, state.src === 'selection');
+    return t.error ? { bad: true, text: t.error } : { bad: false, text: 'Builds as ' + t.label };
+  }
+  function renderReview() {
+    var host = $('review'), sc = sheetSchema();
+    var raw = scopeRows(activeRows());
+    $('rv-count').textContent = raw.length ? (raw.length + ' row' + (raw.length > 1 ? 's' : '')) : '';
+    if (!raw.length) {
+      var why;
+      if (!state.rows.length) why = 'Load a sheet.';
+      else if (scopeIsActive() && activeRows().length) why = scopeLabel() + ' holds no content row.';
+      else why = 'No row matches.';
+      host.innerHTML = '<div class="empty">' + esc(why) + '</div>';
+      return;
+    }
+    var fields = reviewFields();
+    host.innerHTML = raw.map(function (r) {
+      var i = state.rows.indexOf(r);
+      var row = editRow(r);
+      var ids = (String(row[sc.styleIdColumn] || '').match(/\d{6}/g) || ['(no style ID)']).join(', ');
+      var num = rowNumberOf(r);
+      var tl = targetLine(row);
+      return '<div class="card">' +
+        '<h4>' + esc(ids) + (num ? ' <em>sheet row ' + num + '</em>' : '') + '</h4>' +
+        '<div class="tgt' + (tl.bad ? ' bad' : '') + '" id="rv-t-' + i + '">' + esc(tl.text) + '</div>' +
+        fields.map(function (fd) {
+          var v = row[fd.c] === undefined ? '' : String(row[fd.c]);
+          // HTML parsing drops ONE newline immediately after <textarea>, so a cell whose value
+          // starts with a newline would come back a line short. Emit a sacrificial '\n' first.
+          return '<div class="f"><label>' + esc(fd.l) + '</label>' +
+            '<textarea class="rv-in" rows="' + (fd.big ? 2 : 1) + '" data-r="' + i + '" data-c="' + fd.c + '">\n' + esc(v) + '</textarea></div>';
+        }).join('') +
+        '</div>';
+    }).join('');
+  }
+  $('review').addEventListener('input', function (ev) {
+    var el = ev.target;
+    if (!el || !el.classList || !el.classList.contains('rv-in')) return;
+    var i = parseInt(el.dataset.r, 10), c = parseInt(el.dataset.c, 10);
+    if (isNaN(i) || isNaN(c)) return;
+    if (!state.edits[i]) state.edits[i] = {};
+    state.edits[i][c] = el.value;
+    setReviewed(false);
+    // refresh the derived readouts without re-rendering the field the user is typing in
+    baseRenderFound();
+    renderExportStyles();
+    var raw = state.rows[i];
+    var line = $('rv-t-' + i);
+    if (raw && line) {
+      var tl = targetLine(editRow(raw));
+      line.textContent = tl.text;
+      line.classList.toggle('bad', tl.bad);
+    }
+  });
+  function setReviewed(v) {
+    state.reviewed = !!v;
+    $('rv-ok').checked = !!v;
+    renderExportStyles();
+  }
+  $('rv-ok').onchange = function () { setReviewed($('rv-ok').checked); };
+
+  // renderFound is the original, hard-won function — wrapped rather than edited so the
+  // review and export readouts refresh from exactly the same trigger.
+  var baseRenderFound = renderFound;
+  renderFound = function () { baseRenderFound(); renderReview(); renderExportStyles(); };
+
+  // renderCats is likewise wrapped so the Add-design and Export pickers follow the registry.
+  var baseRenderCats = renderCats;
+  renderCats = function () { baseRenderCats(); renderDesignPickers(); renderRules(); };
+
+  // ---------- PANEL 2 — add design ----------
+  function registryCats() { return (state.registry && state.registry.categories) || []; }
+  function renderDesignPickers() {
+    var cats = registryCats();
+    var cur = $('ad-cat').value;
+    $('ad-cat').innerHTML = '<option value="">Category…</option>' + cats.map(function (c) {
+      return '<option value="' + esc(c.id) + '">' + esc(c.label) + '</option>';
+    }).join('');
+    if (cur) $('ad-cat').value = cur;
+    renderDesignGenders();
+  }
+  function renderDesignGenders() {
+    var c = catById($('ad-cat').value);
+    var gens = (c && c.genders) || [{ id: 'men', label: 'Men' }, { id: 'women', label: 'Women' }, { id: 'unisex', label: 'Unisex' }];
+    $('ad-gender').innerHTML = gens.map(function (g) {
+      return '<option value="' + esc(g.id) + '">' + esc(g.label) + '</option>';
+    }).join('');
+  }
+  $('ad-cat').onchange = function () { renderDesignGenders(); renderDesignSelection(); };
+  $('ad-name').oninput = renderDesignSelection;
+  $('ad-id').oninput = renderDesignSelection;
+
+  function renderDesignSelection() {
+    var f = (state.selection.frames || [])[0];
+    var n = (state.selection.frames || []).length;
+    $('ad-selmeta').textContent = n ? (n + ' selected') : '';
+    if (!f) {
+      $('ad-sel').innerHTML = 'Select one frame to capture.';
+    } else {
+      $('ad-sel').innerHTML = '<b>' + esc(f.name) + '</b><br>' +
+        '<span class="muted">' + f.w + ' × ' + f.h + ' px · node ' + esc(f.id) + '</span><br>' +
+        '<span class="muted">Style IDs: ' + (f.ids && f.ids.length ? esc(f.ids.join(', ')) : 'none in the frame name') + '</span>' +
+        (n > 1 ? '<br><span style="color:var(--danger)">' + n + ' frames selected — only the first is captured.</span>' : '');
+    }
+    // Held disabled until main.js can answer `capture-template`. The form still validates
+    // so the shape is visible, but we do not offer an action that cannot do anything —
+    // firing it only produced a "no handler" notice that read like a failure.
+    var formReady = !!(f && $('ad-name').value.trim() && $('ad-id').value.trim() && $('ad-cat').value);
+    $('ad-go').disabled = true;
+    $('ad-go').textContent = formReady ? 'Add as template — not built yet' : 'Add as template';
+  }
+
+  $('ad-go').onclick = function () {
+    var f = (state.selection.frames || [])[0];
+    if (!f) return;
+    var payload = {
+      type: 'capture-template',
+      frameId: f.id,
+      frameName: f.name,
+      width: f.w, height: f.h,
+      styleIds: f.ids || [],
+      pageId: state.pageId,
+      template: {
+        id: $('ad-id').value.trim(),
+        label: $('ad-name').value.trim(),
+        categoryId: $('ad-cat').value,
+        genderId: $('ad-gender').value,
+        status: 'draft'
+      },
+      semanticLabelling: false,       // backend-side, never a key in this UI
+      backend: state.backend || null
+    };
+    $('ad-out').innerHTML = '<div class="note pending"><b>Capture requested</b>Waiting on <code>capture-template</code>…</div>';
+    parent.postMessage({ pluginMessage: payload }, '*');
+    clearTimeout(state.pending.capture);
+    state.pending.capture = setTimeout(function () {
+      $('ad-out').innerHTML = '<div class="note warn"><b>No handler — nothing was captured</b>' +
+        'The message was posted and <code>main.js</code> did not answer, which is expected: the capture step is not built. ' +
+        'No template was created, nothing was written to the backend, and the frame on the canvas is untouched.</div>';
+    }, 1500);
+  };
+
+  // ---------- PANEL 3 — export ----------
+  var ruleSeq = 0;
+  function newRule() { return { id: 'r' + (++ruleSeq), category: '', gender: '', styleId: '', gif: '' }; }
+  function renderRules() {
+    var host = $('ex-rules'), cats = registryCats();
+    $('ex-rulemeta').textContent = state.gifRules.length ? (state.gifRules.length + ' rule' + (state.gifRules.length > 1 ? 's' : '')) : 'none yet';
+    if (!state.gifRules.length) {
+      host.innerHTML = '<div class="note info" style="margin-top:0"><b>No rules yet</b>Add one per GIF.</div>';
+      return;
+    }
+    host.innerHTML = state.gifRules.map(function (r, i) {
+      return '<div class="rule" data-i="' + i + '">' +
+        '<div class="g">' +
+        '<div><label>Category</label><select data-k="category"><option value="">any</option>' +
+        cats.map(function (c) { return '<option value="' + esc(c.id) + '"' + (r.category === c.id ? ' selected' : '') + '>' + esc(c.label) + '</option>'; }).join('') +
+        '</select></div>' +
+        '<div><label>Gender</label><input data-k="gender" value="' + esc(r.gender) + '" placeholder="any"></div>' +
+        '<div><label>Style ID</label><input data-k="styleId" value="' + esc(r.styleId) + '" placeholder="any"></div>' +
+        '<div><label>GIF file</label><input data-k="gif" value="' + esc(r.gif) + '" placeholder="file name in the folder"></div>' +
+        '</div>' +
+        '<button class="btn ghost x" data-del="' + i + '">Remove rule</button>' +
+        '</div>';
+    }).join('');
+  }
+  $('ex-rules').addEventListener('input', function (ev) {
+    var el = ev.target, k = el.dataset && el.dataset.k;
+    if (!k) return;
+    var box = el.closest('.rule'); if (!box) return;
+    var r = state.gifRules[parseInt(box.dataset.i, 10)];
+    if (r) { r[k] = el.value; renderExportStyles(); }
+  });
+  $('ex-rules').addEventListener('change', function (ev) {
+    var el = ev.target, k = el.dataset && el.dataset.k;
+    if (!k) return;
+    var box = el.closest('.rule'); if (!box) return;
+    var r = state.gifRules[parseInt(box.dataset.i, 10)];
+    if (r) { r[k] = el.value; renderExportStyles(); }
+  });
+  $('ex-rules').addEventListener('click', function (ev) {
+    var d = ev.target.dataset && ev.target.dataset.del;
+    if (d === undefined) return;
+    state.gifRules.splice(parseInt(d, 10), 1);
+    renderRules(); renderExportStyles();
+  });
+  $('ex-addrule').onclick = function () { state.gifRules.push(newRule()); renderRules(); renderExportStyles(); };
+  $('ex-folder').oninput = function () { state.exportFolder = $('ex-folder').value.trim(); renderExportStyles(); };
+
+  // Matching is data: first rule whose filled fields all match wins. No category is named in code.
+  function gifFor(ctx) {
+    for (var i = 0; i < state.gifRules.length; i++) {
+      var r = state.gifRules[i];
+      if (r.category && r.category !== ctx.category) continue;
+      if (r.gender && String(r.gender).toLowerCase() !== String(ctx.gender || '').toLowerCase()) continue;
+      if (r.styleId && String(r.styleId).trim() !== ctx.styleId) continue;
+      return r;
+    }
+    return null;
+  }
+  function exportCandidates() {
+    var sc = sheetSchema(), out = [], seen = {};
+    editedRows().forEach(function (r) {
+      var t = resolveRowTarget(r, state.src === 'selection');
+      (String(r[sc.styleIdColumn] || '').match(/\d{6}/g) || []).forEach(function (id) {
+        if (seen[id]) return; seen[id] = 1;
+        out.push({ styleId: id, category: t.catId || '', gender: t.genderId || '', label: t.error ? '' : t.label, error: t.error || null });
+      });
+    });
+    (state.selection.ids || []).forEach(function (id) {
+      if (seen[id]) return; seen[id] = 1;
+      out.push({ styleId: id, category: state.cat || '', gender: state.gender || '', label: 'from canvas selection', error: null });
+    });
+    return out;
+  }
+  function renderExportStyles() {
+    var host = $('ex-styles'); if (!host) return;
+    var list = exportCandidates();
+    $('ex-stylemeta').textContent = list.length ? (list.length + ' style ID' + (list.length > 1 ? 's' : '')) : '';
+    if (!list.length) {
+      host.innerHTML = '<div class="note info"><b>Nothing to export yet</b>Load a sheet, or select A+ frames.</div>';
+      return;
+    }
+    var gate = !state.reviewed;
+    host.innerHTML = (gate ? '<div class="note warn"><b>Review not confirmed</b>Tick “I have reviewed these values” on the Automate tab.</div>' : '') +
+      list.map(function (c, i) {
+        var g = gifFor(c);
+        return '<div class="srow">' +
+          '<div><div class="sid">' + esc(c.styleId) + '</div>' +
+          '<div class="sg">' + esc(c.label || c.error || '—') + ' · GIF: ' + esc(g && g.gif ? g.gif : 'no rule matches') + '</div></div>' +
+          '<div class="sp"><button class="btn ghost" data-ex="' + i + '"' + (gate ? ' disabled' : '') + '>Export</button></div>' +
+          '</div>';
+      }).join('');
+  }
+  $('ex-styles').addEventListener('click', function (ev) {
+    var d = ev.target.dataset && ev.target.dataset.ex;
+    if (d === undefined) return;
+    // the gate, re-read from state rather than trusted from the button's disabled attribute
+    if (!state.reviewed) return;
+    var c = exportCandidates()[parseInt(d, 10)];
+    if (!c) return;
+    var g = gifFor(c);
+    var payload = {
+      type: 'export-style',
+      styleId: c.styleId,
+      category: c.category,
+      gender: c.gender,
+      pageId: state.pageId,
+      format: $('ex-format').value,
+      scale: parseInt($('ex-scale').value, 10) || 1,
+      gif: g ? { file: g.gif, rule: { category: g.category, gender: g.gender, styleId: g.styleId } } : null,
+      folder: state.exportFolder || null,
+      reviewed: state.reviewed
+    };
+    $('ex-out').innerHTML = '<div class="note pending"><b>Export requested · ' + esc(c.styleId) + '</b>Waiting on <code>export-style</code>…</div>';
+    parent.postMessage({ pluginMessage: payload }, '*');
+    clearTimeout(state.pending.exp);
+    state.pending.exp = setTimeout(function () {
+      $('ex-out').innerHTML = '<div class="note warn"><b>No handler — nothing was exported</b>' +
+        'The message was posted and <code>main.js</code> did not answer. The export path is not built, and the GIF step cannot be ' +
+        'until the output format is decided — Figma cannot emit an animated GIF. Nothing was written to Drive or to disk.</div>';
+    }, 1500);
+  });
+
+  // ---------- the page the plugin is building on ----------
+  function setPage(name, frameCount, id) {
+    if (id !== undefined) state.pageId = id;
+    state.pageName = name || '';
+    $('page').textContent = name || 'Untitled page';
+    $('page-sub').textContent = (frameCount === undefined || frameCount === null)
+      ? 'Output lands here.'
+      : (frameCount + ' frame' + (frameCount === 1 ? '' : 's') + ' · output lands here');
+  }
+
+  window.onmessage = function (e) {
+    var m = e.data.pluginMessage; if (!m) return;
+    if (m.type === 'init') {
+      $('link').value = m.sheetLink || '';
+      $('backend').value = m.backendUrl || '';
+      state.backend = m.backendUrl || '';
+      state.session = m.session || '';
+      state.registry = m.registry;
+      window.BUNDLED_MANIFESTS = m.manifests || {};
+      if (m.page) setPage(m.page);                 // legacy init.page, still honoured
+      renderCats(); setBackend(false); setGoogle('off');
+      applyLinkScope();
+      renderReview(); renderExportStyles();
+      if (state.backend) { refreshRegistry(); checkGoogle(); }
+      parent.postMessage({ pluginMessage: { type: 'ping-page' } }, '*');
+    }
+    if (m.type === 'page') setPage(m.name, m.frameCount, m.id);
+    if (m.type === 'selection') {
+      // selection and page events race on a page switch; pageId lets the stale one go
+      if (m.pageId && state.pageId && m.pageId !== state.pageId) return;
+      state.selection = { frames: m.frames || [], ids: m.ids || [] };
+      renderSelection(); renderDesignSelection();
+    }
+    if (m.type === 'progress') $('run').textContent = 'Building ' + m.done + ' / ' + m.total + '…';
+    if (m.type === 'error') {
+      setErr(m.message);
+      $('run').disabled = !!state.scopeBlocked; $('run').textContent = 'Run A+';
+      $('addcmp').disabled = !state.selection.frames.length; $('addcmp').textContent = 'Add fit comparison';
+    }
+    if (m.type === 'done') {
+      $('run').disabled = !!state.scopeBlocked; $('run').textContent = 'Run A+';
+      $('addcmp').disabled = !state.selection.frames.length; $('addcmp').textContent = 'Add fit comparison';
+      var html = '';
+      if (m.missingFonts && m.missingFonts.length) html += '<div class="err">Fonts missing on this machine, Inter used instead: ' + esc(m.missingFonts.join(', ')) + '</div>';
+      html += '<div class="hint">Template: <b>' + esc(m.template || '') + '</b> · source: ' + esc(m.source || 'bundled') + '</div>';
+      html += m.report.map(function (r) {
+        return '<div class="item"><b class="' + (r.ok ? 'ok' : 'bad') + '">' + (r.ok ? '✓ ' : '✕ ') + esc(r.name) + '</b>' +
+          (r.warnings && r.warnings.length ? '<ul>' + r.warnings.map(function (w) { return '<li>' + esc(w) + '</li>'; }).join('') + '</ul>' : '') + '</div>';
+      }).join('');
+      html += '<div class="hint">Next: drop in photos, then export slices 1 and 2.</div>';
+      $('report').innerHTML = html;
+    }
+    // Answers for the two panels that are not wired yet. If main.js ever sends these,
+    // they render for real — until then the timeout above tells the truth.
+    if (m.type === 'capture-result' || m.type === 'capture-error') {
+      clearTimeout(state.pending.capture);
+      $('ad-out').innerHTML = '<div class="note ' + (m.type === 'capture-error' ? 'warn' : 'info') + '"><b>' +
+        (m.type === 'capture-error' ? 'Capture failed' : 'Capture result') + '</b>' + esc(m.message || JSON.stringify(m)) + '</div>';
+    }
+    if (m.type === 'export-result' || m.type === 'export-error') {
+      clearTimeout(state.pending.exp);
+      $('ex-out').innerHTML = '<div class="note ' + (m.type === 'export-error' ? 'warn' : 'info') + '"><b>' +
+        (m.type === 'export-error' ? 'Export failed' : 'Export result') + '</b>' + esc(m.message || JSON.stringify(m)) + '</div>';
+    }
+  };
+
+  // first paint for the panels that do not wait on a message
+  renderRules();
+  renderExportStyles();
+  renderDesignSelection();
+</script>
+</body>
+</html>

@@ -1,0 +1,90 @@
+{
+  "schema": "aplus.registry/2",
+  "updated": "2026-11-26",
+  "sheet": {
+    "comment": "Column layout of the live content sheet 'A+_Sheet_RUNNING_Template_1'. A Group · B Style IDs · C Category · D Subcategory · E Article Type · F Sub-family 2 · G First Card Headline · H First Card Subtext · I Fabric Subtext · J Composition · K Fabric Icons · L–O Feature 1–4 · P Last Slide Headline · Q Last Slide Body · R Status · S Flags · T Gender (to be added).",
+    "styleIdColumn": 1,
+    "categoryColumn": 2,
+    "genderColumn": 19,
+    "headlineColumn": 6,
+    "taglineColumn": 7,
+    "fabricCopyColumn": 8,
+    "compositionColumn": 9,
+    "iconsColumn": 10,
+    "cardColumns": [11, 12, 13, 14],
+    "statusColumn": 17,
+    "cardTitleSeparator": ": ",
+    "compositionSeparator": " | ",
+    "headerRows": 1,
+    "categoryAliases": {
+      "run": "running", "running": "running",
+      "train": "training", "training": "training",
+      "lifestyle": "lifestyle", "comfort": "lifestyle",
+      "seamless": "seamless", "flex": "seamless"
+    },
+    "genderAliases": {
+      "m": "men", "men": "men", "mens": "men", "man": "men", "male": "men", "boys": "men",
+      "w": "women", "women": "women", "womens": "women", "woman": "women", "female": "women", "ladies": "women", "girls": "women",
+      "u": "unisex", "unisex": "unisex", "uni": "unisex", "all": "unisex"
+    }
+  },
+  "categories": [
+    {
+      "id": "running",
+      "label": "Running",
+      "status": "active",
+      "defaultGender": "men",
+      "genders": [
+        {
+          "id": "men",
+          "label": "Men",
+          "status": "active",
+          "hero": ["RUN", "UNSTOPPABLE"],
+          "templates": [
+            { "id": "template-1", "label": "Standard", "sub": "Hero + Fabric + 3–4 callouts", "version": 2, "status": "active", "file": "running/men/template-1.json" },
+            { "id": "template-2", "label": "With fit comparison", "sub": "Standard + Regular vs Slim card", "features": ["fitComparison"], "version": 2, "status": "active", "file": "running/men/template-2.json" }
+          ]
+        },
+        {
+          "id": "women",
+          "label": "Women",
+          "status": "active",
+          "hero": ["RUN", "UNSTOPPABLE"],
+          "templates": [
+            { "id": "template-1", "label": "Standard", "sub": "Hero + Fabric + 3–4 callouts", "version": 2, "status": "active", "file": "running/women/template-1.json" },
+            { "id": "template-2", "label": "With fit comparison", "sub": "Standard + Regular vs Slim card", "features": ["fitComparison"], "version": 2, "status": "active", "file": "running/women/template-2.json" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "training",
+      "label": "Training",
+      "status": "coming-soon",
+      "defaultGender": "men",
+      "genders": [
+        { "id": "men", "label": "Men", "status": "coming-soon", "hero": ["TRAIN", "FEARLESS"], "templates": [] },
+        { "id": "women", "label": "Women", "status": "coming-soon", "hero": ["TRAIN", "FEARLESS"], "templates": [] }
+      ]
+    },
+    {
+      "id": "lifestyle",
+      "label": "Lifestyle",
+      "status": "coming-soon",
+      "defaultGender": "men",
+      "genders": [
+        { "id": "men", "label": "Men", "status": "coming-soon", "hero": ["COMFORT", "REDEFINED"], "templates": [] },
+        { "id": "women", "label": "Women", "status": "coming-soon", "hero": ["COMFORT", "REDEFINED"], "templates": [] }
+      ]
+    },
+    {
+      "id": "seamless",
+      "label": "Seamless",
+      "status": "coming-soon",
+      "defaultGender": "women",
+      "genders": [
+        { "id": "women", "label": "Women", "status": "coming-soon", "hero": ["FLEX", "& FLOW"], "templates": [] }
+      ]
+    }
+  ]
+}

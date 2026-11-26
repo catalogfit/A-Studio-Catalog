@@ -1,0 +1,26 @@
+# Keep the image small and keep secrets + big binaries out of the build context.
+.git
+.gitignore
+node_modules
+**/node_modules
+
+# Secrets — never bake these into an image.
+.env
+**/.env
+backend/.env
+
+# Local session state (the deployed service does not use it — see docs/export-pipeline.md).
+backend/.data/
+
+# Not needed at runtime.
+sheets/
+references/
+data/
+docs/
+plugin/
+plugin-src/
+*.md
+!backend/README.md
+Dockerfile
+.dockerignore
+render.yaml

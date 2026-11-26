@@ -1,0 +1,38 @@
+<!--
+  cult "V man" mark.
+
+  RECONSTRUCTION, not source artwork. Traced from the PNG the user supplied on 2026-11-26.
+  The official component is "V man + cult fit logo on white" in the Aurora App Design System
+  library — export that and replace this file verbatim when the library file key is available.
+  Brand guidance says use source artwork; this stands in only until that arrives.
+
+  The black strokes use currentColor so the mark inherits the header's text colour and reads
+  correctly on the dark ground. The three accent strokes are fixed brand colours.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 109" role="img" aria-label="cult">
+  <g fill="none" stroke-linecap="round">
+    <!-- top accent -->
+    <line x1="50.5" y1="4.6" x2="50.5" y2="9.8" stroke="#EE3C6E" stroke-width="9.2"/>
+
+    <!-- head -->
+    <circle cx="50" cy="33.7" r="9.5" stroke="currentColor" stroke-width="7.6"/>
+
+    <!-- upper rays -->
+    <line x1="8.6"  y1="31.8" x2="26.3" y2="41.7" stroke="currentColor" stroke-width="8.8"/>
+    <line x1="91.4" y1="31.8" x2="73.7" y2="41.7" stroke="currentColor" stroke-width="8.8"/>
+
+    <!-- arms -->
+    <line x1="6.8" y1="58.7" x2="93.2" y2="58.7" stroke="currentColor" stroke-width="11.2"/>
+
+    <!-- lower accents -->
+    <line x1="9.6"  y1="84.4" x2="28.4" y2="72.6" stroke="#5BC2EF" stroke-width="8.8"/>
+    <line x1="90.4" y1="84.4" x2="71.6" y2="72.6" stroke="#FFD93E" stroke-width="8.8"/>
+
+    <!-- legs -->
+    <path d="M19.6 101.8 L50 71.6 L80.4 101.8" stroke="currentColor" stroke-width="10"
+          stroke-linejoin="round"/>
+
+    <!-- base -->
+    <line x1="50.5" y1="95.6" x2="50.5" y2="104.4" stroke="currentColor" stroke-width="7.2"/>
+  </g>
+</svg>
