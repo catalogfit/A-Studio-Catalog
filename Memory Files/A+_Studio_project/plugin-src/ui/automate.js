@@ -227,17 +227,14 @@
       var heroFill = Array.isArray(hm.fill) ? 'rgb(' + hm.fill.join(',') + ')' : pcol(M, hm.fill);
       s.push('<rect x="' + hm.x + '" y="' + hm.y + '" width="' + hm.w + '" height="' + hm.h + '" fill="' + heroFill + '"/>');
       s.push(svgLayers(M, hm.layers, uid, 'he', defs, H, {
-        bgPhoto: function () {
-          var bp = hm.bgPhoto;
-          return bp ? slot(M, bp.x, bp.y, bp.w, bp.h, false) : '';
-        },
+        bgPhoto: function () { return ''; },
         word: function () {
           return '<text x="' + (hm.w / 2) + '" y="' + (hm.word.y + hm.word.size * 0.78) + '" text-anchor="middle" font-family="Poppins, Inter, sans-serif" font-weight="800" font-size="' + hm.word.size + '" fill="' + hw.fill + '" opacity="' + hm.word.opacity + '" textLength="' + hm.word.maxWidth + '" lengthAdjust="spacingAndGlyphs">' + esc(hd[0]) + '</text>';
         },
         italic: function () {
           return '<text x="' + (hm.w / 2) + '" y="' + (hm.italic.y + hm.italic.size * 0.8) + '" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="' + hm.italic.size + '" fill="' + pcol(M, hm.italic.colorRole) + '" opacity="' + hm.italic.opacity + '" textLength="' + hm.italic.maxWidth + '" lengthAdjust="spacingAndGlyphs">' + esc(hd[1]) + '</text>';
         },
-        model: function () { return slot(M, hm.model.x, hm.model.y, hm.model.w, hm.model.h, false); },
+        model: function () { return ''; },
         tagline: function () {
           return '<rect x="' + hm.tagline.x + '" y="' + hm.tagline.y + '" width="' + hm.tagline.width + '" height="' + (hm.tagline.size * 2.2) + '" rx="6" fill="' + pcol(M, 'tag') + '" opacity=".35"/>';
         }
