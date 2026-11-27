@@ -5204,7 +5204,7 @@ var FALLBACK_MANIFESTS = {
       "status": "active",
       "updated": "2026-11-27",
       "owner": "Rohit Ghosh, Catalog Design, Curefit / Cultstore",
-      "notes": "The everyday men's Training A+: hero, Fabric in Focus, then 3 or 4 alternating callouts. Measured off all three men's Training designs on Page 2 — Compression Top Solid 2 (1097:1514, 707041/707042/707044), Trackpants Graphic (1097:1383, 707564/707565/707566) and Shorts Graphic 1 (1097:1633, 707175/707176/707177). Only one men's template exists because the three designs are structurally identical: same hero stack, same fabric card, same alternating callout rig, no extra block in any of them. What separates them is the accent colour (meta.artDirection) and how many features the sheet row fills, and neither is a template.",
+      "notes": "The everyday men's Training A+: hero, Fabric in Focus, then 3 or 4 alternating callouts. Measured off all three men's Training designs on Page 2 — Compression Top Solid 2 (1097:1514, 707041/707042/707044), Trackpants Graphic (1097:1383, 707564/707565/707566) and Shorts Graphic 1 (1097:1633, 707175/707176/707177). Only one men's template exists because the three designs are structurally identical: same hero stack, same fabric card, same alternating callout rig, no extra block in any of them. What separates them is the accent colour (meta.artDirection) and how many features the sheet row fills, and neither is a template. THE MEN'S HERO HAS ONE PHOTO DROP, NOT TWO: training/_base.json's hero.layers carries no `model` role, so only `bgPhoto` is placed. That is the designer's decision, taken by hand on the approved frame (TEMPLATE · TRAINING · MEN · Standard, 1109:2) and reconciled into the manifest — it is NOT an oversight, and it has already been undone by mistake once. The full reasoning is in training/_base.json meta.knownDeviations. The women's hero is genuinely different and keeps its model slot.",
       "width": 1572,
       "sliceSplitY": 2960,
       "artDirection": {
@@ -5261,7 +5261,8 @@ var FALLBACK_MANIFESTS = {
       "knownDeviations": [
         "Rendered frame heights match the real designs exactly — 1572 x 4743 for a 3-feature row (Compression Top, Shorts) and 1572 x 5380 for a 4-feature one (Trackpants, real 5379.69). What does NOT match is the spacing WITHIN a 3-callout frame: the two hand-made 3-callout designs pack their three cards ~45px tighter than the Trackpants' four-card rig, and one `callouts.cards` array has to serve both, so the Trackpants spacing is used and the slack lands below card 3.",
         "'Wash · lower' is bottom-anchored (yFromBottom 66.78, the Trackpants/Running placement). The two 3-callout designs park it 211px lower on a fixed y with a different gradient matrix.",
-        "Hidden leftovers NOT reproduced, as orphans the project set out to clean up: a hidden duplicate of 'Glow · right lower' (Ellipse 87), a hidden fabric photo (705963_C), a hidden wash entirely below the frame (Rectangle 42140, y 5685), and a hidden hero model photo (948a6666…). The hidden layers that ARE reproduced are the two alternate gradients and the fabric Photo wash."
+        "Hidden leftovers NOT reproduced, as orphans the project set out to clean up: a hidden duplicate of 'Glow · right lower' (Ellipse 87), a hidden fabric photo (705963_C), a hidden wash entirely below the frame (Rectangle 42140, y 5685), and a hidden hero model photo (948a6666…). The hidden layers that ARE reproduced are the two alternate gradients and the fabric Photo wash.",
+        "The men's hero has NO model slot — `hero.layers` ends at the `italic` role and carries no `model` marker, so the hero ships exactly one photo drop, `bgPhoto`. This is the designer's decision, taken on the canvas (frame 1109:2 on Page 2) and adopted here. The reasoning: in the men's hero `bgPhoto` is 1575 x 1599 at (0, -1) — the full hero box — and the measured model box is 1170 x 1586 at (237, 8), entirely INSIDE it. The two slots were therefore near-coincident placeholders over the same area, and in a skeleton the second one (a 35%-opacity plate sitting above the type, since `model` was the topmost role) greyed out the TRAIN / FEARLESS wordmarks. The men's photographic content is the full-bleed colourway stack that already collapses into `bgPhoto`, drawn UNDER the texture, the right-hand shade and the type — that is the men's composition. The only other model photo in the men's sources is the hidden orphan 948a6666, listed above as not reproduced. The WOMEN'S hero is different and keeps its model slot: there `bgPhoto` is 1730 x 2080 at (-77, -201) and is the bottom-most layer — an environmental backdrop — with a genuinely separate 1076 x 1438 model subject above the type. training/_women.json restates hero.layers with the `model` role intact, and the women's template frame on Page 2 (1110:2) still carries it."
       ],
       "gender": "men",
       "genderLabel": "Men",
@@ -5363,7 +5364,7 @@ var FALLBACK_MANIFESTS = {
       "bottomPad": 0
     },
     "background": {
-      "comment": "Frame-level art, in the z-order of the real Training files (which differs from Running: the two body washes are drawn BEFORE the fabric wash, not after). The glows are radial-gradient ellipses and the washes are large rotated rectangles — 'Wash · lower' is also FLIPPED (negative determinant), so it carries the full rt matrix.",
+      "comment": "Frame-level art, in the z-order of the real Training files (which differs from Running: the two body washes are drawn BEFORE the fabric wash, not after). The glows are radial-gradient ellipses and the washes are large rotated rectangles. All three washes carry a full `rt` matrix. Determinants, checked against the canvas: 'Wash · lower' and 'Wash · upper' are PURE ROTATIONS (det +1.0, about 155.4 deg and -24.6 deg); 'Wash · fabric' is the one that is FLIPPED as well as rotated (det -0.9985) and therefore cannot be expressed as a rotation at all. An earlier revision of this comment attributed the flip to 'Wash · lower', which is wrong — correcting it here so nobody 'simplifies' Wash · fabric into a rotation. Storing the full rt for all three is still correct and lossless.",
       "layers": [
         {
           "name": "BG gradient",
@@ -5830,7 +5831,7 @@ var FALLBACK_MANIFESTS = {
         250,
         251
       ],
-      "comment": "Layer order is the Compression Top / Shorts hero (`SOLID Frame 54`), layer for layer. The real heroes stack up to four full-bleed 1575 x ~1599 colourway photographs on top of each other; they all collapse into the single `bgPhoto` slot, which is placed where the topmost one sits. The halftone texture appears TWICE in every Training hero (`image 394` below the photo stack, `image 395` above it) — both are kept, with the identical paint the originals carry.",
+      "comment": "Only the two photo-slot labels are men's-specific; all geometry comes from training/_base.json. `model` is overridden here for its name and label ONLY — the slot is not drawn, because _base's hero.layers has no `model` role. The override is kept so the label is already correct if the slot is ever deliberately re-enabled, and because validate.js requires hero.model to exist. Adding the role back is a design decision, not a bug fix — read meta.notes first.",
       "layers": [
         {
           "name": "Hero backdrop · trr3",
@@ -6104,9 +6105,6 @@ var FALLBACK_MANIFESTS = {
         },
         {
           "role": "italic"
-        },
-        {
-          "role": "model"
         }
       ],
       "bgPhoto": {
@@ -6184,7 +6182,7 @@ var FALLBACK_MANIFESTS = {
         "blur": 16.903
       },
       "model": {
-        "comment": "The real heroes stack a hidden model photo under the live one; only the live one is reproduced. Box is the Compression Top's; the Shorts uses (245, -3, 1157 x 1601) and the Trackpants (233, 0, 1192 x 1615).",
+        "comment": "DEFINED BUT NOT DRAWN in the men's hero — `hero.layers` carries no `model` role, so this slot is never placed. It is kept for three reasons: scripts/validate.js lists hero.model in RENDERER_REQUIRED, plugin-src/renderer.js reads hm.model inside the role closure with no guard, and training/_women.json overrides this object for the women's hero, which DOES place a model slot. It also preserves the measurement. Box is the Compression Top's; the Shorts uses (245, -3, 1157 x 1601) and the Trackpants (233, 0, 1192 x 1615). Re-enabling it means adding `{\"role\":\"model\"}` back to hero.layers — read meta.knownDeviations first; this has already been removed by the designer once and re-added by mistake.",
         "name": "Hero model photo · men's training",
         "x": 237,
         "y": 8,

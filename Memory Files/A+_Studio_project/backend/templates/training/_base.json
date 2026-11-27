@@ -29,7 +29,8 @@
     "knownDeviations": [
       "Rendered frame heights match the real designs exactly — 1572 x 4743 for a 3-feature row (Compression Top, Shorts) and 1572 x 5380 for a 4-feature one (Trackpants, real 5379.69). What does NOT match is the spacing WITHIN a 3-callout frame: the two hand-made 3-callout designs pack their three cards ~45px tighter than the Trackpants' four-card rig, and one `callouts.cards` array has to serve both, so the Trackpants spacing is used and the slack lands below card 3.",
       "'Wash · lower' is bottom-anchored (yFromBottom 66.78, the Trackpants/Running placement). The two 3-callout designs park it 211px lower on a fixed y with a different gradient matrix.",
-      "Hidden leftovers NOT reproduced, as orphans the project set out to clean up: a hidden duplicate of 'Glow · right lower' (Ellipse 87), a hidden fabric photo (705963_C), a hidden wash entirely below the frame (Rectangle 42140, y 5685), and a hidden hero model photo (948a6666…). The hidden layers that ARE reproduced are the two alternate gradients and the fabric Photo wash."
+      "Hidden leftovers NOT reproduced, as orphans the project set out to clean up: a hidden duplicate of 'Glow · right lower' (Ellipse 87), a hidden fabric photo (705963_C), a hidden wash entirely below the frame (Rectangle 42140, y 5685), and a hidden hero model photo (948a6666…). The hidden layers that ARE reproduced are the two alternate gradients and the fabric Photo wash.",
+      "The men's hero has NO model slot — `hero.layers` ends at the `italic` role and carries no `model` marker, so the hero ships exactly one photo drop, `bgPhoto`. This is the designer's decision, taken on the canvas (frame 1109:2 on Page 2) and adopted here. The reasoning: in the men's hero `bgPhoto` is 1575 x 1599 at (0, -1) — the full hero box — and the measured model box is 1170 x 1586 at (237, 8), entirely INSIDE it. The two slots were therefore near-coincident placeholders over the same area, and in a skeleton the second one (a 35%-opacity plate sitting above the type, since `model` was the topmost role) greyed out the TRAIN / FEARLESS wordmarks. The men's photographic content is the full-bleed colourway stack that already collapses into `bgPhoto`, drawn UNDER the texture, the right-hand shade and the type — that is the men's composition. The only other model photo in the men's sources is the hidden orphan 948a6666, listed above as not reproduced. The WOMEN'S hero is different and keeps its model slot: there `bgPhoto` is 1730 x 2080 at (-77, -201) and is the bottom-most layer — an environmental backdrop — with a genuinely separate 1076 x 1438 model subject above the type. training/_women.json restates hero.layers with the `model` role intact, and the women's template frame on Page 2 (1110:2) still carries it."
     ]
   },
   "fonts": {
@@ -60,7 +61,7 @@
     "bottomPad": 0
   },
   "background": {
-    "comment": "Frame-level art, in the z-order of the real Training files (which differs from Running: the two body washes are drawn BEFORE the fabric wash, not after). The glows are radial-gradient ellipses and the washes are large rotated rectangles — 'Wash · lower' is also FLIPPED (negative determinant), so it carries the full rt matrix.",
+    "comment": "Frame-level art, in the z-order of the real Training files (which differs from Running: the two body washes are drawn BEFORE the fabric wash, not after). The glows are radial-gradient ellipses and the washes are large rotated rectangles. All three washes carry a full `rt` matrix. Determinants, checked against the canvas: 'Wash · lower' and 'Wash · upper' are PURE ROTATIONS (det +1.0, about 155.4 deg and -24.6 deg); 'Wash · fabric' is the one that is FLIPPED as well as rotated (det -0.9985) and therefore cannot be expressed as a rotation at all. An earlier revision of this comment attributed the flip to 'Wash · lower', which is wrong — correcting it here so nobody 'simplifies' Wash · fabric into a rotation. Storing the full rt for all three is still correct and lossless.",
     "layers": [
       { "name": "BG gradient", "x": -10, "y": 1616, "w": 1697, "hToFramePlus": 0,
         "comment": "Compression Top / Shorts both run this to the frame bottom exactly (hToFramePlus 0). The Trackpants runs it 108.28 past, as Running does.",
@@ -107,7 +108,7 @@
     "name": "Card 1 · Hero",
     "x": 0, "y": 0, "w": 1575, "h": 1616,
     "fill": [250, 250, 251],
-    "comment": "Layer order is the Compression Top / Shorts hero (`SOLID Frame 54`), layer for layer. The real heroes stack up to four full-bleed 1575 x ~1599 colourway photographs on top of each other; they all collapse into the single `bgPhoto` slot, which is placed where the topmost one sits. The halftone texture appears TWICE in every Training hero (`image 394` below the photo stack, `image 395` above it) — both are kept, with the identical paint the originals carry.",
+    "comment": "Layer order is the Compression Top / Shorts hero (`SOLID Frame 54`), layer for layer. The real heroes stack up to four full-bleed 1575 x ~1599 colourway photographs on top of each other; they all collapse into the single `bgPhoto` slot, which is placed where the topmost one sits. The halftone texture appears TWICE in every Training hero (`image 394` below the photo stack, `image 395` above it) — both are kept, with the identical paint the originals carry. NOTE the stack deliberately ends at `italic`: there is NO `{\"role\":\"model\"}` marker, so the men's hero ships exactly ONE photo drop (`bgPhoto`). See meta.knownDeviations and hero.model before adding one back. This array is the MEN'S hero stack — training/_women.json restates hero.layers in full (the merge replaces arrays rather than merging them), so editing it here cannot affect the women's templates.",
     "layers": [
       { "name": "Hero backdrop · trr3", "x": -60, "y": -40, "w": 1696, "h": 1696, "visible": false,
         "comment": "Bottom-most layer in the Compression Top and the Shorts: the same imageHash in both, which is why it was first read as a shared backdrop graphic rather than a per-style photograph. It is a PHOTOGRAPH. In the finished designs it contributes nothing — the live model photo covers it completely — but in a skeleton, where the model is an empty 35%-opacity placeholder, it showed through as a full-bleed photo of a female athlete inside the MEN'S template. Shipping a baked-in photo also contradicts the brief that every photo area be a placeholder. Kept as data (it really is in the source) but hidden, the same convention as the fabric 'Photo wash'. The hero background slot directly above it is the real fill point. The Trackpants puts a style photo here instead.",
@@ -145,8 +146,7 @@
 
       { "role": "tagline" },
       { "role": "word" },
-      { "role": "italic" },
-      { "role": "model" }
+      { "role": "italic" }
     ],
     "bgPhoto": {
       "name": "Hero background photo (full bleed)", "x": 0, "y": -1, "w": 1575, "h": 1599,
@@ -164,7 +164,7 @@
       "upper": true, "align": "CENTER", "colorRole": "white", "opacity": 0.34, "maxWidth": 1440, "y": 412.46, "blur": 16.903
     },
     "model": {
-      "comment": "The real heroes stack a hidden model photo under the live one; only the live one is reproduced. Box is the Compression Top's; the Shorts uses (245, -3, 1157 x 1601) and the Trackpants (233, 0, 1192 x 1615).",
+      "comment": "DEFINED BUT NOT DRAWN in the men's hero — `hero.layers` carries no `model` role, so this slot is never placed. It is kept for three reasons: scripts/validate.js lists hero.model in RENDERER_REQUIRED, plugin-src/renderer.js reads hm.model inside the role closure with no guard, and training/_women.json overrides this object for the women's hero, which DOES place a model slot. It also preserves the measurement. Box is the Compression Top's; the Shorts uses (245, -3, 1157 x 1601) and the Trackpants (233, 0, 1192 x 1615). Re-enabling it means adding `{\"role\":\"model\"}` back to hero.layers — read meta.knownDeviations first; this has already been removed by the designer once and re-added by mistake.",
       "name": "Hero model photo", "x": 237, "y": 8, "w": 1170, "h": 1586, "fillOpacity": 0.35,
       "label": "Hero model photo"
     },
