@@ -1,37 +1,73 @@
 <!-- plugin-src/ui/design.html — owned by the design panel. Inserted into shell.html at "@panel design". -->
   <div class="view" id="view-design">
+    <style>
+      #view-design .ut-list { display: flex; flex-direction: column; gap: 8px; }
+      #view-design .ut-row { border: 1px solid var(--line); border-radius: 10px; padding: 10px 11px; background: var(--surface); }
+      #view-design .ut-row .t { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+      #view-design .ut-row .t b { font-size: 12px; overflow-wrap: anywhere; }
+      #view-design .ut-row .k { font-family: var(--font-mono); font-size: 10px; color: var(--text-2); overflow-wrap: anywhere; margin-top: 2px; }
+      #view-design .ut-row .w { font-size: 10.5px; color: var(--text-2); margin-top: 5px; }
+      #view-design .ut-row .acts { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+      #view-design .ut-row .acts button, #view-design .ut-choice button { font-size: 10.5px; padding: 5px 9px; border-radius: 7px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); cursor: pointer; }
+      #view-design .ut-row .acts button:disabled { opacity: .4; cursor: default; }
+      #view-design .ut-row .acts button.danger, #view-design .ut-choice button.danger { color: var(--danger); }
+      #view-design .ut-row .acts button.go, #view-design .ut-choice button.go { background: var(--panel-accent); color: var(--panel-ink); border-color: transparent; }
+      #view-design .ut-badge { display: inline-block; font-size: 9.5px; padding: 1px 6px; border-radius: 99px; border: 1px solid var(--line); margin-right: 4px; white-space: nowrap; }
+      #view-design .ut-badge.on { border-color: var(--ok); color: var(--ok); }
+      #view-design .ut-badge.off { color: var(--text-3); }
+      #view-design .ut-choice { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+      #view-design .ut-empty { border: 1px dashed var(--line); border-radius: 10px; padding: 14px; color: var(--text-2); font-size: 11px; line-height: 1.55; }
+      #view-design .track i { transition: width .2s; }
+    </style>
+
     <div class="sec">
       <div class="lab"><span class="n"><i>1</i> Frame on this page</span><span class="meta" id="ad-selmeta"></span></div>
       <div class="selbox" id="ad-sel">Select one frame to capture.</div>
     </div>
 
     <div class="sec">
-      <div class="lab"><span class="n"><i>2</i> Template identity</span></div>
-      <input id="ad-name" placeholder="Template name">
+      <div class="lab"><span class="n"><i>2</i> Name it</span></div>
+      <input id="ad-name" placeholder="Template name, e.g. Split hero" maxlength="90">
       <div class="row" style="margin-top:7px">
-        <select id="ad-cat"></select>
-        <select id="ad-gender"></select>
+        <input id="ad-cat" list="ad-cats" placeholder="Category: pick or type a new one" maxlength="60" autocomplete="off">
+        <datalist id="ad-cats"></datalist>
+        <select id="ad-gender">
+          <option value="men">Men</option>
+          <option value="women">Women</option>
+          <option value="unisex">Unisex</option>
+        </select>
       </div>
       <div class="row" style="margin-top:7px">
-        <input id="ad-id" placeholder="Template id — split-hero">
+        <input id="ad-id" placeholder="Template id (filled in from the name)" maxlength="60" autocomplete="off">
       </div>
-      <div class="hint">Keyed as <code>category/gender/id</code>.</div>
+      <div class="hint" id="ad-keyline">Saved as <code>category/gender/id</code>.</div>
     </div>
 
     <div class="sec">
-      <div class="lab"><span class="n"><i>3</i> Capture</span></div>
-      <button class="btn dark" id="ad-go" disabled>Add as template</button>
-      <div class="row" style="align-items:center;gap:8px;margin-top:9px">
-        <input type="checkbox" id="ad-ai" style="width:auto;flex:none">
-        <label for="ad-ai" style="font-size:10.5px">Semantic labelling — runs on the backend, no key here</label>
-      </div>
+      <div class="lab"><span class="n"><i>3</i> Save as your template</span></div>
+      <button class="btn dark" id="ad-go" disabled>Save as template</button>
+      <div class="hint" id="ad-where"></div>
+      <div id="ad-conflict"></div>
       <div id="ad-out"></div>
-      <div class="hint">The round-trip diff is the gate.
-        <details class="more">
-          <summary title="What the diff checks">?</summary>
-          <div class="hint">The captured skeleton is re-rendered and compared with your frame. Any
-          mismatch is listed with its path — <code>docs/add-to-template-plan.md</code>.</div>
-        </details>
+      <details class="more">
+        <summary title="How saving works">?</summary>
+        <div class="hint">Every layer of the frame is read, including its images. The plugin rebuilds the
+        copy next to your frame and compares the two before saving. Text layers named like
+        <code>@hero.word</code> take their copy from the sheet; large photos become photo slots.
+        Your template is saved on this computer and in your Google Drive under
+        <code>Cult A+ Design Lab/Templates</code>. Nothing is stored on the A+ service.</div>
+      </details>
+    </div>
+
+    <div class="sec">
+      <div class="lab"><span class="n"><i>4</i> My templates</span><span class="meta" id="ad-usage"></span></div>
+      <div id="ad-mine" class="ut-list"></div>
+      <div class="row" style="margin-top:9px">
+        <button class="btn ghost" id="ad-import">Import template file…</button>
       </div>
+      <input type="file" id="ad-file" accept=".json,application/json" class="hidden">
+      <div id="ad-mine-out"></div>
+      <div class="hint">Export a template to back it up or share it as a file. Anyone using this plugin
+      can import that file.</div>
     </div>
   </div>

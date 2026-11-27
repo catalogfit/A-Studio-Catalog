@@ -33,13 +33,15 @@ cp.execFileSync(process.execPath, [path.join(SRC, 'build-fallback.js')], { stdio
 //   manifest-fallback.js generated FALLBACK_REGISTRY / FALLBACK_MANIFESTS
 //   capture.js           frame capture (aplus-capture-v1); folds captured templates into the
 //                        FALLBACK_* maps and reuses loadFontsFromManifest()/rowFromManifest()
+//   user-templates.js    the user's own templates on this computer (clientStorage, budgeted) and
+//                        image re-creation at build time; Drive + file tiers live in the UI
 //   main.js              CORE: showUI, page/selection sync, clientStorage, message router
 //                        (onUiMessage / onInit / replyTo). Boots on a microtask, so every
 //                        handler registered by the files below is in place first.
 //   main-automate.js     'run', 'add-comparison', 'save-link'
 //   main-design.js       'capture-template' + captured-template init contribution
 //   main-export.js       'export-style', 'save-export-config' + exportConfig init contribution
-var SANDBOX = ['renderer.js', 'manifest-fallback.js', 'capture.js', 'main.js', 'main-automate.js', 'main-design.js', 'main-export.js'];
+var SANDBOX = ['renderer.js', 'manifest-fallback.js', 'capture.js', 'user-templates.js', 'main.js', 'main-automate.js', 'main-design.js', 'main-export.js'];
 var code = SANDBOX.map(function (f) {
   var body = read(f);
   parses(body, 'plugin-src/' + f);

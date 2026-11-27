@@ -390,9 +390,34 @@
       var key = state.cat + '/' + state.gender + '/' + state.templateId;
       var M = state.manifestCache[key];
       if (!M) { host.innerHTML = '<div class="empty">Loading preview…</div>'; return; }
-      host.innerHTML = previewSvg(M, 'pv' + key.replace(/\W/g, ''));
+      host.innerHTML = M.renderer === 'aplus-capture-v1' ? capturedPreviewSvg(M) : previewSvg(M, 'pv' + key.replace(/\W/g, ''));
       host.scrollTop = 0;
       $('tplmeta').textContent = 'scrollable';
+    }
+
+    // A template the user captured (aplus-capture-v1) has no hero/fabric/callout blocks to draw, so
+    // its preview is its own layer boxes: solid fills in their colour, images as the slot grey (at
+    // their opacity), text as its sample. Schematic — rotation and effects are not drawn.
+    function capturedPreviewSvg(M) {
+      var W = (M.meta && M.meta.width) || 1572, H = (M.meta && M.meta.height) || 2000, s = [];
+      function rgb(c) { return 'rgb(' + [c.r, c.g, c.b].map(function (v) { return Math.round((v || 0) * 255); }).join(',') + ')'; }
+      (function walk(n, depth) {
+        if (!n || depth > 40) return;
+        var p = n.props || {}, b = n.box;
+        if (p.visible === false) return;
+        var f = (p.fills || []).filter(function (x) { return x && x.visible !== false; })[0];
+        if (b && n.type === 'TEXT') {
+          var size = Math.max(8, Math.min(b.h || 24, Number(p.fontSize) || 24));
+          s.push('<text x="' + b.x + '" y="' + (b.y + size * 0.85) + '" font-size="' + size + '" font-family="Inter, sans-serif" fill="' +
+            (f && f.type === 'SOLID' ? rgb(f.color) : '#333') + '">' + esc(String(p.characters || '').split('\n')[0].slice(0, 60)) + '</text>');
+        } else if (b && f && (f.type === 'SOLID' || f.type === 'IMAGE')) {
+          s.push('<rect x="' + b.x + '" y="' + b.y + '" width="' + b.w + '" height="' + b.h + '" fill="' + (f.type === 'SOLID' ? rgb(f.color) : '#cdd1d6') +
+            '" opacity="' + (f.opacity === undefined ? 1 : f.opacity) * (p.opacity === undefined ? 1 : p.opacity) + '"/>');
+        }
+        (n.children || []).forEach(function (c) { walk(c, depth + 1); });
+      })(M.root, 0);
+      return '<svg data-captured="1" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMin meet" xmlns="http://www.w3.org/2000/svg">' +
+        '<rect width="' + W + '" height="' + H + '" fill="#fff"/>' + s.join('') + '</svg>';
     }
 
     // Fetch each template's manifest once so the preview is the real thing.
@@ -490,11 +515,24 @@
       }
       var manifests = {}, distinct = {};
       targets.forEach(function (t) { if (t.key) distinct[t.key] = t; });
+      // the user's own templates: make sure the sandbox has the manifest AND the images (a template
+      // saved on another machine is fetched from the user's Drive here, with progress)
+      var userKeys = Object.keys(distinct).filter(function (k) { return userTemplates.isUser(k); });
+      if (userKeys.length) {
+        try {
+          var prepared = await userTemplates.prepareRun(userKeys, function (p) { $('run').textContent = p.text || 'Preparing…'; });
+          for (var pk in prepared) manifests[pk] = prepared[pk];
+        } catch (e) {
+          setErr('Could not get your template ready: ' + errorText(e));
+          $('run').disabled = !!state.scopeBlocked; $('run').textContent = 'Run A+'; return;
+        }
+      }
       for (var k in distinct) {
+        if (manifests[k]) continue;
         var m = await fetchManifest(distinct[k].catId, distinct[k].genderId, distinct[k].templateId);
         if (m) manifests[k] = m;
       }
-      var source = Object.keys(manifests).some(function (k) { return state.manifestSource[k] === 'backend'; }) ? 'backend' : 'bundled';
+      var source = userKeys.length ? 'your templates' : Object.keys(manifests).some(function (k) { return state.manifestSource[k] === 'backend'; }) ? 'backend' : 'bundled';
       $('run').textContent = 'Building 0 / ' + rows.length + '…';
       bridge.send('run', { rows: rows, keys: keys, errors: errors, manifests: manifests, source: source });
     };

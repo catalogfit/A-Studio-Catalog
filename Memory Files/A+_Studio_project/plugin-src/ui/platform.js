@@ -14,6 +14,7 @@
      drive          list / get / download / findOrCreateFolder / ensurePath / upload / update / trash
      sheets         read(urlOrId, { range })
      templateStore  list / cached / load / loadAsset / save / remove — "Cult A+ Design Lab/Templates"
+     userTemplates  the user's own templates across this computer / Drive / a file (docs/user-templates.md)
      storage        small per-user prefs in figma.clientStorage (namespaced "ui:")
      ui             note(), toast(), errorText()
      files          save(), toB64(), fromB64(), fmtBytes()
@@ -40,6 +41,7 @@ var state = {
   backend: BACKEND_DEFAULT, backendOverride: false,
   session: '', googleEmail: null, poll: null, needsReconsent: false, driveAccess: null,
   registry: null, bundledRegistry: null, manifestCache: {}, manifestSource: {},
+  userTemplates: [],          // merged rows from userTemplates (this computer + Drive) — see below
   selection: { frames: [], ids: [] },
   pageId: null, pageName: '',
   activeTab: 'automate',
@@ -90,6 +92,7 @@ var AUTH_CODES = { 'no-session': 1, 'invalid-session': 1, 'revoked': 1, 'needs-r
 // ---------- event bus (UI-internal) ----------
 // Events: init(msg) · registry(reg) · selection(sel) · page({id,name,frameCount}) · tab(name)
 //         rows-changed() · auth({connected, email, needsReconsent}) · auth-error(err)
+//         user-templates(rows) — the user's own templates changed (saved, imported, deleted, Drive listed)
 var bus = (function () {
   var h = {};
   return {
@@ -520,8 +523,9 @@ var drive = (function () {
       method: 'PATCH', headers: { 'Content-Type': 'application/json; charset=UTF-8' }, body: JSON.stringify(metadata || {})
     }));
   }
-  // trash(fileId) — reversible (Drive bin), never a hard delete
-  function trash(fileId) { return update(fileId, { trashed: true }); }
+  // trash(fileId) — reversible (Drive bin), never a hard delete. Forgets cached folder ids: a
+  // trashed folder must not be handed out again by findOrCreateFolder (files put in it vanish).
+  async function trash(fileId) { var r = await update(fileId, { trashed: true }); folderCache = {}; return r; }
 
   return {
     parseId: parseId, quote: q, query: query, list: list, get: get, download: download,
@@ -589,6 +593,7 @@ var templateStore = (function () {
     var a = f.appProperties || {};
     return {
       key: a.aplusKey, label: a.aplusLabel || a.aplusKey, category: a.aplusCategory || String(a.aplusKey).split('/')[0],
+      categoryLabel: a.aplusCatLabel || null, totalBytes: Number(a.aplusBytes) || null,
       gender: a.aplusGender || String(a.aplusKey).split('/')[1], id: a.aplusId || String(a.aplusKey).split('/')[2],
       status: a.aplusStatus || 'draft', version: Number(a.aplusVersion) || 1,
       fileId: f.id, folderId: (f.parents || [])[0] || null, modifiedTime: f.modifiedTime, size: f.size
@@ -612,21 +617,25 @@ var templateStore = (function () {
   }
   // cached() -> { index: [entry], manifests: { key: manifest } } from clientStorage; no network
   function cached() { return bridge.request('tplcache-list', {}, { timeoutMs: 10000 }); }
-  // load(key) -> { key, manifest, assets, savedAt, fileId } — Drive first, cache as fallback offline
-  async function load(key) {
+  // load(key, { cache }) -> { key, manifest, assets, savedAt, fileId } — Drive first, cache as fallback offline.
+  // cache:false skips the tplcache copy (user templates keep their own copy on this computer).
+  async function load(key, opts) {
     var files = await byKind('template-manifest', key);
     if (!files.length) throw PlatformError('not-found', 'No saved template "' + key + '" in your Drive.');
     var f = files[0];
     var bytes = await drive.download(f.id);
     var env = JSON.parse(new TextDecoder().decode(bytes));
-    var out = { key: key, manifest: env.manifest || env, assets: env.assets || [], savedAt: env.savedAt || null, fileId: f.id, folderId: (f.parents || [])[0] || null };
-    cachePut(key, entryOf(f), out.manifest);
+    var out = { key: key, manifest: env.manifest || env, assets: env.assets || [], savedAt: env.savedAt || null, fileId: f.id, folderId: (f.parents || [])[0] || null, entry: entryOf(f) };
+    if (!(opts && opts.cache === false)) cachePut(key, entryOf(f), out.manifest);
     return out;
   }
   function loadAsset(fileId) { return drive.download(fileId); }
 
-  // save(manifest, assets?) — assets: [{ name, mimeType, bytes: Uint8Array }]. Replaces in place
-  // when the key exists (same folder, same file ids where names match); stale assets are trashed.
+  // save(manifest, assets?, { onProgress, cache }) — assets: [{ name, mimeType, bytes: Uint8Array }].
+  // Replaces in place when the key exists (same folder, same file ids where names match). An asset
+  // already in the folder with the same name and size is not sent again (user-template images are
+  // named by content hash). Assets the manifest still lists in meta.assets are kept even when not
+  // passed in; anything else old is trashed.
   async function save(manifest, assets, opts) {
     opts = opts || {};
     var key = keyOf(manifest);
@@ -649,6 +658,12 @@ var templateStore = (function () {
       if (!a || !a.name || !a.bytes) continue;
       if (a.name === 'manifest.json') throw PlatformError('bad-request', 'An asset cannot be called manifest.json.');
       var prev = byName[a.name];
+      var size = a.bytes.byteLength !== undefined ? a.bytes.byteLength : a.bytes.length;
+      if (prev && prev.size === size && opts.skipUnchanged !== false) {
+        refs.push({ name: a.name, mimeType: a.mimeType || 'application/octet-stream', size: prev.size, fileId: prev.id });
+        if (opts.onProgress) opts.onProgress({ step: 'asset', index: i, total: list_.length, loaded: size, size: size, skipped: true });
+        continue;
+      }
       var up = await drive.upload(folderId, a.name, a.mimeType || 'application/octet-stream', a.bytes, {
         fileId: prev ? prev.id : null,
         appProperties: { aplusKind: 'template-asset', aplusKey: key },
@@ -657,6 +672,11 @@ var templateStore = (function () {
       refs.push({ name: a.name, mimeType: a.mimeType || 'application/octet-stream', size: up.size, fileId: up.id });
     }
     var keep = {}; refs.forEach(function (r) { keep[r.name] = 1; });
+    ((meta.assets) || []).forEach(function (a) {
+      if (!a || !a.name || keep[a.name] || !byName[a.name]) return;
+      keep[a.name] = 1;
+      refs.push({ name: a.name, mimeType: a.mime || 'application/octet-stream', size: byName[a.name].size, fileId: byName[a.name].id });
+    });
     for (var n in byName) {
       var f = byName[n];
       if (n !== 'manifest.json' && !keep[n] && f.appProperties && f.appProperties.aplusKind === 'template-asset') {
@@ -669,14 +689,17 @@ var templateStore = (function () {
       aplusKind: 'template-manifest', aplusKey: key,
       aplusLabel: clip(meta.label || key, 90), aplusCategory: clip(meta.category || key.split('/')[0], 60),
       aplusGender: clip(meta.gender || key.split('/')[1], 40), aplusId: clip(meta.id || key.split('/')[2], 60),
-      aplusStatus: clip(meta.status || 'draft', 20), aplusVersion: String(meta.version || 1)
+      aplusStatus: clip(meta.status || 'draft', 20), aplusVersion: String(meta.version || 1),
+      aplusCatLabel: clip(meta.categoryLabel || '', 60),
+      aplusBytes: String(refs.reduce(function (n, r) { return n + (Number(r.size) || 0); }, 0) + JSON.stringify(manifest).length)
     };
     var prevM = byName['manifest.json'];
+    if (opts.onProgress) opts.onProgress({ step: 'manifest', index: list_.length, total: list_.length });
     var mf = await drive.upload(folderId, 'manifest.json', 'application/json', JSON.stringify(envelope), {
       fileId: prevM ? prevM.id : null, appProperties: props, description: 'Cult A+ Design Lab template ' + key
     });
     var entry = entryOf(mf);
-    await cachePut(key, entry, manifest);
+    if (opts.cache !== false) await cachePut(key, entry, manifest);
     return { key: key, fileId: mf.id, folderId: folderId, assets: refs, replaced: replaced, entry: entry };
   }
 
@@ -693,6 +716,326 @@ var templateStore = (function () {
 
   return { list: list, cached: cached, load: load, loadAsset: loadAsset, save: save, remove: remove, PATH: TEMPLATES_PATH, SCHEMA: SCHEMA };
 })();
+
+// ---------- the user's own templates: this computer + their Drive + a file (never the backend) ----------
+// docs/user-templates.md. Three tiers, all belonging to the signed-in user:
+//   this computer  figma.clientStorage via the sandbox (usertpl-* messages, user-templates.js) —
+//                  index + manifests + images while under the storage budget
+//   their Drive    templateStore above, with their own token — "Cult A+ Design Lab/Templates/…"
+//   a file         Export / Import of "<key>.aplus-template.json" (manifest + images, base64)
+// Rows are merged by key into state.userTemplates and overlaid on the registry (setRegistry), so a
+// saved template shows in Automate's and Export's pickers at once and after every restart.
+var USER_TEMPLATE_FILE_SCHEMA = 'aplus.template-file/1';
+var USER_TEMPLATE_FILE_MAX = 60 * 1024 * 1024;
+var USER_KEY_RE = /^[a-z0-9][a-z0-9-]{0,59}\/[a-z0-9][a-z0-9-]{0,39}\/[a-z0-9][a-z0-9-]{0,59}$/;
+function slugify(s, max) {
+  var out = String(s == null ? '' : s).toLowerCase();
+  try { out = out.normalize('NFKD').replace(/[̀-ͯ]/g, ''); } catch (e) {}
+  out = out.replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  return out.slice(0, max || 60).replace(/-+$/, '');
+}
+function titleCase(s) { s = String(s || ''); return s.charAt(0).toUpperCase() + s.slice(1); }
+
+var userTemplates = (function () {
+  var local = [];          // rows from the sandbox: this computer
+  var usage = null;        // { own, foreign, total, budget, quota } bytes
+  var driveRows = null;    // null = Drive not listed yet; [] = listed, nothing there
+  var driveError = null;
+  var driveEnv = {};       // key -> templateStore.load() result, this session
+
+  function merged() {
+    var by = {}, order = [];
+    function row(k) { if (!by[k]) { by[k] = { key: k, local: null, drive: null }; order.push(k); } return by[k]; }
+    local.forEach(function (r) {
+      var e = row(r.key);
+      ['label', 'category', 'categoryLabel', 'gender', 'id', 'sub', 'savedAt', 'bytes'].forEach(function (f) { e[f] = r[f]; });
+      e.local = r.local && r.local.manifest ? r.local : null;
+      if (!driveRows && r.drive) e.drive = { fileId: r.drive.fileId, folderId: r.drive.folderId, unverified: true };
+    });
+    (driveRows || []).forEach(function (d) {
+      var e = row(d.key);
+      if (!e.label) {
+        e.label = d.label; e.category = d.category; e.gender = d.gender; e.id = d.id;
+        e.savedAt = d.modifiedTime; e.bytes = d.totalBytes || d.size || 0;
+      }
+      if (!e.categoryLabel) e.categoryLabel = d.categoryLabel || titleCase(d.category);
+      e.drive = { fileId: d.fileId, folderId: d.folderId, modifiedTime: d.modifiedTime, bytes: d.totalBytes || null };
+    });
+    return order.map(function (k) { return by[k]; })
+      .filter(function (e) { return e.local || e.drive; })
+      .sort(function (a, b) { return String(a.label || a.key).localeCompare(String(b.label || b.key)); });
+  }
+  function publish() {
+    state.userTemplates = merged();
+    if (state.registry) setRegistry(state.registry);     // re-applies the overlay, emits 'registry'
+    bus.emit('user-templates', state.userTemplates);
+  }
+  function find(key) { return (state.userTemplates || []).filter(function (e) { return e.key === key; })[0] || null; }
+  function where(e) { return !e ? 'none' : (e.local && e.drive ? 'both' : e.local ? 'computer' : 'drive'); }
+  function forget(key) { delete state.manifestCache[key]; delete state.manifestSource[key]; delete driveEnv[key]; }
+
+  function setLocal(r) { if (r) { local = r.index || []; usage = r.usage || usage; } }
+  async function refreshLocal() {
+    try { setLocal(await bridge.request('usertpl-list', {}, { timeoutMs: 15000 })); }
+    catch (e) { console.warn('[userTemplates] could not read this computer\'s templates', e && e.message); }
+    publish();
+  }
+  async function refreshDrive() {
+    if (!auth.isConnected()) return;
+    try { driveRows = await templateStore.list(); driveError = null; }
+    catch (e) { driveError = e; console.warn('[userTemplates] Drive list failed', e && e.message); }
+    publish();
+  }
+  // 'free' | 'user' | 'bundled' — bundled templates can never be replaced by the user's own
+  function keyStatus(key) {
+    if (find(key)) return 'user';
+    var p = String(key).split('/');
+    var cat = (state.bundledRegistry && state.bundledRegistry.categories || []).filter(function (c) { return c.id === p[0]; })[0];
+    var g = cat && (cat.genders || []).filter(function (x) { return x.id === p[1]; })[0];
+    if (g && (g.templates || []).some(function (t) { return t.id === p[2] && !t.user && !t.captured; })) return 'bundled';
+    return 'free';
+  }
+  function suggestFreeId(cat, gender, id) {
+    var base = String(id).replace(/-\d+$/, '') || 'template';
+    for (var n = 2; n < 200; n++) { var c = (base + '-' + n).slice(0, 60); if (keyStatus(cat + '/' + gender + '/' + c) === 'free') return c; }
+    return base + '-' + Date.now().toString(36);
+  }
+
+  async function driveLoad(key) {
+    if (driveEnv[key]) return driveEnv[key];
+    if (!auth.isConnected()) throw PlatformError('no-session', 'This template is in your Google Drive. Sign in to Google to use it on this computer.');
+    driveEnv[key] = await templateStore.load(key, { cache: false });
+    return driveEnv[key];
+  }
+  // The manifest only (previews, run). This computer first, then Drive.
+  async function getManifest(key) {
+    var e = find(key);
+    if (!e) return null;
+    if (e.local) {
+      var r = await bridge.request('usertpl-get', { key: key, assets: false }, { timeoutMs: 20000 });
+      if (r && r.manifest) return r.manifest;
+    }
+    if (e.drive) return (await driveLoad(key)).manifest;
+    return null;
+  }
+  // Manifest + every image's bytes, from wherever they are. onProgress({ text, done, total }).
+  async function collect(key, onProgress) {
+    var e = find(key), out = { manifest: null, assets: [], missing: [] };
+    var have = {};
+    {
+      // session memory / this computer first — right after a capture that did not fit locally,
+      // the sandbox still holds the fresh copy, which must win over an older Drive version
+      var r = await bridge.request('usertpl-get', { key: key, assets: true }, { timeoutMs: 60000 }).catch(function () { return null; });
+      if (r && r.manifest) { out.manifest = r.manifest; out.assets = r.assets || []; out.assets.forEach(function (a) { have[a.hash] = 1; }); }
+    }
+    var want = [];
+    var env = null;
+    if (!out.manifest && e && e.drive) { env = await driveLoad(key); out.manifest = env.manifest; }
+    if (!out.manifest) throw PlatformError('not-found', 'Template "' + key + '" is not on this computer or in your Drive.');
+    ((out.manifest.meta && out.manifest.meta.assets) || []).forEach(function (a) { if (!have[a.hash]) want.push(a); });
+    if (want.length && e && e.drive && auth.isConnected()) {
+      env = env || await driveLoad(key);
+      for (var i = 0; i < want.length; i++) {
+        var a = want[i];
+        var ref = (env.assets || []).filter(function (x) { return x.name === a.name; })[0];
+        if (!ref) continue;
+        if (onProgress) onProgress({ text: 'Downloading image ' + (i + 1) + ' of ' + want.length + ' from Drive…', done: i, total: want.length });
+        var bytes = await templateStore.loadAsset(ref.fileId);
+        out.assets.push({ hash: a.hash, mime: a.mime, name: a.name, width: a.width, height: a.height, bytes: bytes.length, data: bytes });
+        have[a.hash] = 1;
+      }
+    }
+    want.forEach(function (a) { if (!have[a.hash]) out.missing.push(a.hash); });
+    return out;
+  }
+
+  // Before Automate builds: make sure the sandbox has each user template's manifest and images.
+  // A template only in Drive is downloaded now (first use on this machine) and kept on this
+  // computer when it fits; returns { key: manifest } for the run message.
+  async function prepareRun(keys, onProgress) {
+    var manifests = {};
+    for (var i = 0; i < keys.length; i++) {
+      var key = keys[i], e = find(key);
+      if (!e) continue;
+      var st = await bridge.request('usertpl-status', { key: key }, { timeoutMs: 20000 }).catch(function () { return { manifest: false, missing: [] }; });
+      if (st.manifest && !st.missing.length) continue;            // the sandbox has everything
+      if (!e.drive) {
+        if (!st.manifest) throw PlatformError('not-found', '"' + (e.label || key) + '" is not on this computer any more. Import its template file again.');
+        continue;                                                  // builds with labelled placeholders for the missing images
+      }
+      if (onProgress) onProgress({ text: 'Getting "' + (e.label || key) + '" from your Drive…' });
+      var full = await collect(key, onProgress);
+      if (!st.manifest) {
+        var put = await bridge.request('usertpl-put', { manifest: full.manifest, assets: full.assets, replace: true,
+          drive: { fileId: e.drive.fileId, folderId: e.drive.folderId, savedAt: e.drive.modifiedTime || null } }, { timeoutMs: 60000 });
+        if (put && put.local && put.local.reason) console.info('[userTemplates] ' + key + ': ' + put.local.reason);
+        await refreshLocal();
+      } else {
+        await bridge.request('usertpl-stage', { key: key, assets: full.assets }, { timeoutMs: 60000 });
+      }
+      manifests[key] = full.manifest;
+    }
+    return manifests;
+  }
+
+  // Upload (or re-upload) one template to the user's Drive. onProgress({ text, pct }).
+  async function uploadToDrive(key, onProgress) {
+    if (!auth.isConnected()) throw PlatformError('no-session', 'Sign in to Google to back this template up to your Drive.');
+    var full = await collect(key);
+    var files_ = full.assets.map(function (a) { return { name: a.name, mimeType: a.mime, bytes: a.data }; });
+    var res = await templateStore.save(full.manifest, files_, {
+      cache: false,
+      onProgress: function (p) {
+        if (!onProgress) return;
+        if (p.step === 'manifest') return onProgress({ text: 'Uploading the template file…', pct: 96 });
+        var frac = p.size ? Math.min(1, p.loaded / p.size) : 0;
+        onProgress({ text: (p.skipped ? 'Already in Drive: image ' : 'Uploading image ') + (p.index + 1) + ' of ' + p.total + '…',
+          pct: Math.round(((p.index + frac) / Math.max(1, p.total)) * 92) });
+      }
+    });
+    var mark = { fileId: res.fileId, folderId: res.folderId, savedAt: new Date().toISOString() };
+    await bridge.request('usertpl-mark-drive', { key: key, drive: mark }, { timeoutMs: 15000 }).catch(function () {});
+    driveRows = (driveRows || []).filter(function (d) { return d.key !== key; }).concat([res.entry]);
+    local.forEach(function (r) { if (r.key === key) r.drive = mark; });
+    forget(key);
+    publish();
+    return { res: res, missing: full.missing };
+  }
+
+  // ---- the file tier ----
+  async function exportFile(key, onProgress) {
+    var full = await collect(key, onProgress);
+    var M = full.manifest;
+    var doc = {
+      schema: USER_TEMPLATE_FILE_SCHEMA, app: 'Cult A+ Design Lab', exportedAt: new Date().toISOString(),
+      key: M.meta.key, label: M.meta.label,
+      manifest: M,
+      assets: full.assets.map(function (a) {
+        return { hash: a.hash, name: a.name, mime: a.mime, width: a.width || null, height: a.height || null, bytes: a.data.length, data: files.toB64(a.data) };
+      }),
+      missingAssets: full.missing
+    };
+    var name = M.meta.key.replace(/\//g, '_') + '.aplus-template.json';
+    var blob = new Blob([JSON.stringify(doc)], { type: 'application/json' });
+    var link = files.save(blob, 'application/json', name);
+    return { name: name, bytes: blob.size, missing: full.missing.length, link: link };
+  }
+  function hasBadKeys(v, depth) {
+    if (!v || typeof v !== 'object' || depth > 40) return depth > 40;
+    for (var k in v) {
+      if (!Object.prototype.hasOwnProperty.call(v, k)) continue;
+      if (k === '__proto__' || k === 'constructor' || k === 'prototype') return true;
+      if (hasBadKeys(v[k], depth + 1)) return true;
+    }
+    return false;
+  }
+  // parseFile(text) -> { manifest, assets: [{hash, mime, name, width, height, data}], warnings }
+  function parseFile(text) {
+    function bad(m) { return PlatformError('bad-request', 'That file is not a usable template: ' + m); }
+    if (text.length > USER_TEMPLATE_FILE_MAX) throw bad('it is larger than ' + Math.round(USER_TEMPLATE_FILE_MAX / 1048576) + ' MB.');
+    var doc;
+    try { doc = JSON.parse(text); } catch (e) { throw bad('it is not JSON.'); }
+    if (!doc || doc.schema !== USER_TEMPLATE_FILE_SCHEMA) throw bad('it was not exported by Cult A+ Design Lab (schema ' + esc(String(doc && doc.schema)) + ').');
+    if (hasBadKeys(doc, 0)) throw bad('it contains reserved property names.');
+    var M = doc.manifest;
+    if (!M || M.schema !== 'aplus.template/2' || M.renderer !== 'aplus-capture-v1') throw bad('the template inside is of an unsupported kind.');
+    if (!M.meta || !USER_KEY_RE.test(String(M.meta.key || '')) || M.meta.key !== M.meta.category + '/' + M.meta.gender + '/' + M.meta.id) throw bad('its key is not "category/gender/id".');
+    if (!M.root || !M.root.type || !M.content || !M.fonts) throw bad('the template has no layers, sheet mapping or fonts.');
+    var warnings = [], assets = [];
+    var ok = { 'image/png': 1, 'image/jpeg': 1, 'image/gif': 1, 'image/webp': 1 };
+    (Array.isArray(doc.assets) ? doc.assets : []).forEach(function (a) {
+      if (!a || !/^[A-Za-z0-9_-]{6,128}$/.test(String(a.hash)) || typeof a.data !== 'string') { warnings.push('An image entry was malformed and was skipped.'); return; }
+      if (!ok[a.mime]) { warnings.push('Image ' + String(a.hash).slice(0, 8) + ' is not PNG/JPEG/GIF/WEBP and was skipped.'); return; }
+      var data;
+      try { data = files.fromB64(a.data); } catch (e) { warnings.push('Image ' + a.hash.slice(0, 8) + ' could not be decoded and was skipped.'); return; }
+      if (a.bytes && data.length !== Number(a.bytes)) { warnings.push('Image ' + a.hash.slice(0, 8) + ' is truncated and was skipped.'); return; }
+      assets.push({ hash: a.hash, mime: a.mime, name: String(a.name || a.hash).replace(/[^A-Za-z0-9_.-]/g, '').slice(0, 140) || a.hash, width: a.width || null, height: a.height || null, bytes: data.length, data: data });
+    });
+    var need = ((M.meta.assets) || []).length;
+    if (need > assets.length) warnings.push((need - assets.length) + ' of ' + need + ' image(s) are not in the file; those layers will show a labelled placeholder.');
+    return { manifest: M, assets: assets, warnings: warnings };
+  }
+  // Re-key a parsed template ("Save as new").
+  function rekey(M, id, label) {
+    var c = JSON.parse(JSON.stringify(M));
+    c.meta.id = id; c.meta.key = c.meta.category + '/' + c.meta.gender + '/' + id;
+    if (label) c.meta.label = label;
+    return c;
+  }
+  // Save a whole template (from a file): this computer, then Drive. Never throws for Drive — reports it.
+  async function saveWhole(M, assets, opts) {
+    opts = opts || {};
+    var r = await bridge.request('usertpl-put', { manifest: M, assets: assets, replace: !!opts.replace, drive: null }, { timeoutMs: 60000 });
+    forget(M.meta.key);
+    await refreshLocal();
+    var out = { key: M.meta.key, local: r.local, drive: null, driveError: null };
+    if (auth.isConnected()) {
+      try { out.drive = (await uploadToDrive(M.meta.key, opts.onProgress)).res; }
+      catch (e) { out.driveError = e; }
+    }
+    return out;
+  }
+  // Delete everywhere: this computer now, Drive copy to the Drive bin (recoverable for 30 days).
+  async function remove(key) {
+    var e = find(key), out = { key: key, local: false, drive: 'none', driveError: null };
+    if (e && e.local) { await bridge.request('usertpl-remove', { key: key }, { timeoutMs: 15000 }); out.local = true; }
+    if (e && e.drive) {
+      if (!auth.isConnected()) { out.drive = 'skipped'; }
+      else {
+        try { await templateStore.remove(key); out.drive = 'trashed'; driveRows = (driveRows || []).filter(function (d) { return d.key !== key; }); }
+        catch (err) {
+          if (err && err.code === 'not-found') { out.drive = 'gone'; driveRows = (driveRows || []).filter(function (d) { return d.key !== key; }); }
+          else { out.drive = 'failed'; out.driveError = err; }
+        }
+      }
+    }
+    forget(key);
+    await refreshLocal();
+    return out;
+  }
+
+  return {
+    list: function () { return state.userTemplates || []; }, find: find, where: where, isUser: function (k) { return !!find(k); },
+    usage: function () { return usage; }, driveListed: function () { return driveRows !== null; }, driveError: function () { return driveError; },
+    setLocal: function (r) { setLocal(r); publish(); }, refreshLocal: refreshLocal, refreshDrive: refreshDrive,
+    keyStatus: keyStatus, suggestFreeId: suggestFreeId, getManifest: getManifest, collect: collect, prepareRun: prepareRun,
+    uploadToDrive: uploadToDrive, exportFile: exportFile, parseFile: parseFile, rekey: rekey, saveWhole: saveWhole, remove: remove,
+    forget: forget, FILE_SCHEMA: USER_TEMPLATE_FILE_SCHEMA
+  };
+})();
+
+// The registry overlay: strip every user template (and categories/genders that existed only for
+// them), then add the current state.userTemplates. Idempotent, so it runs on every setRegistry.
+function applyUserTemplates(reg) {
+  if (!reg || !reg.categories) return reg;
+  var out = JSON.parse(JSON.stringify(reg));
+  out.categories = out.categories.map(function (c) {
+    c.genders = (c.genders || []).map(function (g) {
+      g.templates = (g.templates || []).filter(function (t) { return !t.user && !t.captured; });
+      return g;
+    }).filter(function (g) { return !(g.userOnly && !g.templates.length); });
+    return c;
+  }).filter(function (c) { return !(c.userOnly && !c.genders.length); });
+  (state.userTemplates || []).forEach(function (e) {
+    if (!e.category || !e.gender || !e.id) return;
+    var cat = out.categories.filter(function (c) { return c.id === e.category; })[0];
+    if (!cat) {
+      cat = { id: e.category, label: e.categoryLabel || titleCase(e.category), status: 'active', defaultGender: e.gender, genders: [], userOnly: true };
+      out.categories.push(cat);
+    }
+    cat.status = 'active';
+    var gen = (cat.genders || []).filter(function (g) { return g.id === e.gender; })[0];
+    if (!gen) {
+      gen = { id: e.gender, label: titleCase(e.gender), status: 'active', hero: ['', ''], templates: [], userOnly: true };
+      (cat.genders = cat.genders || []).push(gen);
+    }
+    gen.status = 'active';
+    gen.templates = (gen.templates || []).filter(function (t) { return t.id !== e.id; });
+    gen.templates.push({ id: e.id, label: e.label || e.id, version: 1, status: 'active', captured: true, user: true,
+      sub: 'Your template · ' + ({ both: 'this computer + Drive', computer: 'this computer', drive: 'your Drive' })[userTemplates.where(e)] });
+  });
+  return out;
+}
 
 // ---------- notes, toasts ----------
 var ui = {
@@ -768,6 +1111,15 @@ function parseCatGender(bRaw, cRaw) {
   var cat = '', gen = '';
   words(bRaw).forEach(function (t) { if (!cat && ca[t]) cat = ca[t]; if (!gen && ga[t]) gen = ga[t]; });
   words(cRaw).forEach(function (t) { if (!gen && ga[t]) gen = ga[t]; });
+  if (!cat) {
+    // a category the user created ("Yoga Pants" -> yoga-pants): match the whole cell, with or
+    // without a gender word in it, against category ids and labels
+    var tries = [slugify(bRaw), slugify(words(bRaw).filter(function (t) { return !ga[t]; }).join(' '))];
+    registryCats().forEach(function (c) {
+      if (cat) return;
+      if (tries.indexOf(c.id) >= 0 || tries.indexOf(slugify(c.label)) >= 0) cat = c.id;
+    });
+  }
   return { cat: cat, gender: gen };
 }
 
@@ -780,8 +1132,9 @@ function hasFeature(tpl, f) { return !!(tpl && (tpl.features || []).indexOf(f) >
 function genderReady(g) { return g && g.status === 'active' && activeTemplate(g); }
 
 // The ONLY way to change state.registry. Emits 'registry' so every panel re-renders its pickers.
+// The user's own templates are overlaid on whatever registry arrives (bundled, backend or this one).
 function setRegistry(reg) {
-  state.registry = reg;
+  state.registry = applyUserTemplates(reg);
   bus.emit('registry', reg);
 }
 // A backend can ADD templates but must never take one away. The Docker image bakes the
@@ -837,6 +1190,14 @@ async function refreshRegistry() {
 async function fetchManifest(cat, gen, tpl) {
   var key = cat + '/' + gen + '/' + tpl;
   if (state.manifestCache[key]) return state.manifestCache[key];
+  // the user's own template: this computer, else their Drive — never the backend
+  if (userTemplates.isUser(key)) {
+    try {
+      var um = await userTemplates.getManifest(key);
+      if (um) { state.manifestCache[key] = um; state.manifestSource[key] = 'user'; return um; }
+    } catch (e) { console.warn('[platform] template ' + key + ': ' + errorText(e)); }
+    return null;
+  }
   try {
     var m = await backend.get('/api/templates/' + cat + '/' + gen + '/' + tpl, { timeoutMs: 30000 });
     if (m && m.meta) { state.manifestCache[key] = m; state.manifestSource[key] = 'backend'; return m; }
@@ -972,6 +1333,8 @@ async function disconnectGoogle() {
   setGoogle('off'); showGate(true); gateProbe();
   bus.emit('auth', { connected: false, email: null, needsReconsent: false });
 }
+// signed in (or reconnected): the user's templates saved from other machines come back from Drive
+bus.on('auth', function (a) { if (a && a.connected && !a.needsReconsent) userTemplates.refreshDrive(); });
 // an auth failure anywhere (expired, revoked, scope) is surfaced once, not per call
 bus.on('auth-error', function (e) {
   var now = Date.now();
@@ -1008,6 +1371,7 @@ bridge.on('init', function (m) {
   state.bundledRegistry = m.registry;       // so a stale backend can never remove a bundled template
   window.BUNDLED_MANIFESTS = m.manifests || {};
   if (m.page) setPage(m.page);              // legacy init.page, still honoured
+  if (m.userTemplates) userTemplates.setLocal(m.userTemplates);   // this computer's templates, before the first overlay
   setRegistry(m.registry);                  // -> bus 'registry' (pickers, rules)
   setGoogle('off');
   bus.emit('init', m);                      // panels read their own init fields here
@@ -1045,7 +1409,7 @@ var platform = {
   BACKEND_DEFAULT: BACKEND_DEFAULT, TEMPLATES_PATH: TEMPLATES_PATH,
   state: state, Panels: Panels, $: $, esc: esc, PlatformError: PlatformError, errorText: errorText,
   bus: bus, bridge: bridge, backend: backend, auth: auth, googleFetch: googleFetch,
-  drive: drive, sheets: sheets, templateStore: templateStore, storage: storage, ui: ui, files: files,
+  drive: drive, sheets: sheets, templateStore: templateStore, userTemplates: userTemplates, storage: storage, ui: ui, files: files, slugify: slugify,
   registry: { cats: registryCats, catById: catById, genderById: genderById, activeTemplate: activeTemplate,
     hasFeature: hasFeature, genderReady: genderReady, set: setRegistry, refresh: refreshRegistry,
     merge: mergeRegistry, fetchManifest: fetchManifest },

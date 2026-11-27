@@ -48,9 +48,12 @@ onUiMessage('run', async function (msg) {
   // A manifest is buildable if one of the two renderers in this bundle understands it:
   // 'aplus-standard-v1' is the hand-built A+ layout, 'aplus-capture-v1' is a frame captured
   // from the canvas. Anything else is a manifest written for a renderer we do not have.
-  function manifestFor(key) {
+  // A user's own template comes from the UI (msg.manifests) or from this computer's store
+  // (user-templates.js); its images are re-created from stored bytes inside capBuildTree.
+  async function manifestFor(key) {
     if (!key) return null;
     var m = manifests[key] || fallbackManifest(key);
+    if (!m) { try { m = await utManifest(key); } catch (e) { m = null; } }
     if (m && m.renderer && m.renderer !== 'aplus-standard-v1' && m.renderer !== CAP_RENDERER) return null;
     return m;
   }
@@ -67,7 +70,7 @@ onUiMessage('run', async function (msg) {
     var created = [], report = [], missingFonts = {}, lastLabel = '';
     for (var i = 0; i < msg.rows.length; i++) {
       var key = keys[i];
-      var manifest = manifestFor(key);
+      var manifest = await manifestFor(key);
       var row = manifest ? rowFromManifest(manifest, msg.rows[i]) : null;
       // only used to name a row we could not route (no manifest, so no schema to ask).
       // the live sheet keeps style IDs in column B and the older one in column A, so look at

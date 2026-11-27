@@ -18,7 +18,6 @@ var CAP_SCHEMA = 'aplus.template/2';
 var CAP_RENDERER = 'aplus-capture-v1';
 var CAP_PROBE_TAG = '__aplus-capture-probe__';
 var CAP_MAX_MISMATCHES = 240;          // keep the postMessage payload sane
-var CAP_MAX_MANIFEST_BYTES = 4000000;  // above this we report stats but withhold the body
 
 // ---------------------------------------------------------------------------
 // 1. Property name sources
@@ -328,14 +327,25 @@ function capCollectPaints(spec, ctx) {
     });
   });
 }
-function capPaintIsTexture(p) {
-  if (p.opacity !== undefined && p.opacity < 0.9) return true;
-  if (p.scalingFactor !== undefined && Math.abs(p.scalingFactor - 1) > 1e-6) return true;
-  if (p.filters) {
-    for (var k in p.filters) if (typeof p.filters[k] === 'number' && Math.abs(p.filters[k]) > 1e-6) return true;
+function capPaintIsTexture(p) { return !!capTextureReason(p); }
+// Why an image paint is art direction rather than a photo, or '' when it is a plain photo.
+// scalingFactor only changes what Figma draws in TILE mode; on FILL / FIT / CROP it is a leftover
+// value (0.5 is routine for a pasted @2x image) and must not demote a photo. Frame 708612 lost all
+// eleven of its photos to exactly that. A tiled image is a repeating pattern whatever its scale,
+// so TILE alone is enough. Rotation and imageTransform (CROP) are framing, not art direction.
+function capTextureReason(p) {
+  if (!p) return '';
+  if (p.opacity !== undefined && p.opacity < 0.9) return 'opacity ' + p.opacity;
+  if (p.scaleMode === 'TILE') {
+    return 'tiled pattern' + (p.scalingFactor !== undefined && Math.abs(p.scalingFactor - 1) > 1e-6 ? ' at scalingFactor ' + p.scalingFactor : '');
   }
-  if (p.blendMode && p.blendMode !== 'NORMAL' && p.blendMode !== 'PASS_THROUGH') return true;
-  return false;
+  if (p.filters) {
+    for (var k in p.filters) {
+      if (typeof p.filters[k] === 'number' && Math.abs(p.filters[k]) > 1e-6) return 'filter ' + k + ' ' + p.filters[k];
+    }
+  }
+  if (p.blendMode && p.blendMode !== 'NORMAL' && p.blendMode !== 'PASS_THROUGH') return 'blend mode ' + p.blendMode;
+  return '';
 }
 function capCollectStyleRefs(spec, ctx) {
   ['fillStyleId', 'strokeStyleId', 'effectStyleId', 'gridStyleId', 'textStyleId'].forEach(function (k) {
@@ -404,13 +414,15 @@ function capDetectSlots(root, M, ctx) {
     }
 
     // (b) a big, clean, fully opaque image rect → rectangular slot.
-    //     A rescaled / filtered / translucent image fill is deliberately NOT a slot.
+    //     A tiled / filtered / translucent image fill is deliberately NOT a slot.
+    //     "Big" is relative to the frame: the 150 px floor was tuned on 1572-wide A+ frames, so it
+    //     scales with the frame width (a 396-wide frame needs ~38 px, not 150).
     var fills = capVisiblePaints(spec.props && spec.props.fills);
     var imageFills = fills.filter(capIsPhotoFill);
     if (imageFills.length === 1 && fills.length === 1 &&
         (spec.type === 'RECTANGLE' || spec.type === 'FRAME' || spec.type === 'ELLIPSE')) {
       var p = imageFills[0];
-      var big = spec.box && spec.box.w >= 0.25 * rootW && spec.box.h >= 150;
+      var big = spec.box && spec.box.w >= 0.25 * rootW && spec.box.h >= 150 * rootW / 1572;
       if (!capPaintIsTexture(p) && (big || explicit)) {
         spec.slot = { kind: spec.type === 'ELLIPSE' ? 'circle' : 'rect', label: capSlotLabel(spec, parent),
           photoPath: spec.path, w: spec.box ? spec.box.w : null, h: spec.box ? spec.box.h : null,
@@ -421,8 +433,7 @@ function capDetectSlots(root, M, ctx) {
       }
       if (capPaintIsTexture(p)) {
         ctx.notes.push('"' + (spec.props.name || spec.path) + '" kept as a graphic, not a photo slot — ' +
-          'its image fill is art direction (opacity ' + (p.opacity === undefined ? 1 : p.opacity) +
-          ', scalingFactor ' + (p.scalingFactor === undefined ? 1 : p.scalingFactor) + ')');
+          'its image fill is art direction (' + capTextureReason(p) + ')');
       }
     }
 
@@ -690,7 +701,9 @@ function capFontsBlock(fonts) {
   return out;
 }
 
-async function capCaptureFrame(frame, req, post) {
+// `sink` (optional) receives the image bytes: sink.assets = [{ hash, mime, name, width, height, bytes, data }].
+// They never go inside the manifest; the manifest only carries their catalogue (meta.assets).
+async function capCaptureFrame(frame, req, post, sink) {
   var rootBox = null;
   try { rootBox = frame.absoluteBoundingBox; } catch (e) {}
   if (!rootBox) rootBox = { x: 0, y: 0, width: frame.width, height: frame.height };
@@ -706,14 +719,14 @@ async function capCaptureFrame(frame, req, post) {
     renderer: CAP_RENDERER,
     meta: {
       category: tpl.categoryId || 'captured',
-      categoryLabel: capTitle(tpl.categoryId || 'Captured'),
+      categoryLabel: tpl.categoryLabel || capTitle(tpl.categoryId || 'Captured'),
       gender: tpl.genderId || 'unisex',
       id: tpl.id || 'captured-1',
       key: (tpl.categoryId || 'captured') + '/' + (tpl.genderId || 'unisex') + '/' + (tpl.id || 'captured-1'),
       label: tpl.label || capName(frame),
       sub: 'Captured from "' + capName(frame) + '"',
       version: 1,
-      status: tpl.status || 'draft',
+      status: tpl.status || 'active',
       capturedAt: new Date().toISOString(),
       width: capR(rootBox.width, 2),
       height: capR(rootBox.height, 2),
@@ -742,11 +755,12 @@ async function capCaptureFrame(frame, req, post) {
   M.content = capContentBlock(root, M);
   post('classify', 3, 3);
 
-  if (ctx.images.length) {
-    ctx.notes.push(ctx.images.length + ' image fill(s) are referenced by hash. An imageHash only ' +
-      'resolves inside the Figma file that holds the bytes, so this template renders those layers ' +
-      'blank in another file until asset upload (plan §4 / phase 2) ships.');
-  }
+  // Image bytes, not just hashes: a hash only resolves inside the file that holds the image, so
+  // the bytes travel with the template and are re-created in whatever file builds it
+  // (user-templates.js utMaterializeImages).
+  var assets = ctx.images.length ? await utExtractAssets(ctx.images, post, ctx.notes) : [];
+  M.meta.assets = utCatalogue(assets);
+  if (sink) sink.assets = assets;
   if (ctx.styleRefs) {
     ctx.notes.push(ctx.styleRefs + ' node(s) referenced a shared style (fill/stroke/effect/text). ' +
       'The resolved values are captured, but the link to the library style is not — under ' +
@@ -757,7 +771,7 @@ async function capCaptureFrame(frame, req, post) {
       'but will not take any text from the sheet.');
   }
   M.warnings = ctx.notes;
-  M.stats = { layers: ctx.count, texts: ctx.texts, images: ctx.images.length, slots: M.slots.length,
+  M.stats = { layers: ctx.count, texts: ctx.texts, images: ctx.images.length, imageBytes: assets.reduce(function (n, a) { return n + a.bytes; }, 0), slots: M.slots.length,
     roles: Object.keys(M.roles).length, callouts: M.meta.calloutCount || 0 };
   capStrip(root);
   return M;
@@ -1010,12 +1024,15 @@ async function capBuildNode(spec, parent, ctx) {
 // (that is what the round-trip diff compares); otherwise the sheet row drives the text and the
 // photo slots come out as labelled placeholders.
 async function capBuildTree(M, opts) {
+  // every image hash re-created in THIS file from the template's own bytes (or a labelled placeholder)
+  var imageWarnings = [];
+  M = await utMaterializeImages(M, imageWarnings, { fidelity: !!opts.fidelity });
   var fonts = await loadFontsFromManifest(M);
   var fallback = fonts.F[Object.keys(fonts.F)[0]] || { family: 'Inter', style: 'Regular' };
   try { await figma.loadFontAsync({ family: 'Inter', style: 'Regular' }); } catch (e) {}
   var ctx = {
     M: M, F: fonts.F, fallbackFont: fallback, fidelity: !!opts.fidelity,
-    row: opts.row || null, warn: [], made: []
+    row: opts.row || null, warn: imageWarnings, made: []
   };
   var root = await capBuildNode(M.root, opts.parent, ctx);
   if (!root) throw new Error('The captured template produced no nodes.');
@@ -1238,71 +1255,54 @@ async function capBuildFromManifest(M, row, opts) {
 }
 
 // ---------------------------------------------------------------------------
-// 9. Persistence
+// 9. Persistence — see user-templates.js (this computer) and platform.js templateStore (Drive)
 // ---------------------------------------------------------------------------
-// One clientStorage entry per template plus a small index, rather than one giant blob: a
-// captured A+ manifest runs to hundreds of KB and rewriting every template on every save is how
-// you hit the quota and lose all of them at once.
 
-var CAP_INDEX_KEY = 'capturedTemplateIndex';
-function capStoreKey(key) { return 'capturedTemplate:' + key; }
-
-async function capSaveTemplate(M) {
-  var idx = (await figma.clientStorage.getAsync(CAP_INDEX_KEY)) || [];
-  var key = M.meta.key;
-  var entry = {
-    key: key, category: M.meta.category, categoryLabel: M.meta.categoryLabel,
-    gender: M.meta.gender, id: M.meta.id, label: M.meta.label, sub: M.meta.sub,
-    status: M.meta.status, version: M.meta.version, capturedAt: M.meta.capturedAt,
-    source: M.meta.source
-  };
-  idx = idx.filter(function (e) { return e && e.key !== key; });
-  idx.push(entry);
-  await figma.clientStorage.setAsync(capStoreKey(key), M);
-  await figma.clientStorage.setAsync(CAP_INDEX_KEY, idx);
-  return entry;
-}
-
-async function capLoadTemplates() {
-  var idx = (await figma.clientStorage.getAsync(CAP_INDEX_KEY)) || [];
-  var out = { index: [], manifests: {} };
-  for (var i = 0; i < idx.length; i++) {
-    var e = idx[i];
-    if (!e || !e.key) continue;
-    var M = null;
-    try { M = await figma.clientStorage.getAsync(capStoreKey(e.key)); } catch (err) {}
-    if (!M) continue;
-    out.index.push(e);
-    out.manifests[e.key] = M;
-  }
-  return out;
-}
-
-// Folds captured templates into the registry the UI already renders, so they appear in the
-// category/gender/template picker beside the hand-built Running ones with no UI change.
+// Folds the user's templates into a registry, so they appear in the category/gender/template
+// picker beside the hand-built ones. Every row it adds is marked `user: true`; categories and
+// genders it had to create are marked `userOnly: true`, so the UI can strip and re-apply them.
 function capMergeIntoRegistry(reg, index) {
   if (!reg || !index || !index.length) return reg;
+  reg.categories = reg.categories || [];
   index.forEach(function (e) {
+    if (!e || !e.key) return;
     var cat = null, i;
     for (i = 0; i < reg.categories.length; i++) if (reg.categories[i].id === e.category) cat = reg.categories[i];
     if (!cat) {
       cat = { id: e.category, label: e.categoryLabel || capTitle(e.category), status: 'active',
-        defaultGender: e.gender, genders: [] };
+        defaultGender: e.gender, genders: [], userOnly: true };
       reg.categories.push(cat);
     }
     if (cat.status !== 'active') cat.status = 'active';
+    cat.genders = cat.genders || [];
     var gen = null;
     for (i = 0; i < cat.genders.length; i++) if (cat.genders[i].id === e.gender) gen = cat.genders[i];
     if (!gen) {
-      gen = { id: e.gender, label: capTitle(e.gender), status: 'active', hero: ['', ''], templates: [] };
+      gen = { id: e.gender, label: capTitle(e.gender), status: 'active', hero: ['', ''], templates: [], userOnly: true };
       cat.genders.push(gen);
     }
     if (gen.status !== 'active') gen.status = 'active';
     gen.templates = (gen.templates || []).filter(function (t) { return t.id !== e.id; });
-    gen.templates.push({ id: e.id, label: e.label, sub: e.sub || 'Captured from a frame',
-      version: e.version || 1, status: e.status || 'draft', captured: true });
+    gen.templates.push({ id: e.id, label: e.label, sub: e.sub || 'Your template',
+      version: e.version || 1, status: 'active', captured: true, user: true });
   });
   return reg;
+}
+
+// Is `key` one of the templates this plugin ships with (never overwritten by a capture)?
+function capIsBundledKey(key) {
+  var p = String(key).split('/');
+  var reg = (typeof FALLBACK_REGISTRY !== 'undefined' && FALLBACK_REGISTRY) || { categories: [] };
+  for (var i = 0; i < (reg.categories || []).length; i++) {
+    var c = reg.categories[i];
+    if (c.id !== p[0]) continue;
+    for (var j = 0; j < (c.genders || []).length; j++) {
+      var g = c.genders[j];
+      if (g.id !== p[1]) continue;
+      for (var k = 0; k < (g.templates || []).length; k++) if (g.templates[k].id === p[2] && !g.templates[k].user) return true;
+    }
+  }
+  return false;
 }
 
 // ---------------------------------------------------------------------------
@@ -1315,14 +1315,24 @@ async function capPageOf(node) {
   return cur && cur.type === 'PAGE' ? cur : null;
 }
 
+// capture-template { frameId, pageId, template: { id, label, categoryId, categoryLabel, genderId }, replace }
+// posts capture-progress {step, done, total} · capture-result {...} · capture-error {message, code}
 async function capHandleCaptureTemplate(msg) {
   function post(step, done, total) {
     figma.ui.postMessage({ type: 'capture-progress', step: step, done: done, total: total });
   }
-  function fail(message) { figma.ui.postMessage({ type: 'capture-error', message: message }); }
+  function fail(message, code) { figma.ui.postMessage({ type: 'capture-error', message: message, code: code || 'capture-failed' }); }
 
   try {
     if (!msg.frameId) return fail('No frame id was sent — select a frame and try again.');
+    var tpl = msg.template || {};
+    var key = (tpl.categoryId || '') + '/' + (tpl.genderId || '') + '/' + (tpl.id || '');
+    if (!UT_KEY_RE.test(key)) return fail('The template key "' + key + '" is not valid. Use letters, digits and dashes for the category and id.', 'bad-key');
+    if (capIsBundledKey(key)) return fail('"' + key + '" is a template the plugin ships with and cannot be replaced. Choose a different id.', 'bundled');
+    if (!msg.replace) {
+      var have = await utReadIndex();
+      if (have.some(function (e) { return e.key === key; })) return fail('You already have a template saved as "' + key + '".', 'exists');
+    }
     post('scan', 0, 1);
 
     // dynamic-page: the page that holds the node has to be loaded before the node resolves
@@ -1341,45 +1351,39 @@ async function capHandleCaptureTemplate(msg) {
     await page.loadAsync();
     post('scan', 1, 1);
 
-    var M = await capCaptureFrame(frame, msg, post);
+    var sink = { assets: [] };
+    var M = await capCaptureFrame(frame, msg, post, sink);
+    // the session copy first, so the round trip below re-creates images from the captured bytes
+    utStage(M.meta.key, M, sink.assets);
 
     var diff = await capRoundTrip(M, frame, page, post);
     M.warnings = M.warnings.concat(diff.warnings);
     M.meta.roundTrip = { score: diff.score, compared: diff.compared, mismatched: diff.mismatched,
       checkedAt: new Date().toISOString() };
 
-    post('save', 0, 1);
-    var entry = null, saveError = null;
-    try { entry = await capSaveTemplate(M); }
-    catch (e) { saveError = String((e && e.message) || e); }
-    if (saveError) M.warnings.push('Could not save to clientStorage (' + saveError +
-      ') — the manifest is returned but will not survive a plugin reload.');
-    post('save', 1, 1);
-
-    // keep this session's in-memory registry and manifest map in step, so the captured
-    // template is usable from the Automate tab immediately without a reload
-    if (entry) {
-      try {
-        FALLBACK_MANIFESTS[M.meta.key] = M;
-        capMergeIntoRegistry(FALLBACK_REGISTRY, [entry]);
-      } catch (e) {}
+    post('save-local', 0, 1);
+    var saved;
+    try { saved = await utSave(M, sink.assets); }
+    catch (e) {
+      saved = { entry: null, local: { manifest: false, assetsStored: 0, assetsTotal: sink.assets.length, bytes: 0,
+        reason: 'Could not save on this computer: ' + ((e && e.message) || e) } };
+    }
+    post('save-local', 1, 1);
+    if (saved.entry && saved.local.manifest) {
+      try { capMergeIntoRegistry(FALLBACK_REGISTRY, [saved.entry]); } catch (e) {}
     }
 
-    var body = JSON.stringify(M);
-    var tooBig = body.length > CAP_MAX_MANIFEST_BYTES;
-    if (tooBig) {
-      M.warnings.push('The manifest is ' + Math.round(body.length / 1024) + ' KB, too large to hand back ' +
-        'through the plugin UI bridge. It is saved locally and usable; only the preview body is withheld.');
-    }
-
+    var manifestBytes = utSizeOf(M);
     figma.ui.postMessage({
       type: 'capture-result',
       ok: true,
       key: M.meta.key,
-      manifest: tooBig ? null : M,
-      manifestBytes: body.length,
-      registryEntry: entry,
-      registry: FALLBACK_REGISTRY,
+      label: M.meta.label,
+      entry: saved.entry ? utRegistryRows([saved.entry])[0] : utRegistryRows([utEntryFor(M, null)])[0],
+      local: saved.local,
+      manifestBytes: manifestBytes,
+      imageBytes: M.stats.imageBytes || 0,
+      images: M.meta.assets.length,
       stats: M.stats,
       diff: {
         score: diff.score, compared: diff.compared, mismatched: diff.mismatched,
@@ -1387,9 +1391,9 @@ async function capHandleCaptureTemplate(msg) {
       },
       warnings: M.warnings
     });
-    figma.notify('A+: captured "' + M.meta.label + '" · ' + M.stats.layers + ' layers · round-trip ' +
-      Math.round(diff.score * 1000) / 10 + '%');
+    figma.notify('A+: captured "' + M.meta.label + '" · ' + M.stats.layers + ' layers · ' +
+      (saved.local.manifest ? 'saved on this computer' : 'not saved on this computer'));
   } catch (e) {
-    fail(String((e && e.stack) || (e && e.message) || e));
+    fail(String((e && e.message) || e));
   }
 }
