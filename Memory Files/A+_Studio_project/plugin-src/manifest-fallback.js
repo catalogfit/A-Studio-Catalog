@@ -5838,7 +5838,8 @@ var FALLBACK_MANIFESTS = {
           "y": -40,
           "w": 1696,
           "h": 1696,
-          "comment": "Bottom-most layer in the Compression Top and the Shorts: a shared backdrop graphic (same imageHash in both), not a per-style photograph, so it stays a specified layer rather than a slot. The Trackpants puts a style photo here instead. An imageHash only resolves inside the Figma file that holds the bytes — the renderer drops it with a warning elsewhere.",
+          "visible": false,
+          "comment": "Bottom-most layer in the Compression Top and the Shorts: the same imageHash in both, which is why it was first read as a shared backdrop graphic rather than a per-style photograph. It is a PHOTOGRAPH. In the finished designs it contributes nothing — the live model photo covers it completely — but in a skeleton, where the model is an empty 35%-opacity placeholder, it showed through as a full-bleed photo of a female athlete inside the MEN'S template. Shipping a baked-in photo also contradicts the brief that every photo area be a placeholder. Kept as data (it really is in the source) but hidden, the same convention as the fabric 'Photo wash'. The hero background slot directly above it is the real fill point. The Trackpants puts a style photo here instead.",
           "fills": [
             {
               "image": "ec31933d587a4a4f2f4fad740048399f56e09fe7",
