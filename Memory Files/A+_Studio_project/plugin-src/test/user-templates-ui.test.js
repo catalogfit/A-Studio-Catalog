@@ -188,6 +188,8 @@ test('user templates: save, pickers, My templates, Drive, export/import, delete,
     const where = await ui().evaluate(() => ({ out: (document.getElementById('ad-out') || {}).innerText, mine: (document.getElementById('ad-mine-out') || {}).innerText })).catch(() => ({}));
     throw new Error('timed out waiting for ' + what + ' (last: ' + JSON.stringify(last) + ') panel: ' + JSON.stringify(where));
   }
+  // SHOTS=/some/dir saves screenshots of the panel at the interesting states
+  const shot = async (name) => { if (!process.env.SHOTS) return; const el = await page.$('#ui'); await el.screenshot({ path: path.join(process.env.SHOTS, 'ut-' + name + '.png') }); };
   const driveFiles = () => page.evaluate(() => [...window.__drive.files.values()].map(f => ({ id: f.id, name: f.name, parents: f.parents, mimeType: f.mimeType, trashed: f.trashed, size: f.content ? f.content.length : 0, app: f.appProperties })));
 
   // ================================================================ machine A
@@ -262,6 +264,7 @@ test('user templates: save, pickers, My templates, Drive, export/import, delete,
     const badges = await ui().evaluate(k => [...document.querySelectorAll('.ut-row[data-key="' + k + '"] .ut-badge')].map(b => b.className + ':' + b.textContent), KEY);
     assert.deepEqual(badges, ['ut-badge on:This computer', 'ut-badge on:Drive']);
     assert.match(await text('#ad-usage'), /This computer: .* used · .* free/);
+    await shot('saved');
   });
 
   await t.test('registry refreshed: Automate picker and Export categories show it at once', async () => {
@@ -279,16 +282,20 @@ test('user templates: save, pickers, My templates, Drive, export/import, delete,
   });
 
   await t.test('same key again: in-panel Replace / Save as new; Save as new keeps both', async () => {
+    assert.equal(await ui().evaluate(() => document.getElementById('ad-name').value + '|' + document.getElementById('ad-id').value), '|', 'form cleared after a successful save');
+    await type('#ad-name', 'Split hero');
+    assert.match(await text('#ad-keyline'), /you already have a template with this id/);
     await click('#ad-go');
     const c = await until(() => text('#ad-conflict'), 'the clash prompt');
     assert.match(c, /You already have “Split hero”/);
+    await shot('clash');
     const btns = await ui().evaluate(() => [...document.querySelectorAll('#ad-conflict button')].map(b => b.textContent));
     assert.deepEqual(btns, ['Replace it', 'Save as new (split-hero-2)', 'Cancel']);
     await ui().evaluate(() => document.querySelectorAll('#ad-conflict button')[1].click());
     await until(async () => /Saved · this computer \+ Google Drive/.test(await text('#ad-out')) && /split-hero-2/.test(await text('#ad-out')), 'the second save');
     assert.ok(await ui().evaluate(() => !!document.querySelector('.ut-row[data-key="yoga-pants/women/split-hero-2"]')));
     // a built-in id offers Save as new only
-    await type('#ad-cat', 'Running'); await type('#ad-id', 'template-1');
+    await type('#ad-name', 'Clash with built-in'); await type('#ad-cat', 'Running'); await type('#ad-id', 'template-1');
     await click('#ad-go');
     assert.deepEqual(await until(() => ui().evaluate(() => { const b = [...document.querySelectorAll('#ad-conflict button')].map(b => b.textContent); return b.length ? b : null; }), 'bundled prompt'),
       ['Save as new (' + (await ui().evaluate(() => userTemplates.suggestFreeId('running', 'women', 'template-1'))) + ')', 'Cancel']);
@@ -306,7 +313,9 @@ test('user templates: save, pickers, My templates, Drive, export/import, delete,
     const f = (await driveFiles()).find(x => x.name === 'yoga-pants__women__split-hero-2');
     assert.equal(f.trashed, true, 'trashed, not hard-deleted');
     const patch = (await page.evaluate(() => window.__drive.log)).filter(l => l.method === 'PATCH');
-    assert.deepEqual(patch.map(p => p.patch), [{ trashed: true }]);
+    assert.deepEqual(patch.map(p => p.patch), [{ trashed: true }, { trashed: true }], 'manifest then folder to the bin (Drive trashes children lazily)');
+    const mfile = (await driveFiles()).find(x => x.name === 'manifest.json' && x.parents[0] === f.id);
+    assert.equal(mfile.trashed, true, 'the manifest itself is trashed, so a later Drive listing cannot bring it back');
     assert.ok(!(await ui().evaluate(k => !!document.querySelector('.ut-row[data-key="' + k + '"]'), k2)));
     assert.ok(!(await page.evaluate(() => [...window.__storage.map.keys()].some(k => k.includes('split-hero-2')))));
   });
@@ -352,6 +361,7 @@ test('user templates: save, pickers, My templates, Drive, export/import, delete,
     await click('#ad-go');
     await until(async () => /Saved on this computer · Drive upload failed/.test(await text('#ad-out')), 'partial state', 20000);
     assert.match(await text('#ad-out'), /quota/i);
+    await shot('drive-failed');
     assert.match(await text('.ut-row[data-key="yoga-pants/women/quota-case"]'), /Drive upload failed/);
     await page.evaluate(() => { window.__drive.failUploads = false; });
     await click('#ad-retry');
@@ -367,6 +377,7 @@ test('user templates: save, pickers, My templates, Drive, export/import, delete,
     const badges = await ui().evaluate(k => [...document.querySelectorAll('.ut-row[data-key="' + k + '"] .ut-badge')].map(b => b.className + ':' + b.textContent), KEY);
     assert.deepEqual(badges, ['ut-badge off:This computer', 'ut-badge on:Drive']);
     assert.match(await text('.ut-row[data-key="' + KEY + '"]'), /Downloads from your Drive the first time you use it here/);
+    await shot('machine-b');
     assert.ok(await ui().evaluate(() => registryCats().some(c => c.id === 'yoga-pants')), 'in the pickers from Drive');
     assert.equal(await page.evaluate(() => window.__storage.map.has('capturedTemplateIndex')), false, 'nothing local yet');
 

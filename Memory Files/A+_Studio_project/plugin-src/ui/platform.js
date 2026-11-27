@@ -703,15 +703,18 @@ var templateStore = (function () {
     return { key: key, fileId: mf.id, folderId: folderId, assets: refs, replaced: replaced, entry: entry };
   }
 
-  // remove(key) — moves the template's folder to the Drive bin (recoverable for 30 days)
+  // remove(key) — moves the template to the Drive bin (recoverable for 30 days). The manifest file
+  // is trashed explicitly before its folder: Drive marks a trashed folder's children as trashed
+  // asynchronously, and until it does, list() (which searches for manifests) would still return
+  // the template — found by the live round trip (test/live/user-templates-drive.live.js).
   async function remove(key) {
     var folders = await byKind('template-folder', key);
-    var manifests = folders.length ? [] : await byKind('template-manifest', key);
-    var target = folders[0] || manifests[0];
-    if (!target) throw PlatformError('not-found', 'No saved template "' + key + '" in your Drive.');
-    await drive.trash(target.id);
+    var manifests = await byKind('template-manifest', key);
+    if (!folders.length && !manifests.length) throw PlatformError('not-found', 'No saved template "' + key + '" in your Drive.');
+    for (var i = 0; i < manifests.length; i++) await drive.trash(manifests[i].id);
+    for (var j = 0; j < folders.length; j++) await drive.trash(folders[j].id);
     await bridge.request('tplcache-remove', { key: key }, { timeoutMs: 10000 }).catch(function () {});
-    return { ok: true, key: key, trashed: target.id };
+    return { ok: true, key: key, trashed: (folders[0] || manifests[0]).id, files: manifests.length + folders.length };
   }
 
   return { list: list, cached: cached, load: load, loadAsset: loadAsset, save: save, remove: remove, PATH: TEMPLATES_PATH, SCHEMA: SCHEMA };

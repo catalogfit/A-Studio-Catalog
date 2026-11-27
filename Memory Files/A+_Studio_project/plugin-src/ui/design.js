@@ -166,7 +166,7 @@
     if (!d) return '';
     var mis = d.mismatches || [];
     var pct = typeof d.score === 'number' ? Math.round(d.score * 1000) / 10 + '%' : '—';
-    return '<details class="more"><summary title="Copy check">' + (mis.length ? mis.length + ' difference(s)' : 'Copy check: identical') + '</summary>' +
+    return '<details class="ut-details"><summary>' + (mis.length ? mis.length + ' difference(s)' : 'Copy check: identical') + '</summary>' +
       '<div class="hint">The plugin rebuilt your frame from the saved template and compared ' + esc(String(d.compared || 0)) +
       ' properties: ' + esc(pct) + ' match.' + (mis.length ? ' These did not come back exactly:' : '') + '</div>' +
       (mis.length ? '<div class="hint" style="max-height:180px;overflow:auto">' + mis.slice(0, 60).map(function (x) {
@@ -175,7 +175,7 @@
   }
   function warningsBlock(w) {
     if (!w || !w.length) return '';
-    return '<details class="more"><summary title="Notes">' + w.length + ' note(s)</summary><ul class="hint" style="margin:6px 0 0 15px;padding:0">' +
+    return '<details class="ut-details"><summary>' + w.length + ' note(s)</summary><ul class="hint" style="margin:6px 0 0 15px;padding:0">' +
       w.map(function (x) { return '<li>' + esc(String(x)) + '</li>'; }).join('') + '</ul></details>';
   }
 
@@ -186,7 +186,7 @@
     userTemplates.forget(m.key);
     var label = m.label || m.key;
     var localOk = !!(m.local && m.local.manifest);
-    var head = '<b>' + esc(label) + '</b> · <code>' + esc(m.key) + '</code><br>' +
+    var head = '<span class="em">' + esc(label) + '</span> · <code>' + esc(m.key) + '</code><br>' +
       esc(m.stats.layers + ' layers · ' + m.images + ' image(s) · ' + fmt(m.manifestBytes + (m.imageBytes || 0)));
     var details = roundTripDetails(m.diff) + warningsBlock(m.warnings);
 
@@ -203,10 +203,11 @@
     }
     await uploadWithProgress(m.key, $('ad-out'), function (ok, err) {
       if (ok) {
+        $('ad-name').value = ''; $('ad-id').value = ''; D.idEdited = false;   // ready for the next one
         $('ad-out').innerHTML = ui.note(m.local.reason ? 'pending' : 'info',
           localOk ? 'Saved · this computer + Google Drive' : 'Saved to Google Drive',
           head + (m.local.reason ? '<br>' + esc(m.local.reason) : '') +
-          '<br>It is in Automate now, under <b>' + esc(categoryLabelOf(m.key)) + ' · ' + esc(GENDER_LABEL[m.key.split('/')[1]] || '') + '</b>.') + details;
+          '<br>It is in Automate now, under <span class="em">' + esc(categoryLabelOf(m.key)) + ' · ' + esc(GENDER_LABEL[m.key.split('/')[1]] || '') + '</span>.') + details;
       } else {
         $('ad-out').innerHTML = ui.note(localOk ? 'pending' : 'warn',
           localOk ? 'Saved on this computer · Drive upload failed' : 'Not saved yet · Drive upload failed',
@@ -351,7 +352,7 @@
           where.length ? 'Imported · ' + where.join(' + ') : 'Not saved',
           '<code>' + esc(r.key) + '</code>' +
           (r.local && r.local.reason ? '<br>' + esc(r.local.reason) : '') +
-          (r.driveError ? '<br>Drive upload failed: ' + esc(errorText(r.driveError)) + ' Use <b>Upload to Drive</b> on the template below.' : '') +
+          (r.driveError ? '<br>Drive upload failed: ' + esc(errorText(r.driveError)) + ' Use <span class="em">Upload to Drive</span> on the template below.' : '') +
           (parsed.warnings.length ? '<br>' + parsed.warnings.map(esc).join('<br>') : ''));
       } catch (e) { out.innerHTML = ui.note('warn', 'Could not import', esc(errorText(e))); }
       renderMine(); renderForm();

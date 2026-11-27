@@ -34,9 +34,10 @@
 //   POST /api/compose     -> { session, aplusPng, gif|driveFileId, format } -> animated GIF / MP4
 //                            !! an animated GIF is NOT accepted by Amazon A+ — see compose.js
 //                            !! requires a signed-in session and is concurrency-capped
-//   Captured templates (the "Add to template" flow — docs/add-to-template-plan.md):
-//   POST   /api/templates                              -> { session, category, gender, id, label, manifest }
-//   DELETE /api/templates/:category/:gender/:id        -> removes a CAPTURED template only
+//   Captured templates: NOT stored here. A user's templates live on their computer, in their own
+//   Google Drive and in files they export (docs/user-templates.md); the plugin never posts them.
+//   POST   /api/templates  -> 410 Gone, unless SERVER_TEMPLATE_STORE=true (legacy, off by default)
+//   DELETE /api/templates/:category/:gender/:id        -> removes a legacy server-captured template only
 //   AI labelling (advisory names only — docs/ai-labelling.md):
 //   POST /api/label       -> { session, skeleton } -> { roles: { layerId: { role, confidence } } }
 
@@ -60,6 +61,9 @@ var MAX_BODY_BYTES = Number(process.env.MAX_BODY_BYTES || 96 * 1024 * 1024);
 // A captured manifest is tens of KB, not tens of MB. Capping this route separately means a
 // hostile POST /api/templates cannot buffer 96 MB before being rejected.
 var MAX_TEMPLATE_BODY_BYTES = Number(process.env.MAX_TEMPLATE_BODY_BYTES || 4 * 1024 * 1024);
+// The legacy server-side store for captured templates. Off: user templates belong to the user
+// (their computer + their Drive — docs/user-templates.md), so the backend stays light and shared.
+var SERVER_TEMPLATE_STORE = String(process.env.SERVER_TEMPLATE_STORE || 'false').toLowerCase() === 'true';
 var MAX_LABEL_BODY_BYTES = Number(process.env.MAX_LABEL_BODY_BYTES || 4 * 1024 * 1024);
 // /api/compose can hold ~500 MB of pixel buffers and tens of seconds of CPU for one job, so it is
 // no longer anonymous and no longer unbounded. Set REQUIRE_SESSION=false only for local work.
@@ -347,6 +351,9 @@ var server = http.createServer(async function (req, res) {
       // ----- save a captured template -----
       // POST /api/templates { session, category, gender, id, label, manifest }
       if (parts.length === 2 && req.method === 'POST') {
+        if (!SERVER_TEMPLATE_STORE) {
+          return err(res, 410, 'Templates are no longer stored on the A+ service. The plugin saves them on your computer and in your own Google Drive (docs/user-templates.md).');
+        }
         var bT = await readBody(req, MAX_TEMPLATE_BODY_BYTES);
         var denyT = denySession(sessionOf(bT, q));
         if (denyT) return err(res, denyT.code, denyT.message);
