@@ -476,7 +476,49 @@ function resolveIcon(idx, label) {
       if (hit) return { entry: hit, via: passes[p].via, source: hit.source };
     }
   }
+  // Last resort: the plugin's own copy of the catalogued glyph (icon-fallback.js, generated from
+  // backend/icons). Same artwork, so still the right icon — used only when no page of this file
+  // has an icon of that name the search can reach.
+  var cat = (typeof ICON_FALLBACK !== 'undefined' && ICON_FALLBACK) || {};
+  var ck = cat[key] ? key : (ICON_ALIASES[key] && cat[ICON_ALIASES[key]] ? ICON_ALIASES[key] : null);
+  if (ck) {
+    var c = cat[ck];
+    return { entry: { name: c.name, key: ck, source: 'catalogue', svg: c.svg, file: c.file, glyphRatio: c.glyphRatio },
+             via: ck === key ? 'normalised' : 'alias', source: 'catalogue' };
+  }
   return null;
+}
+// Draw a catalogued glyph (SVG) inside a production ring: same ring, label and spacing as
+// bankIcon, glyph centred at the proportion the designer drew it.
+function catalogueIcon(M, F, parent, entry, labelText) {
+  var g = stack(parent, 'VERTICAL', { gap: ICON_LABEL_GAP, cross: 'CENTER',
+    name: 'Icon · ' + entry.name + ' · from plugin icon catalogue' });
+  var holder = box(g, { w: ICON_RING_D, h: ICON_RING_D, name: 'Ring' });
+  var e = figma.createEllipse();
+  e.resize(ICON_RING_D, ICON_RING_D);
+  e.fills = [solid(col(M, ICON_RING_FILL))];
+  e.strokes = [solid(col(M, ICON_RING_STROKE))];
+  e.strokeWeight = ICON_RING_STROKE_W;
+  holder.appendChild(e); e.x = 0; e.y = 0; e.name = 'Ellipse 3';
+  var glyph = figma.createNodeFromSvg(entry.svg);
+  try { glyph.fills = []; glyph.clipsContent = false; } catch (e) { /* not a frame — nothing to clear */ }
+  holder.appendChild(glyph);
+  var target = ICON_RING_D * (entry.glyphRatio || 0.51);
+  var s = target / Math.max(glyph.width, glyph.height);
+  if (typeof glyph.rescale === 'function') glyph.rescale(s); else glyph.resize(glyph.width * s, glyph.height * s);
+  glyph.x = (ICON_RING_D - glyph.width) / 2; glyph.y = (ICON_RING_D - glyph.height) / 2;
+  glyph.name = 'Glyph · ' + entry.name;
+  txt(M, F, g, { text: labelText || entry.name, font: 'regular', size: ICON_LABEL_SIZE, colorRole: 'white',
+    align: 'CENTER', name: labelText || entry.name });
+  return g;
+}
+// The label a rebuilt icon shows: the sheet's own spelling when it is the same name written
+// differently ("Odour-Free" for the bank's "Odour Free", matching its hyphenated neighbours),
+// the icon's name when the sheet reached it through an alias ("Soft" -> "Super-Soft").
+function iconLabelText(hit, label) {
+  var raw = String(label || '').replace(/\s+/g, ' ').trim();
+  if (hit.via === 'alias' || !raw || raw !== raw.replace(/^[a-z]/, function (c) { return c.toUpperCase(); })) return hit.entry.name;
+  return raw;
 }
 // Rebuild a production-scale icon from ICON BANK artwork. The ring and the label are drawn to
 // the production spec (the bank's own 19px ring and "<Name>: <description>" label are reference
@@ -490,7 +532,7 @@ function iconBankScale(entry) {
   var rb = iconBox(entry.ring);
   return rb && rb.width ? (ICON_RING_D / rb.width) : ICON_BANK_SCALE;
 }
-function bankIcon(M, F, parent, entry) {
+function bankIcon(M, F, parent, entry, labelText) {
   var g = stack(parent, 'VERTICAL', { gap: ICON_LABEL_GAP, cross: 'CENTER',
     name: 'Icon · ' + entry.name + ' · rebuilt from icon bank' });
   var holder = box(g, { w: ICON_RING_D, h: ICON_RING_D, name: 'Ring' });
@@ -512,8 +554,8 @@ function bankIcon(M, F, parent, entry) {
     if (sb && rb) { c.x = (sb.x - rb.x) * scale; c.y = (sb.y - rb.y) * scale; }
     c.name = 'Glyph · ' + entry.name;
   }
-  txt(M, F, g, { text: entry.name, font: 'regular', size: ICON_LABEL_SIZE, colorRole: 'white',
-    align: 'CENTER', name: entry.name });
+  txt(M, F, g, { text: labelText || entry.name, font: 'regular', size: ICON_LABEL_SIZE, colorRole: 'white',
+    align: 'CENTER', name: labelText || entry.name });
   return g;
 }
 function missingIcon(M, F, parent, label) {
@@ -765,14 +807,21 @@ async function buildFromManifest(M, row, opts) {
       // so the row gets a labelled placeholder and the name is reported.
       missingIcon(M, F, iconRow, label);
       unresolvedIcons.push(label);
-      warn.push('Icon "' + label + '" did not resolve — no icon of that name in the designs on ' +
-        'this page or in the ICON BANK. A labelled gap was drawn; nothing was substituted.');
+      warn.push('Icon "' + label + '" did not resolve — no icon of that name in the designs or the ' +
+        'ICON BANK on any page searched (' + ((icons.pages || []).join(', ') || 'this page') + '), nor in ' +
+        'the plugin\'s icon catalogue. A labelled gap was drawn; nothing was substituted.');
       return;
     }
     if (hit.source === 'production') {
       iconRow.appendChild(hit.entry.group.clone());
+    } else if (hit.source === 'catalogue') {
+      catalogueIcon(M, F, iconRow, hit.entry, iconLabelText(hit, label));
+      warn.push('Icon "' + label + '" was not found on any page of this file (searched: ' +
+        ((icons.pages || []).join(', ') || 'this page') + '), so it was drawn from the plugin\'s ' +
+        'catalogue copy (backend/icons/' + hit.entry.file + '). Same artwork — but if the designer ' +
+        'has updated it in Figma, check the ICON BANK copy has a ring, glyph and "' + hit.entry.name + '" label grouped together.');
     } else {
-      bankIcon(M, F, iconRow, hit.entry);
+      bankIcon(M, F, iconRow, hit.entry, iconLabelText(hit, label));
       warn.push('Icon "' + label + '" is not in any shipped design, so it was rebuilt from the ' +
         'ICON BANK glyph scaled up ' + iconBankScale(hit.entry).toFixed(2) + 'x (bank art is ' +
         'reference art, drawn small). Check it renders cleanly before publishing.');

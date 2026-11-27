@@ -24,11 +24,14 @@ function parses(code, name) {
 // 1. bundled manifests (regenerated from backend/templates so the offline copy never drifts)
 // ---------------------------------------------------------------------------------------------
 cp.execFileSync(process.execPath, [path.join(SRC, 'build-fallback.js')], { stdio: 'inherit' });
+// catalogued clean-vector icon glyphs (backend/icons) -> icon-fallback.js, the renderer's last resort
+cp.execFileSync(process.execPath, [path.join(SRC, 'build-icons.js')], { stdio: 'inherit' });
 
 // ---------------------------------------------------------------------------------------------
 // 2. plugin/code.js (Figma sandbox)
 // ---------------------------------------------------------------------------------------------
 // Order matters:
+//   icon-fallback.js     generated ICON_FALLBACK (clean-vector icon glyphs from backend/icons)
 //   renderer.js          manifest-driven renderer (aplus-standard-v1) — automate panel
 //   manifest-fallback.js generated FALLBACK_REGISTRY / FALLBACK_MANIFESTS
 //   capture.js           frame capture (aplus-capture-v1); folds captured templates into the
@@ -41,7 +44,7 @@ cp.execFileSync(process.execPath, [path.join(SRC, 'build-fallback.js')], { stdio
 //   main-automate.js     'run', 'add-comparison', 'save-link'
 //   main-design.js       'capture-template' + captured-template init contribution
 //   main-export.js       'export-style', 'save-export-config' + exportConfig init contribution
-var SANDBOX = ['renderer.js', 'manifest-fallback.js', 'capture.js', 'user-templates.js', 'main.js', 'main-automate.js', 'main-design.js', 'main-export.js'];
+var SANDBOX = ['icon-fallback.js', 'renderer.js', 'manifest-fallback.js', 'capture.js', 'user-templates.js', 'main.js', 'main-automate.js', 'main-design.js', 'main-export.js'];
 var code = SANDBOX.map(function (f) {
   var body = read(f);
   parses(body, 'plugin-src/' + f);
