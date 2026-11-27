@@ -7152,7 +7152,7 @@ var FALLBACK_MANIFESTS = {
           "yFromBottom": -144.758,
           "w": 1083.756,
           "h": 2786.279,
-          "comment": "Rotated AND flipped (negative determinant), so the whole relativeTransform is stored. The accent layer — teal here, crimson on the Solid design. Bottom-anchored, but the original's ty is 4887.758 on a 4743-tall frame, i.e. 144.758px BELOW the bottom edge, hence the negative yFromBottom. Different gradient matrix from training/_base.",
+          "comment": "A PURE ROTATION of about 155.4 deg (determinant +1.0), NOT a flip — an earlier revision of this comment claimed a negative determinant, which is wrong. In this stack the flipped background layer is 'Wash · fabric' (det -0.998), as training/_base now records. The whole relativeTransform is stored regardless, which is correct and lossless. The accent layer — teal here, crimson on the Solid design. Bottom-anchored, but the original's ty is 4887.758 on a 4743-tall frame, i.e. 144.758px BELOW the bottom edge, hence the negative yFromBottom. Different gradient matrix from training/_base.",
           "fills": [
             {
               "gt": [

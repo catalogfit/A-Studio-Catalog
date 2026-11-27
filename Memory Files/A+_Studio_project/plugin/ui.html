@@ -1470,13 +1470,51 @@
     $('b-sub').textContent = live ? 'live' : 'bundled';
     $('regsrc').textContent = live ? 'live' : 'bundled';
   }
+  // A backend can ADD templates but must never take one away. The Docker image bakes the
+  // template folder in at build time, so an image built before a template existed serves a
+  // registry without it — and replacing ours wholesale made that template vanish from the
+  // picker even though the plugin had it bundled. Merge instead, and say when that happened.
+  function mergeRegistry(bundled, live) {
+    if (!bundled || !bundled.categories) return live;
+    var out = JSON.parse(JSON.stringify(live));
+    var byId = {};
+    out.categories.forEach(function (c) { byId[c.id] = c; });
+    var restored = [];
+    (bundled.categories || []).forEach(function (bc) {
+      var lc = byId[bc.id];
+      if (!lc) { out.categories.push(JSON.parse(JSON.stringify(bc))); return; }
+      var lg = {};
+      (lc.genders || []).forEach(function (g) { lg[g.id] = g; });
+      (bc.genders || []).forEach(function (bg) {
+        var g = lg[bg.id];
+        if (!g) { (lc.genders = lc.genders || []).push(JSON.parse(JSON.stringify(bg))); return; }
+        var have = {};
+        (g.templates || []).forEach(function (t) { have[t.id] = 1; });
+        (bg.templates || []).forEach(function (bt) {
+          if (have[bt.id]) return;
+          (g.templates = g.templates || []).push(JSON.parse(JSON.stringify(bt)));
+          restored.push(bc.id + '/' + bg.id + '/' + bt.id);
+        });
+        if (bg.status === 'active' && g.status !== 'active' && (g.templates || []).length) g.status = 'active';
+      });
+      if (bc.status === 'active' && lc.status !== 'active') lc.status = 'active';
+    });
+    out.staleBackend = restored;
+    return out;
+  }
   async function refreshRegistry() {
     if (!state.backend) { setBackend(false); return; }
     try {
       var res = await fetch(base() + '/api/templates');
       var reg = await res.json();
       if (!reg.categories) throw new Error('bad');
-      state.registry = reg; state.manifestCache = {}; renderCats(); setBackend(true);
+      var merged = mergeRegistry(state.bundledRegistry, reg);
+      state.registry = merged; state.manifestCache = {}; renderCats(); setBackend(true);
+      if (merged.staleBackend && merged.staleBackend.length) {
+        setErr('Backend is older than this plugin — it is missing ' +
+          merged.staleBackend.join(', ') + '. Using the bundled copy for those. ' +
+          'Rebuild the backend image to clear this.');
+      }
     } catch (e) { setBackend(false); }
   }
   // one backend URL, two fields that can set it (the gate's and the settings panel's)
@@ -2162,6 +2200,8 @@
       $('backend').value = state.backend;
       $('gate-backend').value = state.backend;
       state.registry = m.registry;
+      // kept so a stale backend can never remove a template the plugin ships with
+      state.bundledRegistry = m.registry;
       window.BUNDLED_MANIFESTS = m.manifests || {};
       if (m.page) setPage(m.page);                 // legacy init.page, still honoured
       renderCats(); setBackend(false); setGoogle('off');
