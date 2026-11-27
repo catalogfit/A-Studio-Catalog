@@ -1,0 +1,600 @@
+{
+  "schema": "aplus.icons/1",
+  "updated": "2026-11-27",
+  "comment": "Catalogue of the fabric icons used in the A+ icon row (sheet column K, 'Fabric Icons'). Two populations exist in the Figma file and they are NOT the same set. 'bank' = the ICON BANK the user built on Page 2 (a 19px reference catalogue, each icon labelled '<Name>: <description>'). 'production' = the full-size icons (150.86px ring, 40.23px label) that live inside the real A+ designs on the same page and are what the plugin actually clones today. Names present in one population and not the other are listed under coverage. Figma imageHash values only resolve inside this one file, so the artwork is also exported to the .svg / .png files beside this index as the durable backup.",
+
+  "source": {
+    "figmaFileKey": "DyUWRDA1JPo75nWMj5UoJe",
+    "page": { "id": "16:22", "label": "Page 2" },
+    "bankLabelNode": "1105:2130",
+    "bankLabelText": "ICON BANK",
+    "bankBounds": { "x": [60022, 60471], "y": [17406, 17890] },
+    "bankTopLevelGroups": [
+      "1105:2039", "1105:2043", "1105:2056", "1105:2067", "1105:2071",
+      "1105:2077", "1105:2095", "1105:2108", "1105:2114", "1105:2125"
+    ]
+  },
+
+  "ring": {
+    "comment": "The circle behind each glyph. The two populations style it differently; the renderer must use the production ring when it builds an icon from bank artwork.",
+    "production": {
+      "diameter": 150.86,
+      "fill": "#FFFDFA",
+      "stroke": "#676767",
+      "strokeWeight": 3.380645
+    },
+    "bank": {
+      "diameter": 18.820038,
+      "fill": "none",
+      "stroke": "#5C5C5C",
+      "strokeWeight": 0.246167,
+      "note": "Two bank ellipses (1105:2041 on Ribbed Texture, 1105:2127 on High Lycra) stroke #5E5E5E instead of #5C5C5C."
+    },
+    "scaleFactor": 8.016,
+    "scaleFactorNote": "150.86 / 18.820038 = 8.016. A bank icon is an exact 8x reduction of production scale, so bank artwork can be scaled up to production size without redrawing it."
+  },
+
+  "label": {
+    "comment": "Typography of the label under a production icon. Bank labels are not usable as-is: they read '<Name>: <description>' and must be split on the first colon.",
+    "font": { "family": "Fustat", "style": "Regular" },
+    "fontSize": 40.228325,
+    "align": "CENTER",
+    "color": "#FFFDFA",
+    "colorNote": "Some older production icons use pure #FFFFFF; both read as white on the fabric card.",
+    "offsetYFromRingTop": 155.9
+  },
+
+  "icons": [
+    {
+      "name": "Ribbed Texture",
+      "slug": "ribbed-texture",
+      "description": "Defined by texture, designed to sculpt",
+      "bank": {
+        "group": "1105:2039",
+        "text": "1105:2040",
+        "ellipse": "1105:2041",
+        "glyph": "1105:2042",
+        "glyphName": "Group 596",
+        "glyphType": "RECTANGLE",
+        "artwork": "raster",
+        "imageHash": "00f159ce5b7110b17d637033db7c861789211a67",
+        "glyphSize": [12.999999, 12.704545],
+        "ellipseFill": "none",
+        "ellipseStroke": "#5E5E5E"
+      },
+      "production": null,
+      "files": { "svg": "ribbed-texture.svg", "png": "ribbed-texture.png" }
+    },
+    {
+      "name": "Multi Stretch",
+      "slug": "multi-stretch",
+      "description": "Stretches with you, every way",
+      "bank": {
+        "group": "1105:2043",
+        "text": "1105:2044",
+        "ellipse": "1105:2047",
+        "glyph": "1105:2048",
+        "glyphName": "Isolation_Mode",
+        "glyphType": "FRAME",
+        "artwork": "vector",
+        "imageHash": null,
+        "glyphSize": [12.0, 10.0],
+        "ellipseFill": "none",
+        "ellipseStroke": "#5C5C5C",
+        "note": "Sibling RECTANGLE 'image 2' (1105:2055) sits in the same group but has an empty fills array — it carries no artwork and must be ignored."
+      },
+      "production": {
+        "sameArtworkAs": "Stretchy",
+        "note": "The production icon drawn with this same Isolation_Mode vector is labelled 'Stretchy', not 'Multi Stretch'. See conflicts."
+      },
+      "files": { "svg": "multi-stretch.svg", "png": null }
+    },
+    {
+      "name": "Lightweight",
+      "slug": "lightweight",
+      "description": "Feels weightless, and moves with you",
+      "bank": {
+        "group": "1105:2057",
+        "text": "1105:2061",
+        "ellipse": "1105:2059",
+        "glyph": "1105:2060",
+        "glyphName": "image 1",
+        "glyphType": "RECTANGLE",
+        "artwork": "raster",
+        "imageHash": "9b236c32cf1e4f241f91a305289f21ee122ac07b",
+        "glyphSize": [11.0, 11.0],
+        "ellipseFill": "none",
+        "ellipseStroke": "#5C5C5C",
+        "duplicateOf": "1105:2083",
+        "duplicateNote": "The bank holds this icon twice: 1105:2057 and 1105:2083 (glyph 1105:2085, ellipse 1105:2084) are identical."
+      },
+      "production": {
+        "examples": ["665:1352", "616:167", "1069:42"],
+        "glyph": "665:1355",
+        "glyphName": "image 1",
+        "artwork": "raster",
+        "imageHash": "75aadbcaa443c242d85ad9976d02f36e1f342ee2",
+        "glyphOpacity": 0.67,
+        "glyphSize": [87.0, 86.0],
+        "conflict": "Production 'Lightweight' uses a DIFFERENT glyph from the bank's 'Lightweight'. See conflicts."
+      },
+      "files": {
+        "svg": "lightweight.svg",
+        "png": "lightweight.png",
+        "productionSvg": "lightweight-production.svg",
+        "productionPng": "lightweight-production.png"
+      }
+    },
+    {
+      "name": "Sweat-Wicking",
+      "slug": "sweat-wicking",
+      "description": "Stays dry, no matter how hard you push",
+      "bank": {
+        "group": "1105:2062",
+        "text": "1105:2066",
+        "ellipse": "1105:2065",
+        "glyph": "1105:2064",
+        "glyphName": "image 3",
+        "glyphType": "RECTANGLE",
+        "artwork": "raster",
+        "imageHash": "2bb065b9437dcf0b89d875362c754f75242aac6e",
+        "glyphSize": [11.0, 11.0],
+        "ellipseFill": "none",
+        "ellipseStroke": "#5C5C5C",
+        "duplicateOf": "1105:2078",
+        "duplicateNote": "The bank holds this icon twice: 1105:2062 and 1105:2078 (glyph 1105:2082, ellipse 1105:2081) are identical."
+      },
+      "production": {
+        "examples": ["665:1348", "616:163", "1069:38", "1097:1489"],
+        "glyph": "665:1351",
+        "glyphName": "image 3",
+        "artwork": "raster",
+        "imageHash": "2bb065b9437dcf0b89d875362c754f75242aac6e",
+        "glyphSize": [80.46, 80.46],
+        "agreesWithBank": true
+      },
+      "files": { "svg": "sweat-wicking.svg", "png": "sweat-wicking.png" }
+    },
+    {
+      "name": "Hyper Soft",
+      "slug": "hyper-soft",
+      "description": "Soft on skin, tough on performance",
+      "bank": {
+        "group": "1105:2067",
+        "text": "1105:2069",
+        "ellipse": "1105:2068",
+        "glyph": "1105:2070",
+        "glyphName": "vufgtu",
+        "glyphType": "RECTANGLE",
+        "artwork": "raster",
+        "imageHash": "3f7e029346eaf91e71d1509087f26382bf3a1fd2",
+        "glyphSize": [15.0, 15.0],
+        "ellipseFill": "none",
+        "ellipseStroke": "#5C5C5C"
+      },
+      "production": {
+        "examples": ["1097:1721"],
+        "glyph": "1097:1724",
+        "glyphName": "image 1",
+        "artwork": "raster",
+        "imageHash": "9b236c32cf1e4f241f91a305289f21ee122ac07b",
+        "glyphSize": [87.0, 88.0],
+        "conflict": "Production 'Hyper Soft' uses the feather glyph; the bank gives 'Hyper Soft' its own distinct glyph, and that bank glyph is what production labels 'Ultra-Soft'. See conflicts."
+      },
+      "files": { "svg": "hyper-soft.svg", "png": "hyper-soft.png" }
+    },
+    {
+      "name": "Ripstop Fabric",
+      "slug": "ripstop-fabric",
+      "description": "Tear-resistant strength without the weight",
+      "bank": {
+        "group": "1105:2071",
+        "text": "1105:2072",
+        "ellipse": "1105:2074",
+        "glyph": "1105:2073",
+        "glyphName": "Group 1244830646",
+        "glyphType": "GROUP",
+        "artwork": "vector",
+        "imageHash": null,
+        "glyphParts": ["1105:2075", "1105:2076"],
+        "glyphSize": [13.0, 13.0],
+        "ellipseFill": "none",
+        "ellipseStroke": "#5C5C5C",
+        "note": "The exported SVG for this icon includes the ring, because the two glyph vectors are siblings of the ellipse inside 1105:2073 and cannot be exported on their own as one node."
+      },
+      "production": null,
+      "files": { "svg": "ripstop-fabric.svg", "png": null }
+    },
+    {
+      "name": "Breathable",
+      "slug": "breathable",
+      "description": "Cool, ventilated comfort with every move",
+      "bank": {
+        "group": "1105:2087",
+        "text": "1105:2088",
+        "ellipse": "1105:2089",
+        "glyph": "1105:2090",
+        "glyphName": "image 2",
+        "glyphType": "RECTANGLE",
+        "artwork": "raster",
+        "imageHash": "6462c6ecd512a32111cd3dba31d138f4d2e38775",
+        "scaleMode": "CROP",
+        "glyphSize": [12.0, 8.0],
+        "ellipseFill": "none",
+        "ellipseStroke": "#5C5C5C"
+      },
+      "production": {
+        "examples": ["1083:1151", "1097:1716", "616:1302"],
+        "glyph": "1083:1154",
+        "glyphName": "image 2",
+        "artwork": "raster",
+        "imageHash": "6462c6ecd512a32111cd3dba31d138f4d2e38775",
+        "glyphSize": [107.0, 72.0],
+        "agreesWithBank": true
+      },
+      "files": { "svg": "breathable.svg", "png": "breathable.png" }
+    },
+    {
+      "name": "Super Stretch",
+      "slug": "super-stretch",
+      "description": "Moves with you, effortlessly",
+      "bank": {
+        "group": "1105:2091",
+        "text": "1105:2094",
+        "ellipse": "1105:2092",
+        "glyph": "1105:2093",
+        "glyphName": "png (12) 3guy",
+        "glyphType": "RECTANGLE",
+        "artwork": "raster",
+        "imageHash": "6d1acfd44c4549724a80bbd0b9860a23878218ce",
+        "glyphSize": [13.0, 11.0],
+        "ellipseFill": "none",
+        "ellipseStroke": "#5C5C5C",
+        "duplicateNote": "Also present as loose children of 1105:2095 (text 1105:2098, ellipse 1105:2096, glyph 1105:2097) — identical artwork."
+      },
+      "production": null,
+      "files": { "svg": "super-stretch.svg", "png": "super-stretch.png" }
+    },
+    {
+      "name": "Super-Soft",
+      "slug": "super-soft",
+      "description": "Like second skin, but softer",
+      "bank": {
+        "group": "1105:2099",
+        "text": "1105:2100",
+        "ellipse": "1105:2102",
+        "glyph": "1105:2103",
+        "glyphName": "image 1",
+        "glyphType": "RECTANGLE",
+        "artwork": "raster",
+        "imageHash": "9b236c32cf1e4f241f91a305289f21ee122ac07b",
+        "glyphSize": [11.0, 11.0],
+        "ellipseFill": "none",
+        "ellipseStroke": "#5C5C5C",
+        "note": "Group 1105:2099 also contains the user's aliasing instruction as a loose text node (1105:2101). Do not clone this group whole — the note would render into the A+."
+      },
+      "production": {
+        "examples": ["1092:1356"],
+        "glyph": "1092:1359",
+        "glyphName": "image 1",
+        "artwork": "raster",
+        "imageHash": "9b236c32cf1e4f241f91a305289f21ee122ac07b",
+        "glyphSize": [83.13, 83.13],
+        "agreesWithBank": true
+      },
+      "files": { "svg": "super-soft.svg", "png": "super-soft.png" }
+    },
+    {
+      "name": "Bio-Wash Treated",
+      "slug": "bio-wash-treated",
+      "description": "Softness that lasts, wash after wash",
+      "bank": {
+        "group": "1105:2104",
+        "text": "1105:2105",
+        "ellipse": "1105:2106",
+        "glyph": "1105:2107",
+        "glyphName": "image 5",
+        "glyphType": "RECTANGLE",
+        "artwork": "raster",
+        "imageHash": "57de8e9998fc255d65b48bc67eca611c069d7d8c",
+        "glyphSize": [11.0, 11.0],
+        "ellipseFill": "none",
+        "ellipseStroke": "#5C5C5C"
+      },
+      "production": null,
+      "files": { "svg": "bio-wash-treated.svg", "png": "bio-wash-treated.png" }
+    },
+    {
+      "name": "Premium Cotton",
+      "slug": "premium-cotton",
+      "description": "Soft, airy, and smooth for all-day wear",
+      "bank": {
+        "group": "1105:2108",
+        "text": "1105:2111",
+        "ellipse": "1105:2112",
+        "glyph": "1105:2113",
+        "glyphName": "cotton-balls 1",
+        "glyphType": "RECTANGLE",
+        "artwork": "raster",
+        "imageHash": "f22f01aaf3dcbafb871a90a4774ea63c24e6f83f",
+        "glyphOpacity": 0.6,
+        "glyphSize": [9.0, 9.0],
+        "ellipseFill": "none",
+        "ellipseStroke": "#5C5C5C"
+      },
+      "production": null,
+      "files": { "svg": "premium-cotton.svg", "png": "premium-cotton.png" }
+    },
+    {
+      "name": "Soft Cotton-Lycra",
+      "slug": "soft-cotton-lycra",
+      "description": "Softness meets stretch for max comfort",
+      "bank": {
+        "group": "1105:2115",
+        "text": "1105:2118",
+        "ellipse": "1105:2117",
+        "glyph": "1105:2116",
+        "glyphName": "image 3",
+        "glyphType": "RECTANGLE",
+        "artwork": "raster",
+        "imageHash": "2bb065b9437dcf0b89d875362c754f75242aac6e",
+        "glyphSize": [11.0, 11.0],
+        "ellipseFill": "none",
+        "ellipseStroke": "#5C5C5C",
+        "note": "The label text 1105:2118 is a sibling of the ring group 1105:2115 under 1105:2114, not a child of it, and 1105:2114 also holds COMFlex Fabric. Resolve this icon by node id, never by cloning the nearest common ancestor."
+      },
+      "production": null,
+      "files": { "svg": "soft-cotton-lycra.svg", "png": "soft-cotton-lycra.png" }
+    },
+    {
+      "name": "COMFlex Fabric",
+      "slug": "comflex-fabric",
+      "description": "Extra soft, made to stretch",
+      "bank": {
+        "group": "1105:2119",
+        "text": "1105:2122",
+        "ellipse": "1105:2121",
+        "glyph": "1105:2123",
+        "glyphName": "Group 429",
+        "glyphType": "GROUP",
+        "artwork": "vector",
+        "imageHash": null,
+        "glyphParts": ["1105:2124"],
+        "glyphSize": [11.0, 11.0],
+        "ellipseFill": "none",
+        "ellipseStroke": "#5C5C5C"
+      },
+      "production": null,
+      "files": { "svg": "comflex-fabric.svg", "png": null }
+    },
+    {
+      "name": "High Lycra",
+      "slug": "high-lycra",
+      "description": "Maximum stretch for zero restriction",
+      "bank": {
+        "group": "1105:2125",
+        "text": "1105:2126",
+        "ellipse": "1105:2127",
+        "glyph": "1105:2128",
+        "glyphName": "png (12) 3guy",
+        "glyphType": "RECTANGLE",
+        "artwork": "raster",
+        "imageHash": "6d1acfd44c4549724a80bbd0b9860a23878218ce",
+        "glyphSize": [13.0, 11.0],
+        "ellipseFill": "none",
+        "ellipseStroke": "#5E5E5E"
+      },
+      "production": null,
+      "files": { "svg": "high-lycra.svg", "png": "high-lycra.png" }
+    },
+    {
+      "name": "Stretchy",
+      "slug": "stretchy",
+      "description": null,
+      "descriptionNote": "Not in the icon bank, so it has no bank description. Present only as a production icon.",
+      "bank": null,
+      "production": {
+        "examples": ["616:460", "1047:777", "1109:42", "1097:1945"],
+        "glyph": "616:463",
+        "glyphName": "Isolation_Mode",
+        "artwork": "vector",
+        "imageHash": null,
+        "glyphSize": [92.85, 82.05],
+        "sameArtworkAs": "Multi Stretch"
+      },
+      "files": { "svg": "stretchy-production.svg", "png": null }
+    },
+    {
+      "name": "Ultra-Soft",
+      "slug": "ultra-soft",
+      "description": null,
+      "descriptionNote": "Not in the icon bank, so it has no bank description. Present only as a production icon.",
+      "bank": null,
+      "production": {
+        "examples": ["1047:773", "1110:54", "1070:39", "1111:44"],
+        "glyph": "1047:776",
+        "glyphName": "vufgtu",
+        "artwork": "raster",
+        "imageHash": "3f7e029346eaf91e71d1509087f26382bf3a1fd2",
+        "glyphSize": [96.0, 96.0],
+        "sameArtworkAs": "Hyper Soft (bank)"
+      },
+      "files": { "svg": "hyper-soft.svg", "png": "hyper-soft.png" }
+    }
+  ],
+
+  "aliases": {
+    "comment": "Sheet spelling -> canonical icon name. Keys are already normalised (lowercased, every run of non-alphanumeric characters collapsed to a single space, trimmed), which is the same normalisation buildIconIndex applies to both sides before it compares them. That normalisation alone already resolves case and hyphen/space variants ('Sweat Wicking' == 'sweat-wicking' == 'SWEAT–WICKING'), so this map only needs to carry genuine renamings. Every entry here is either taken from an instruction written inside the bank or is a morphological variant of a single unambiguous bank name; nothing here is a guess between two candidate icons.",
+    "entries": {
+      "buttery soft": {
+        "to": "Super-Soft",
+        "source": "bank node 1105:2101",
+        "quote": "Super-Soft, buttery soft, lightweight - have same feather icon"
+      },
+      "super soft": {
+        "to": "Super-Soft",
+        "source": "normalisation",
+        "note": "Redundant with normalisation, kept explicit because it is the spelling the live sheet actually uses (Training and Athleisure-Lifestyle rows write 'Super Soft')."
+      },
+      "bio washed": {
+        "to": "Bio-Wash Treated",
+        "source": "derived",
+        "note": "The live sheet writes 'Bio-Washed'. The bank has exactly one bio-wash icon, so this is a morphological variant, not a choice between candidates."
+      },
+      "bio wash": { "to": "Bio-Wash Treated", "source": "derived" },
+      "bio wash treated": { "to": "Bio-Wash Treated", "source": "normalisation" },
+      "ribbed": { "to": "Ribbed Texture", "source": "derived" },
+      "ripstop": { "to": "Ripstop Fabric", "source": "derived" },
+      "comflex": { "to": "COMFlex Fabric", "source": "derived" },
+      "cotton lycra": { "to": "Soft Cotton-Lycra", "source": "derived" },
+      "soft cotton lycra": { "to": "Soft Cotton-Lycra", "source": "normalisation" }
+    },
+    "deliberatelyNotAliased": {
+      "comment": "Sheet values that look close to a bank name but map to more than one candidate. Aliasing these would silently ship the wrong glyph to Amazon, so they are left unresolved and reported instead. A human decision is needed before any of these can be added above.",
+      "soft": {
+        "candidates": ["Super-Soft", "Hyper Soft", "Ultra-Soft", "Soft Cotton-Lycra"],
+        "usedBy": ["Training 710042", "Winter Wear 708665"]
+      },
+      "stretchy": {
+        "resolves": "Stretchy",
+        "note": "Resolves exactly against the production icon 'Stretchy', so it needs no alias. It is listed here only to record that it must NOT be aliased to 'Super Stretch', 'Multi Stretch' or 'High Lycra' — the bank offers three stretch icons and nothing says which one 'Stretchy' means."
+      },
+      "ultra lightweight": {
+        "candidates": ["Lightweight", "Ultra-Soft"],
+        "usedBy": ["Winter Wear 708836"],
+        "note": "'Ultra-Lightweight' is a distinct claim from 'Lightweight' and has no icon of its own in either population."
+      }
+    }
+  },
+
+  "sharedGlyphs": [
+    {
+      "imageHash": "9b236c32cf1e4f241f91a305289f21ee122ac07b",
+      "png": "lightweight.png",
+      "md5": "468c914db2afe7e3f3671813378acc5b",
+      "nickname": "the feather",
+      "usedBy": ["Lightweight (bank)", "Super-Soft (bank)", "Super-Soft (production)", "Hyper Soft (production)"],
+      "declaredBy": "bank node 1105:2101",
+      "quote": "Super-Soft, buttery soft, lightweight - have same feather icon",
+      "verifiedBy": "lightweight.png and super-soft.png are byte-identical (md5 468c914db2afe7e3f3671813378acc5b)"
+    },
+    {
+      "imageHash": "2bb065b9437dcf0b89d875362c754f75242aac6e",
+      "png": "sweat-wicking.png",
+      "md5": "727037ea61a702cfff4bf71c0c85e316",
+      "usedBy": ["Sweat-Wicking (bank)", "Sweat-Wicking (production)", "Soft Cotton-Lycra (bank)"],
+      "declaredBy": null,
+      "note": "Not written down anywhere in the bank — found by comparing image fills. Soft Cotton-Lycra reuses the Sweat-Wicking artwork.",
+      "verifiedBy": "sweat-wicking.png and soft-cotton-lycra.png are byte-identical (md5 727037ea61a702cfff4bf71c0c85e316)"
+    },
+    {
+      "imageHash": "6d1acfd44c4549724a80bbd0b9860a23878218ce",
+      "png": "super-stretch.png",
+      "md5": "bb542cb07f51a6ff5d3bfb7b1198ad20",
+      "usedBy": ["Super Stretch (bank)", "High Lycra (bank)"],
+      "declaredBy": null,
+      "note": "Not written down anywhere in the bank — found by comparing image fills.",
+      "verifiedBy": "super-stretch.png and high-lycra.png are byte-identical (md5 bb542cb07f51a6ff5d3bfb7b1198ad20)"
+    },
+    {
+      "imageHash": "3f7e029346eaf91e71d1509087f26382bf3a1fd2",
+      "png": "hyper-soft.png",
+      "md5": "ae1b4650c23f1d0d9d674b46ac562a8c",
+      "usedBy": ["Hyper Soft (bank)", "Ultra-Soft (production)"],
+      "declaredBy": null,
+      "note": "Not written down anywhere in the bank. The same artwork carries two different names in the two populations — see conflicts."
+    },
+    {
+      "imageHash": null,
+      "artwork": "vector",
+      "svg": "multi-stretch.svg",
+      "usedBy": ["Multi Stretch (bank)", "Stretchy (production)"],
+      "declaredBy": null,
+      "note": "Both are the 'Isolation_Mode' four-arrow vector. The same artwork carries two different names in the two populations — see conflicts."
+    }
+  ],
+
+  "conflicts": [
+    {
+      "id": "hyper-soft-glyph",
+      "severity": "needs-a-human",
+      "summary": "'Hyper Soft' does not mean the same picture in the bank and in the shipped designs.",
+      "bankSays": "Hyper Soft = imageHash 3f7e0293 (bank node 1105:2070, file hyper-soft.png)",
+      "productionSays": "Hyper Soft = imageHash 9b236c32, the feather (node 1097:1724); and imageHash 3f7e0293 is labelled 'Ultra-Soft' (nodes 1047:776, 1110:57)",
+      "effect": "The plugin currently clones the production icon, so a sheet row asking for 'Hyper Soft' gets the feather today — the same glyph 'Super-Soft' and 'Lightweight' get. If the bank is the intended source of truth, three Running rows and three Training rows are shipping the wrong glyph.",
+      "notResolvedBecause": "Picking a side would silently change what ships. The plugin keeps using the production icon and does not rewrite it."
+    },
+    {
+      "id": "lightweight-glyph",
+      "severity": "needs-a-human",
+      "summary": "'Lightweight' uses different artwork in the bank and in the shipped designs.",
+      "bankSays": "Lightweight = imageHash 9b236c32, the feather (bank node 1105:2060) — consistent with the user's note on 1105:2101",
+      "productionSays": "Lightweight = imageHash 75aadbca at 67% opacity (node 665:1355, file lightweight-production.png)",
+      "effect": "Sheet rows asking for 'Lightweight' currently get the production glyph, not the feather the bank note describes.",
+      "notResolvedBecause": "Same reason as hyper-soft-glyph."
+    },
+    {
+      "id": "stretch-naming",
+      "severity": "informational",
+      "summary": "The bank names three stretch icons (Multi Stretch, Super Stretch, High Lycra); the shipped designs only ever use one, named 'Stretchy', whose artwork matches the bank's 'Multi Stretch'. The live sheet only ever writes 'Stretchy'.",
+      "effect": "Super Stretch and High Lycra are catalogued and backed up but nothing in the sheet reaches them."
+    }
+  ],
+
+  "coverage": {
+    "bankOnly": [
+      "Ribbed Texture", "Multi Stretch", "Ripstop Fabric", "Super Stretch",
+      "Bio-Wash Treated", "Premium Cotton", "Soft Cotton-Lycra", "COMFlex Fabric", "High Lycra"
+    ],
+    "productionOnly": ["Stretchy", "Ultra-Soft"],
+    "both": ["Lightweight", "Sweat-Wicking", "Hyper Soft", "Breathable", "Super-Soft"]
+  },
+
+  "sheetCrossCheck": {
+    "comment": "Column K of the live sheet A+_Sheet_RUNNING_Template_1, tab 'RUNNING - Template 1', read 2026-11-27. 'resolves' means the plugin finds an icon for it after normalisation and the aliases above.",
+    "spreadsheetId": "11R0w8SKs6T_WIdJZb6mUh6R5L4zP2obpbEMRwZe4u-8",
+    "resolved": [
+      { "value": "Sweat-Wicking", "to": "Sweat-Wicking", "via": "exact (production)", "rows": 9 },
+      { "value": "Lightweight", "to": "Lightweight", "via": "exact (production)", "rows": 4 },
+      { "value": "Breathable", "to": "Breathable", "via": "exact (production)", "rows": 3 },
+      { "value": "Hyper Soft", "to": "Hyper Soft", "via": "exact (production)", "rows": 4 },
+      { "value": "Stretchy", "to": "Stretchy", "via": "exact (production)", "rows": 5 },
+      { "value": "Super Soft", "to": "Super-Soft", "via": "normalisation", "rows": 8 },
+      { "value": "Bio-Washed", "to": "Bio-Wash Treated", "via": "alias (bank only — renders at 8x from bank artwork, reported as a warning)", "rows": 8 }
+    ],
+    "unresolved": [
+      { "value": "Soft", "rows": 2, "usedBy": ["Training 710042", "Winter Wear 708665"], "reason": "ambiguous between Super-Soft / Hyper Soft / Ultra-Soft / Soft Cotton-Lycra" },
+      { "value": "Odour-Free", "rows": 1, "usedBy": ["Training 710042"], "reason": "no icon in either population" },
+      { "value": "Warmth Retaining", "rows": 1, "usedBy": ["Winter Wear 708665"], "reason": "no icon in either population" },
+      { "value": "Eco-Friendly", "rows": 1, "usedBy": ["Winter Wear 708665"], "reason": "no icon in either population" },
+      { "value": "Ultra-Lightweight", "rows": 1, "usedBy": ["Winter Wear 708836"], "reason": "no icon in either population; distinct claim from 'Lightweight'" },
+      { "value": "Water-Repellent", "rows": 1, "usedBy": ["Travel 708856"], "reason": "no icon in either population" },
+      { "value": "Windproof", "rows": 1, "usedBy": ["Travel 708856"], "reason": "no icon in either population" }
+    ],
+    "neverUsedBySheet": [
+      "Ribbed Texture", "Multi Stretch", "Ripstop Fabric", "Super Stretch",
+      "Premium Cotton", "Soft Cotton-Lycra", "COMFlex Fabric", "High Lycra", "Ultra-Soft"
+    ],
+    "runningRowsStatus": "All four Running rows resolve every icon they ask for, against production icons only.",
+    "trainingRowsStatus": "Four of the five Training rows resolve fully. Training 710042 ('Soft, Odour-Free, Lightweight') resolves only 'Lightweight'. Training 710467 ('Super Soft, Bio-Washed') needs the bank for 'Bio-Washed'."
+  },
+
+  "backup": {
+    "comment": "Why these files exist: a Figma imageHash is meaningless outside file DyUWRDA1JPo75nWMj5UoJe, so the exported bytes are the only copy of this artwork that survives the file being lost, forked or cleaned up.",
+    "exportedFrom": "the glyph node of each icon (not the whole icon group), so the long '<Name>: <description>' bank label is not baked into the artwork",
+    "svgNote": "Every .svg parses as XML and is self-contained: a raster glyph is embedded as a base64 data URI inside the SVG, so the .svg alone is a complete backup. The matching .png is the same artwork as the original uploaded bitmap, kept because it is smaller and easier to re-import.",
+    "vectorOnly": ["multi-stretch", "ripstop-fabric", "comflex-fabric", "stretchy-production"],
+    "vectorOnlyNote": "These four glyphs are true vectors, so there is no .png — the .svg is the artwork itself, not a wrapper.",
+    "rasterNote": "Every other glyph is a raster image fill, not vector line art. The .svg is therefore a bitmap wrapped in SVG and will not scale cleanly beyond its native pixel size.",
+    "notExported": [
+      {
+        "what": "the ring (ellipse) of each icon",
+        "why": "it is a plain circle, identical across every icon, and is fully specified under 'ring' above — exporting 16 copies of the same circle would add nothing"
+      },
+      {
+        "what": "a separate SVG for each duplicate bank entry",
+        "why": "the duplicates are byte-identical to the entry already exported; the duplicate node ids are recorded under each icon's 'duplicateOf'"
+      }
+    ]
+  }
+}

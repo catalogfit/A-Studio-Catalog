@@ -19,7 +19,10 @@ yarn-error.log*
 # ---- macOS ----
 .DS_Store
 .AppleDouble
-Icon?
+# Finder's custom-icon file is literally "Icon\r". Written as `Icon?` it also matched
+# the directory `backend/icons` on this case-insensitive filesystem, silently excluding
+# the whole icon backup from the repo.
+Icon[$'\r']
 
 # ---- editors ----
 .vscode/

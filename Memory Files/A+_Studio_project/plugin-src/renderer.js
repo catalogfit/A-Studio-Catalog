@@ -235,22 +235,220 @@ function photoSlot(M, F, parent, o) {
   return f;
 }
 
-// ---------- icons: reuse icon groups already on this page ----------
+// ---------- icons: resolve a sheet icon name to real artwork on this page ----------
+// Two populations of fabric icons live on the page and they are NOT the same set:
+//   * PRODUCTION — the full-size icons (150.86px ring, 40.23px label) that sit inside the real
+//     A+ designs. Right scale, and what actually ships today.
+//   * ICON BANK — the reference catalogue near x60022 / y17406 (label node 1105:2130). 19px
+//     icons, each labelled "<Name>: <description>". Exactly an 8x reduction of production
+//     scale, so its artwork can be scaled back up when production has no icon of that name.
+// Both are catalogued, with node ids, shared-glyph rules, the known bank-vs-production
+// conflicts and the sheet cross-check, in backend/icons/index.json.
+//
+// The previous index could never see the bank at all: it keyed on the whole text of a label and
+// threw away anything over 30 characters, and every bank label reads "<Name>: <description>".
+var ICON_RING_D = 150.86;              // production ring diameter
+var ICON_BANK_RING_MIN = 8;            // smallest ring we will treat as a bank icon
+var ICON_PRODUCTION_RING_MIN = 100;    // at or above this, a ring is production scale
+var ICON_BANK_SCALE = 8.016;           // 150.86 / 18.820038
+var ICON_LABEL_GAP = 5.04;             // production: label top - ring bottom
+var ICON_RING_FILL = [255, 253, 250];
+var ICON_RING_STROKE = [103, 103, 103];
+var ICON_RING_STROKE_W = 3.380645;
+var ICON_LABEL_SIZE = 40.228325;
+
+// Sheet spelling -> canonical icon name, for the cases normalisation alone cannot reach.
+// Every entry is either written down inside the bank or is an unambiguous morphological
+// variant of a single bank name. Ambiguous values are deliberately absent so that they are
+// reported rather than guessed: "Soft" could be Super-Soft, Hyper Soft, Ultra-Soft or Soft
+// Cotton-Lycra, and "Stretchy" must not be bent onto Super Stretch / Multi Stretch / High
+// Lycra. Shipping a plausible-but-wrong glyph to Amazon is worse than shipping a visible gap.
+var ICON_ALIASES = {
+  // bank node 1105:2101: "Super-Soft, buttery soft, lightweight - have same feather icon"
+  'buttery soft': 'super soft',
+  'bio washed': 'bio wash treated',
+  'bio wash': 'bio wash treated',
+  'ribbed': 'ribbed texture',
+  'ripstop': 'ripstop fabric',
+  'comflex': 'comflex fabric',
+  'cotton lycra': 'soft cotton lycra'
+};
+
+function iconKey(s) {
+  return String(s === undefined || s === null ? '' : s)
+    .toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/^\s+|\s+$/g, '');
+}
+// "Sweat-Wicking: Stays dry, no matter how hard you push" -> "Sweat-Wicking"
+function iconNameFromLabel(s) {
+  var t = String(s === undefined || s === null ? '' : s).replace(/\s+/g, ' ');
+  var at = t.indexOf(':');
+  if (at > 0) t = t.slice(0, at);
+  return t.replace(/^\s+|\s+$/g, '');
+}
+function iconBox(n) { return n && n.absoluteBoundingBox ? n.absoluteBoundingBox : null; }
+function iconCentreDist(a, b) {
+  var dx = (a.x + a.width / 2) - (b.x + b.width / 2);
+  var dy = (a.y + a.height / 2) - (b.y + b.height / 2);
+  return Math.sqrt(dx * dx + dy * dy);
+}
+function iconInside(inner, outer) {
+  var cx = inner.x + inner.width / 2, cy = inner.y + inner.height / 2;
+  return cx >= outer.x && cx <= outer.x + outer.width &&
+         cy >= outer.y && cy <= outer.y + outer.height &&
+         inner.width <= outer.width && inner.height <= outer.height;
+}
+function iconIsAncestor(a, n) {
+  for (var p = n.parent; p; p = p.parent) if (p === a) return true;
+  return false;
+}
+// The glyph is whatever non-text, non-ellipse art sits inside the ring. It is a sibling of the
+// ring in most icons, but a sibling of the ring's PARENT in a few (COMFlex Fabric), so both
+// levels are tried. Ancestors of the ring are skipped — a wrapper group shares the ring's
+// bounding box and would otherwise look like a glyph.
+function iconGlyphsFor(ring) {
+  var rb = iconBox(ring);
+  if (!rb) return [];
+  var levels = [ring.parent, ring.parent ? ring.parent.parent : null];
+  for (var i = 0; i < levels.length; i++) {
+    var p = levels[i];
+    if (!p || !('children' in p)) continue;
+    var found = [];
+    for (var j = 0; j < p.children.length; j++) {
+      var k = p.children[j];
+      if (k === ring || k.type === 'TEXT' || k.type === 'ELLIPSE') continue;
+      if (k.visible === false || iconIsAncestor(k, ring)) continue;
+      var kb = iconBox(k);
+      if (kb && iconInside(kb, rb)) found.push(k);
+    }
+    if (found.length) return found;
+  }
+  return [];
+}
+// The label can be a sibling of the ring (production), a sibling of the ring's wrapper group,
+// or nested several levels away (Premium Cotton, Multi Stretch). Walk outwards and take the
+// nearest text the first time any is in reach.
+function iconLabelFor(ring) {
+  var rb = iconBox(ring);
+  if (!rb) return null;
+  var maxD = rb.width * 14;
+  var node = ring;
+  for (var lvl = 0; lvl < 4; lvl++) {
+    node = node.parent;
+    if (!node || !('children' in node)) break;
+    var cands = [];
+    for (var j = 0; j < node.children.length; j++) {
+      if (node.children[j].type === 'TEXT') cands.push(node.children[j]);
+    }
+    if (!cands.length && typeof node.findAll === 'function') {
+      var nb = iconBox(node);
+      if (nb && nb.width <= rb.width * 30 && nb.height <= rb.height * 30) {
+        cands = node.findAll(function (n) { return n.type === 'TEXT'; });
+      }
+    }
+    var best = null, bestD = Infinity;
+    for (var m = 0; m < cands.length; m++) {
+      var tb = iconBox(cands[m]);
+      if (!tb) continue;
+      var d = iconCentreDist(rb, tb);
+      if (d < bestD) { bestD = d; best = cands[m]; }
+    }
+    if (best && bestD <= maxD) return best;
+  }
+  return null;
+}
+// Index every icon on the page, production and bank alike, under both its exact label and a
+// normalised key. Production wins over bank for the same name.
 function buildIconIndex() {
-  var idx = {};
-  var texts = figma.currentPage.findAllWithCriteria({ types: ['TEXT'] });
-  for (var i = 0; i < texts.length; i++) {
-    var t = texts[i], p = t.parent;
-    if (!p || p.type === 'PAGE' || !('children' in p) || !p.visible) continue;
-    var label = t.characters.trim(), key = label.toLowerCase();
-    if (!label || label.length > 30 || idx[key]) continue;
-    var kids = p.children;
-    if (kids.length > 5 || kids.length < 3) continue;
-    var hasRing = kids.some(function (k) { return k.type === 'ELLIPSE'; });
-    var hasArt = kids.some(function (k) { return k !== t && k.type !== 'TEXT' && k.type !== 'ELLIPSE'; });
-    if (hasRing && hasArt) idx[key] = p;
+  var idx = {
+    production: { exact: {}, norm: {} },
+    bank: { exact: {}, norm: {} },
+    names: []
+  };
+  var ellipses = figma.currentPage.findAllWithCriteria({ types: ['ELLIPSE'] });
+  for (var i = 0; i < ellipses.length; i++) {
+    var ring = ellipses[i];
+    if (ring.visible === false) continue;
+    var rb = iconBox(ring);
+    if (!rb) continue;
+    var isProd = rb.width >= ICON_PRODUCTION_RING_MIN && rb.width <= ICON_RING_D * 1.2;
+    var isBank = rb.width >= ICON_BANK_RING_MIN && rb.width < ICON_PRODUCTION_RING_MIN;
+    if (!isProd && !isBank) continue;
+
+    var glyphs = iconGlyphsFor(ring);
+    if (!glyphs.length) continue;
+    var lab = iconLabelFor(ring);
+    if (!lab) continue;
+    var name = iconNameFromLabel(lab.characters);
+    // "+ Fabric close-up" and friends are photo placeholders, not icons
+    if (!name || name.length < 2 || name.length > 34 || name.charAt(0) === '+') continue;
+    var key = iconKey(name);
+    if (!key) continue;
+
+    var entry;
+    if (isProd) {
+      // The whole group (ring + glyph + label) is cloned, exactly as before, so a production
+      // icon keeps its real artwork and typography untouched.
+      var grp = ring.parent;
+      var gb = iconBox(grp);
+      if (!grp || lab.parent !== grp || !gb) continue;
+      if (gb.width > rb.width * 4 || gb.height > rb.height * 3) continue;
+      entry = { name: name, key: key, source: 'production', group: grp };
+    } else {
+      entry = { name: name, key: key, source: 'bank', ring: ring, glyphs: glyphs };
+    }
+    var bucket = isProd ? idx.production : idx.bank;
+    if (!bucket.norm[key]) { bucket.norm[key] = entry; idx.names.push(name + ' (' + entry.source + ')'); }
+    if (!bucket.exact[name]) bucket.exact[name] = entry;
   }
   return idx;
+}
+// Exact, then normalised, then alias — production first, bank second.
+function resolveIcon(idx, label) {
+  var raw = String(label === undefined || label === null ? '' : label).replace(/\s+/g, ' ').replace(/^\s+|\s+$/g, '');
+  var key = iconKey(raw);
+  if (!key) return null;
+  var buckets = [idx.production, idx.bank];
+  var passes = [
+    { via: 'exact', pick: function (b) { return b.exact[raw]; } },
+    { via: 'normalised', pick: function (b) { return b.norm[key]; } },
+    { via: 'alias', pick: function (b) { return ICON_ALIASES[key] ? b.norm[ICON_ALIASES[key]] : null; } }
+  ];
+  for (var p = 0; p < passes.length; p++) {
+    for (var b = 0; b < buckets.length; b++) {
+      var hit = passes[p].pick(buckets[b]);
+      if (hit) return { entry: hit, via: passes[p].via, source: hit.source };
+    }
+  }
+  return null;
+}
+// Rebuild a production-scale icon from ICON BANK artwork. The ring and the label are drawn to
+// the production spec (the bank's own 19px ring and "<Name>: <description>" label are reference
+// art, not usable output); only the GLYPH comes from the bank, scaled up by ICON_BANK_SCALE.
+// This is a real icon of the right name — not a stand-in — but every use is reported.
+function bankIcon(M, F, parent, entry) {
+  var g = stack(parent, 'VERTICAL', { gap: ICON_LABEL_GAP, cross: 'CENTER',
+    name: 'Icon · ' + entry.name + ' · rebuilt from icon bank' });
+  var holder = box(g, { w: ICON_RING_D, h: ICON_RING_D, name: 'Ring' });
+  var e = figma.createEllipse();
+  e.resize(ICON_RING_D, ICON_RING_D);
+  e.fills = [solid(col(M, ICON_RING_FILL))];
+  e.strokes = [solid(col(M, ICON_RING_STROKE))];
+  e.strokeWeight = ICON_RING_STROKE_W;
+  holder.appendChild(e); e.x = 0; e.y = 0; e.name = 'Ellipse 3';
+  var rb = iconBox(entry.ring);
+  for (var i = 0; i < entry.glyphs.length; i++) {
+    var src = entry.glyphs[i];
+    var sb = iconBox(src);
+    var c = src.clone();
+    holder.appendChild(c);
+    if (typeof c.rescale === 'function') c.rescale(ICON_BANK_SCALE);
+    else if (typeof c.resize === 'function' && sb) c.resize(sb.width * ICON_BANK_SCALE, sb.height * ICON_BANK_SCALE);
+    if (sb && rb) { c.x = (sb.x - rb.x) * ICON_BANK_SCALE; c.y = (sb.y - rb.y) * ICON_BANK_SCALE; }
+    c.name = 'Glyph · ' + entry.name;
+  }
+  txt(M, F, g, { text: entry.name, font: 'regular', size: ICON_LABEL_SIZE, colorRole: 'white',
+    align: 'CENTER', name: entry.name });
+  return g;
 }
 function missingIcon(M, F, parent, label) {
   var g = stack(parent, 'VERTICAL', { gap: 6, cross: 'CENTER', name: 'ICON NOT FOUND · ' + label });
@@ -493,11 +691,40 @@ async function buildFromManifest(M, row, opts) {
     fills: ts.divider.fills ? paintsOf(M, ts.divider.fills) : [solid(col(M, ts.divider.colorRole), ts.divider.opacity)] });
   txt(M, F, cols, { text: row.fab.comp, font: ts.composition.font, size: ts.composition.size, colorRole: ts.composition.colorRole, align: 'CENTER', name: 'Composition' });
   var iconRow = stack(cols, 'HORIZONTAL', { gap: ts.iconRow.gap, cross: ts.iconRow.cross, name: ts.iconRow.name });
+  var unresolvedIcons = [];
   row.fab.icons.slice(0, ts.iconRow.max).forEach(function (label) {
-    var src = icons[label.toLowerCase()];
-    if (src) iconRow.appendChild(src.clone());
-    else { missingIcon(M, F, iconRow, label); warn.push('Icon "' + label + '" not found on this page'); }
+    var hit = resolveIcon(icons, label);
+    if (!hit) {
+      // Nothing is substituted. A wrong icon shipped to Amazon is worse than a visible gap,
+      // so the row gets a labelled placeholder and the name is reported.
+      missingIcon(M, F, iconRow, label);
+      unresolvedIcons.push(label);
+      warn.push('Icon "' + label + '" did not resolve — no icon of that name in the designs on ' +
+        'this page or in the ICON BANK. A labelled gap was drawn; nothing was substituted.');
+      return;
+    }
+    if (hit.source === 'production') {
+      iconRow.appendChild(hit.entry.group.clone());
+    } else {
+      bankIcon(M, F, iconRow, hit.entry);
+      warn.push('Icon "' + label + '" is not in any shipped design, so it was rebuilt from the ' +
+        'ICON BANK glyph scaled up ' + ICON_BANK_SCALE + 'x (bank art is 19px reference art). ' +
+        'Check it renders cleanly before publishing.');
+    }
+    if (hit.via === 'alias') {
+      warn.push('Icon "' + label + '" resolved through an alias to "' + hit.entry.name + '".');
+    } else if (hit.via === 'normalised' && hit.entry.name !== label) {
+      warn.push('Icon "' + label + '" matched "' + hit.entry.name + '" (spelling differs).');
+    }
   });
+  if (row.fab.icons.length > ts.iconRow.max) {
+    warn.push('The sheet lists ' + row.fab.icons.length + ' icons but the row holds ' +
+      ts.iconRow.max + '; dropped: ' + row.fab.icons.slice(ts.iconRow.max).join(', '));
+  }
+  if (unresolvedIcons.length) {
+    warn.push('Unresolved icon names on this row: ' + unresolvedIcons.join(', ') +
+      '. See backend/icons/index.json for the full catalogue of names that do resolve.');
+  }
   if (!row.fab.icons.length) warn.push('No icons listed');
   cols.x = (W - cols.width) / 2; cols.y = ts.y;
   if (cols.y + cols.height > fb.overflowWarnY) warn.push('Fabric copy is long and runs past the fabric card');

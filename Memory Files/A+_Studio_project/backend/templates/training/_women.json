@@ -58,7 +58,7 @@
           "stops": [ [0.21, [255, 255, 255], 1], [1, [191, 196, 200], 0] ] } ] },
 
       { "name": "Wash · lower", "rt": [[-0.909, -0.417, 1190.389], [0.417, -0.909, 4887.758]], "yFromBottom": -144.758, "w": 1083.756, "h": 2786.279,
-        "comment": "Rotated AND flipped (negative determinant), so the whole relativeTransform is stored. The accent layer — teal here, crimson on the Solid design. Bottom-anchored, but the original's ty is 4887.758 on a 4743-tall frame, i.e. 144.758px BELOW the bottom edge, hence the negative yFromBottom. Different gradient matrix from training/_base.",
+        "comment": "A PURE ROTATION of about 155.4 deg (determinant +1.0), NOT a flip — an earlier revision of this comment claimed a negative determinant, which is wrong. In this stack the flipped background layer is 'Wash · fabric' (det -0.998), as training/_base now records. The whole relativeTransform is stored regardless, which is correct and lossless. The accent layer — teal here, crimson on the Solid design. Bottom-anchored, but the original's ty is 4887.758 on a 4743-tall frame, i.e. 144.758px BELOW the bottom edge, hence the negative yFromBottom. Different gradient matrix from training/_base.",
         "fills": [ { "gt": [[-0.701, -0.083, 1.107], [1.211, -14.502, 7.637]],
           "stops": [ [0, [94, 161, 146], 1], [1, [217, 217, 217], 0] ] } ] },
 
