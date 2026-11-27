@@ -332,7 +332,16 @@
       }
     }
     var out = await enc.finish();
-    return { bytes: out, ext: fmt, summary: fmt.toUpperCase() + ' · ' + W + '×' + H + ' · ' + n + ' frames @ ' + fps + ' fps · ' + files.fmtBytes(out.length) };
+    var note = '';
+    if (enc.stills) {
+      // More than a fifth of the frames carrying no motion means the video decode stopped
+      // advancing, not that the clip holds still — say so instead of shipping a frozen GIF.
+      var s = enc.stills();
+      if (s.of && s.still / s.of > 0.2) {
+        note = ' · ⚠ ' + s.still + ' of ' + s.of + ' frames repeated — the video decoded slower than it was sampled, so the motion will stutter. Try a lower width or fewer fps.';
+      }
+    }
+    return { bytes: out, ext: fmt, summary: fmt.toUpperCase() + ' · ' + W + '×' + H + ' · ' + n + ' frames @ ' + fps + ' fps · ' + files.fmtBytes(out.length) + note };
   }
 
   // The animation asset: a video (MP4/MOV/WebM, decoded by a <video> element) or an animated
@@ -349,15 +358,42 @@
       v.muted = true; v.playsInline = true; v.preload = 'auto'; v.src = url;
       v.onerror = function () { reject(new Error('This Figma app cannot play "' + mime + '" (' + ((v.error && v.error.message) || 'decode error') + ').')); };
       v.onloadeddata = function () {
+        // Does requestVideoFrameCallback actually deliver here? Decided once, on first use.
+        var rvfc = typeof v.requestVideoFrameCallback === 'function' ? null : false;
         resolve({
           width: v.videoWidth, height: v.videoHeight, duration: v.duration, fps: DEFAULT_FPS,
+          // Returns the <video> only once the frame for `t` has been PRESENTED.
+          //
+          // Waiting on 'seeked' alone is not enough, and this was the bug behind the broken
+          // motion: 'seeked' fires when the media pipeline accepts the new position, but the
+          // decoded frame may not have reached the compositor yet, so drawImage() captures the
+          // PREVIOUS one. Over a run of closely spaced seeks that lag accumulates — the strip
+          // advanced less and less each frame, froze entirely for the back half of every
+          // second, then jumped a whole second of motion the moment the next keyframe flushed
+          // the pipeline. Measured on 708589.gif: only 5 of 127 frames carried real motion and
+          // 34 were byte-identical to the frame before.
+          //
+          // requestVideoFrameCallback fires only when a new frame has been presented, which is
+          // exactly the signal needed. It is kept behind a capability check plus a timeout so a
+          // runtime that never presents (an offscreen or throttled video) still makes progress.
           frameAt: function (t) {
             return new Promise(function (res, rej) {
               var target = Math.min(Math.max(0, t), Math.max(0, v.duration - 0.001));
               if (Math.abs(v.currentTime - target) < 1e-6 && v.readyState >= 2) return res(v);
               var done = false;
               var to = setTimeout(function () { if (!done) { done = true; rej(new Error('The animation stopped decoding at ' + target.toFixed(2) + ' s.')); } }, 15000);
-              v.addEventListener('seeked', function h() { v.removeEventListener('seeked', h); if (!done) { done = true; clearTimeout(to); res(v); } });
+              function finish() { if (done) return; done = true; clearTimeout(to); res(v); }
+              function presented() {
+                if (rvfc === false) { requestAnimationFrame(function () { requestAnimationFrame(finish); }); return; }
+                var fired = false;
+                v.requestVideoFrameCallback(function () { fired = true; rvfc = true; finish(); });
+                setTimeout(function () {
+                  if (fired || done) return;
+                  if (rvfc === null) rvfc = false;      // never delivered: stop waiting on it
+                  finish();
+                }, 150);
+              }
+              v.addEventListener('seeked', function h() { v.removeEventListener('seeked', h); presented(); });
               v.currentTime = target;
             });
           }
@@ -508,7 +544,11 @@
     var G = gifenc, gif = G.GIFEncoder(), prevCs = 0;
     var topTable = pals.top.slice(); while (topTable.length < 256) topTable.push([0, 0, 0]);
     var anim = pals.anim, animTable = anim.slice(); while (animTable.length < 255) animTable.push([0, 0, 0]); animTable.push([0, 0, 0]); // 255 = transparent
-    var out = new Uint8Array(W * H), prev = null;
+    // Only the strip is written after frame 1, as a sub-rectangle at y = topH. Writing a
+    // full-canvas frame every time made the player decode and composite the whole 582x2582
+    // canvas 25 times a second when only the ~582x588 strip ever changes — about 4.4x the
+    // pixel work, for a region that is entirely transparent padding.
+    var strip = new Uint8Array(W * botH), prev = null, still = 0, frames = 0;
     // Is the colour at index `a` indistinguishable from the one at `b`? Used so that sensor and
     // compression noise in the source does not force a pixel to be rewritten every frame: without
     // it a still background flickers between two near-identical palette entries, which both
@@ -533,24 +573,29 @@
           all.set(ditherFS(ctx.getImageData(0, 0, W, topH).data, W, topH, pals.top, GIF_TOP_DITHER), 0);
           all.set(ditherOrdered(ctx.getImageData(0, topH, W, botH).data, W, botH, pals.top, GIF_ANIM_DITHER), W * topH);
           gif.writeFrame(all, W, H, { palette: topTable, delay: delayMs(i), repeat: 0, dispose: 1 });
-          out.fill(255, 0, W * topH);                        // the A+ area: transparent from now on
           return;
         }
         var cur = ditherOrdered(ctx.getImageData(0, topH, W, botH).data, W, botH, anim, GIF_ANIM_DITHER);
-        var base = W * topH;
         // frame 2 redraws the whole strip in the animation palette; later frames only what moved.
         // `prev` tracks what is actually ON SCREEN, not the previous source frame, so a slow
         // drift still redraws once it crosses the threshold instead of never catching up.
-        if (!prev) { out.set(cur, base); prev = cur.slice(); }
+        if (!prev) { strip.set(cur); prev = cur.slice(); }
         else {
+          var moved = 0;
           for (var k = 0; k < cur.length; k++) {
-            if (closeIdx(cur[k], prev[k])) { out[base + k] = 255; }
-            else { out[base + k] = cur[k]; prev[k] = cur[k]; }
+            if (closeIdx(cur[k], prev[k])) { strip[k] = 255; }
+            else { strip[k] = cur[k]; prev[k] = cur[k]; moved++; }
           }
+          // A frame that moved nothing means the video handed back the same picture twice.
+          // Counted so a decode that silently stops advancing is reported rather than shipped:
+          // that is how a GIF that looked fine by size came out frozen for most of every second.
+          if (!moved) still++;
+          frames++;
         }
-        gif.writeFrame(out, W, H, { palette: animTable, delay: delayMs(i), transparent: true, transparentIndex: 255, dispose: 1 });
+        gif.writeFrame(strip, W, botH, { palette: animTable, delay: delayMs(i), transparent: true, transparentIndex: 255, dispose: 1, y: topH });
       },
       finish: async function () { gif.finish(); return gif.bytes(); },
+      stills: function () { return { still: still, of: frames }; },
       abort: function () {}
     };
   }

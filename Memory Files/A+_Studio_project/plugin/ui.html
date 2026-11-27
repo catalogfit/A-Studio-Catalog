@@ -772,6 +772,10 @@
       #view-design .ut-choice { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
       #view-design .ut-empty { border: 1px dashed var(--line); border-radius: 10px; padding: 14px; color: var(--text-2); font-size: 11px; line-height: 1.55; }
       #view-design .track i { transition: width .2s; }
+      #view-design .note .em { font-weight: 600; color: var(--text); }
+      #view-design .ut-details { margin-top: 8px; font-size: 10.5px; color: var(--text-2); }
+      #view-design .ut-details summary { cursor: pointer; color: var(--text-2); }
+      #view-design .ut-details .hint { margin-top: 6px; }
     </style>
 
     <div class="sec">
@@ -1634,7 +1638,9 @@ function GIFEncoder(opt = {}) {
         palette = null,
         repeat = 0,
         colorDepth = 8,
-        dispose = -1
+        dispose = -1,
+        x = 0,
+        y = 0
       } = opts;
       let first = false;
       if (auto) {
@@ -1661,7 +1667,7 @@ function GIFEncoder(opt = {}) {
       const delayTime = Math.round(delay / 10);
       encodeGraphicControlExt(stream, dispose, delayTime, transparent, transparentIndex);
       const useLocalColorTable = Boolean(palette) && !first;
-      encodeImageDescriptor(stream, width, height, useLocalColorTable ? palette : null);
+      encodeImageDescriptor(stream, width, height, useLocalColorTable ? palette : null, x, y);
       if (useLocalColorTable)
         encodeColorTable(stream, palette);
       encodePixels(stream, index, width, height, colorDepth, accum, htab, codetab);
@@ -1730,10 +1736,14 @@ function encodeColorTable(stream, palette) {
     stream.writeByte(color[2]);
   }
 }
-function encodeImageDescriptor(stream, width, height, localPalette) {
+function encodeImageDescriptor(stream, width, height, localPalette, left, top) {
   stream.writeByte(44);
-  writeUInt16(stream, 0);
-  writeUInt16(stream, 0);
+  // LOCAL PATCH (A+ Studio): the frame's origin on the canvas was hardcoded to 0,0, so every
+  // frame had to be a full-canvas image. A GIF frame may cover a sub-rectangle instead, which
+  // is how an animation that only changes a strip avoids re-encoding — and the player avoids
+  // re-compositing — the untouched remainder on every frame. Defaults to 0,0 when not given.
+  writeUInt16(stream, left || 0);
+  writeUInt16(stream, top || 0);
   writeUInt16(stream, width);
   writeUInt16(stream, height);
   if (localPalette) {
@@ -4433,15 +4443,18 @@ var templateStore = (function () {
     return { key: key, fileId: mf.id, folderId: folderId, assets: refs, replaced: replaced, entry: entry };
   }
 
-  // remove(key) — moves the template's folder to the Drive bin (recoverable for 30 days)
+  // remove(key) — moves the template to the Drive bin (recoverable for 30 days). The manifest file
+  // is trashed explicitly before its folder: Drive marks a trashed folder's children as trashed
+  // asynchronously, and until it does, list() (which searches for manifests) would still return
+  // the template — found by the live round trip (test/live/user-templates-drive.live.js).
   async function remove(key) {
     var folders = await byKind('template-folder', key);
-    var manifests = folders.length ? [] : await byKind('template-manifest', key);
-    var target = folders[0] || manifests[0];
-    if (!target) throw PlatformError('not-found', 'No saved template "' + key + '" in your Drive.');
-    await drive.trash(target.id);
+    var manifests = await byKind('template-manifest', key);
+    if (!folders.length && !manifests.length) throw PlatformError('not-found', 'No saved template "' + key + '" in your Drive.');
+    for (var i = 0; i < manifests.length; i++) await drive.trash(manifests[i].id);
+    for (var j = 0; j < folders.length; j++) await drive.trash(folders[j].id);
     await bridge.request('tplcache-remove', { key: key }, { timeoutMs: 10000 }).catch(function () {});
-    return { ok: true, key: key, trashed: target.id };
+    return { ok: true, key: key, trashed: (folders[0] || manifests[0]).id, files: manifests.length + folders.length };
   }
 
   return { list: list, cached: cached, load: load, loadAsset: loadAsset, save: save, remove: remove, PATH: TEMPLATES_PATH, SCHEMA: SCHEMA };
@@ -6105,7 +6118,7 @@ window.platform = platform;
     if (!d) return '';
     var mis = d.mismatches || [];
     var pct = typeof d.score === 'number' ? Math.round(d.score * 1000) / 10 + '%' : '—';
-    return '<details class="more"><summary title="Copy check">' + (mis.length ? mis.length + ' difference(s)' : 'Copy check: identical') + '</summary>' +
+    return '<details class="ut-details"><summary>' + (mis.length ? mis.length + ' difference(s)' : 'Copy check: identical') + '</summary>' +
       '<div class="hint">The plugin rebuilt your frame from the saved template and compared ' + esc(String(d.compared || 0)) +
       ' properties: ' + esc(pct) + ' match.' + (mis.length ? ' These did not come back exactly:' : '') + '</div>' +
       (mis.length ? '<div class="hint" style="max-height:180px;overflow:auto">' + mis.slice(0, 60).map(function (x) {
@@ -6114,7 +6127,7 @@ window.platform = platform;
   }
   function warningsBlock(w) {
     if (!w || !w.length) return '';
-    return '<details class="more"><summary title="Notes">' + w.length + ' note(s)</summary><ul class="hint" style="margin:6px 0 0 15px;padding:0">' +
+    return '<details class="ut-details"><summary>' + w.length + ' note(s)</summary><ul class="hint" style="margin:6px 0 0 15px;padding:0">' +
       w.map(function (x) { return '<li>' + esc(String(x)) + '</li>'; }).join('') + '</ul></details>';
   }
 
@@ -6125,7 +6138,7 @@ window.platform = platform;
     userTemplates.forget(m.key);
     var label = m.label || m.key;
     var localOk = !!(m.local && m.local.manifest);
-    var head = '<b>' + esc(label) + '</b> · <code>' + esc(m.key) + '</code><br>' +
+    var head = '<span class="em">' + esc(label) + '</span> · <code>' + esc(m.key) + '</code><br>' +
       esc(m.stats.layers + ' layers · ' + m.images + ' image(s) · ' + fmt(m.manifestBytes + (m.imageBytes || 0)));
     var details = roundTripDetails(m.diff) + warningsBlock(m.warnings);
 
@@ -6142,10 +6155,11 @@ window.platform = platform;
     }
     await uploadWithProgress(m.key, $('ad-out'), function (ok, err) {
       if (ok) {
+        $('ad-name').value = ''; $('ad-id').value = ''; D.idEdited = false;   // ready for the next one
         $('ad-out').innerHTML = ui.note(m.local.reason ? 'pending' : 'info',
           localOk ? 'Saved · this computer + Google Drive' : 'Saved to Google Drive',
           head + (m.local.reason ? '<br>' + esc(m.local.reason) : '') +
-          '<br>It is in Automate now, under <b>' + esc(categoryLabelOf(m.key)) + ' · ' + esc(GENDER_LABEL[m.key.split('/')[1]] || '') + '</b>.') + details;
+          '<br>It is in Automate now, under <span class="em">' + esc(categoryLabelOf(m.key)) + ' · ' + esc(GENDER_LABEL[m.key.split('/')[1]] || '') + '</span>.') + details;
       } else {
         $('ad-out').innerHTML = ui.note(localOk ? 'pending' : 'warn',
           localOk ? 'Saved on this computer · Drive upload failed' : 'Not saved yet · Drive upload failed',
@@ -6290,7 +6304,7 @@ window.platform = platform;
           where.length ? 'Imported · ' + where.join(' + ') : 'Not saved',
           '<code>' + esc(r.key) + '</code>' +
           (r.local && r.local.reason ? '<br>' + esc(r.local.reason) : '') +
-          (r.driveError ? '<br>Drive upload failed: ' + esc(errorText(r.driveError)) + ' Use <b>Upload to Drive</b> on the template below.' : '') +
+          (r.driveError ? '<br>Drive upload failed: ' + esc(errorText(r.driveError)) + ' Use <span class="em">Upload to Drive</span> on the template below.' : '') +
           (parsed.warnings.length ? '<br>' + parsed.warnings.map(esc).join('<br>') : ''));
       } catch (e) { out.innerHTML = ui.note('warn', 'Could not import', esc(errorText(e))); }
       renderMine(); renderForm();
@@ -6666,7 +6680,16 @@ window.platform = platform;
       }
     }
     var out = await enc.finish();
-    return { bytes: out, ext: fmt, summary: fmt.toUpperCase() + ' · ' + W + '×' + H + ' · ' + n + ' frames @ ' + fps + ' fps · ' + files.fmtBytes(out.length) };
+    var note = '';
+    if (enc.stills) {
+      // More than a fifth of the frames carrying no motion means the video decode stopped
+      // advancing, not that the clip holds still — say so instead of shipping a frozen GIF.
+      var s = enc.stills();
+      if (s.of && s.still / s.of > 0.2) {
+        note = ' · ⚠ ' + s.still + ' of ' + s.of + ' frames repeated — the video decoded slower than it was sampled, so the motion will stutter. Try a lower width or fewer fps.';
+      }
+    }
+    return { bytes: out, ext: fmt, summary: fmt.toUpperCase() + ' · ' + W + '×' + H + ' · ' + n + ' frames @ ' + fps + ' fps · ' + files.fmtBytes(out.length) + note };
   }
 
   // The animation asset: a video (MP4/MOV/WebM, decoded by a <video> element) or an animated
@@ -6683,15 +6706,42 @@ window.platform = platform;
       v.muted = true; v.playsInline = true; v.preload = 'auto'; v.src = url;
       v.onerror = function () { reject(new Error('This Figma app cannot play "' + mime + '" (' + ((v.error && v.error.message) || 'decode error') + ').')); };
       v.onloadeddata = function () {
+        // Does requestVideoFrameCallback actually deliver here? Decided once, on first use.
+        var rvfc = typeof v.requestVideoFrameCallback === 'function' ? null : false;
         resolve({
           width: v.videoWidth, height: v.videoHeight, duration: v.duration, fps: DEFAULT_FPS,
+          // Returns the <video> only once the frame for `t` has been PRESENTED.
+          //
+          // Waiting on 'seeked' alone is not enough, and this was the bug behind the broken
+          // motion: 'seeked' fires when the media pipeline accepts the new position, but the
+          // decoded frame may not have reached the compositor yet, so drawImage() captures the
+          // PREVIOUS one. Over a run of closely spaced seeks that lag accumulates — the strip
+          // advanced less and less each frame, froze entirely for the back half of every
+          // second, then jumped a whole second of motion the moment the next keyframe flushed
+          // the pipeline. Measured on 708589.gif: only 5 of 127 frames carried real motion and
+          // 34 were byte-identical to the frame before.
+          //
+          // requestVideoFrameCallback fires only when a new frame has been presented, which is
+          // exactly the signal needed. It is kept behind a capability check plus a timeout so a
+          // runtime that never presents (an offscreen or throttled video) still makes progress.
           frameAt: function (t) {
             return new Promise(function (res, rej) {
               var target = Math.min(Math.max(0, t), Math.max(0, v.duration - 0.001));
               if (Math.abs(v.currentTime - target) < 1e-6 && v.readyState >= 2) return res(v);
               var done = false;
               var to = setTimeout(function () { if (!done) { done = true; rej(new Error('The animation stopped decoding at ' + target.toFixed(2) + ' s.')); } }, 15000);
-              v.addEventListener('seeked', function h() { v.removeEventListener('seeked', h); if (!done) { done = true; clearTimeout(to); res(v); } });
+              function finish() { if (done) return; done = true; clearTimeout(to); res(v); }
+              function presented() {
+                if (rvfc === false) { requestAnimationFrame(function () { requestAnimationFrame(finish); }); return; }
+                var fired = false;
+                v.requestVideoFrameCallback(function () { fired = true; rvfc = true; finish(); });
+                setTimeout(function () {
+                  if (fired || done) return;
+                  if (rvfc === null) rvfc = false;      // never delivered: stop waiting on it
+                  finish();
+                }, 150);
+              }
+              v.addEventListener('seeked', function h() { v.removeEventListener('seeked', h); presented(); });
               v.currentTime = target;
             });
           }
@@ -6842,7 +6892,11 @@ window.platform = platform;
     var G = gifenc, gif = G.GIFEncoder(), prevCs = 0;
     var topTable = pals.top.slice(); while (topTable.length < 256) topTable.push([0, 0, 0]);
     var anim = pals.anim, animTable = anim.slice(); while (animTable.length < 255) animTable.push([0, 0, 0]); animTable.push([0, 0, 0]); // 255 = transparent
-    var out = new Uint8Array(W * H), prev = null;
+    // Only the strip is written after frame 1, as a sub-rectangle at y = topH. Writing a
+    // full-canvas frame every time made the player decode and composite the whole 582x2582
+    // canvas 25 times a second when only the ~582x588 strip ever changes — about 4.4x the
+    // pixel work, for a region that is entirely transparent padding.
+    var strip = new Uint8Array(W * botH), prev = null, still = 0, frames = 0;
     // Is the colour at index `a` indistinguishable from the one at `b`? Used so that sensor and
     // compression noise in the source does not force a pixel to be rewritten every frame: without
     // it a still background flickers between two near-identical palette entries, which both
@@ -6867,24 +6921,29 @@ window.platform = platform;
           all.set(ditherFS(ctx.getImageData(0, 0, W, topH).data, W, topH, pals.top, GIF_TOP_DITHER), 0);
           all.set(ditherOrdered(ctx.getImageData(0, topH, W, botH).data, W, botH, pals.top, GIF_ANIM_DITHER), W * topH);
           gif.writeFrame(all, W, H, { palette: topTable, delay: delayMs(i), repeat: 0, dispose: 1 });
-          out.fill(255, 0, W * topH);                        // the A+ area: transparent from now on
           return;
         }
         var cur = ditherOrdered(ctx.getImageData(0, topH, W, botH).data, W, botH, anim, GIF_ANIM_DITHER);
-        var base = W * topH;
         // frame 2 redraws the whole strip in the animation palette; later frames only what moved.
         // `prev` tracks what is actually ON SCREEN, not the previous source frame, so a slow
         // drift still redraws once it crosses the threshold instead of never catching up.
-        if (!prev) { out.set(cur, base); prev = cur.slice(); }
+        if (!prev) { strip.set(cur); prev = cur.slice(); }
         else {
+          var moved = 0;
           for (var k = 0; k < cur.length; k++) {
-            if (closeIdx(cur[k], prev[k])) { out[base + k] = 255; }
-            else { out[base + k] = cur[k]; prev[k] = cur[k]; }
+            if (closeIdx(cur[k], prev[k])) { strip[k] = 255; }
+            else { strip[k] = cur[k]; prev[k] = cur[k]; moved++; }
           }
+          // A frame that moved nothing means the video handed back the same picture twice.
+          // Counted so a decode that silently stops advancing is reported rather than shipped:
+          // that is how a GIF that looked fine by size came out frozen for most of every second.
+          if (!moved) still++;
+          frames++;
         }
-        gif.writeFrame(out, W, H, { palette: animTable, delay: delayMs(i), transparent: true, transparentIndex: 255, dispose: 1 });
+        gif.writeFrame(strip, W, botH, { palette: animTable, delay: delayMs(i), transparent: true, transparentIndex: 255, dispose: 1, y: topH });
       },
       finish: async function () { gif.finish(); return gif.bytes(); },
+      stills: function () { return { still: still, of: frames }; },
       abort: function () {}
     };
   }

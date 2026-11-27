@@ -724,7 +724,9 @@ function GIFEncoder(opt = {}) {
         palette = null,
         repeat = 0,
         colorDepth = 8,
-        dispose = -1
+        dispose = -1,
+        x = 0,
+        y = 0
       } = opts;
       let first = false;
       if (auto) {
@@ -751,7 +753,7 @@ function GIFEncoder(opt = {}) {
       const delayTime = Math.round(delay / 10);
       encodeGraphicControlExt(stream, dispose, delayTime, transparent, transparentIndex);
       const useLocalColorTable = Boolean(palette) && !first;
-      encodeImageDescriptor(stream, width, height, useLocalColorTable ? palette : null);
+      encodeImageDescriptor(stream, width, height, useLocalColorTable ? palette : null, x, y);
       if (useLocalColorTable)
         encodeColorTable(stream, palette);
       encodePixels(stream, index, width, height, colorDepth, accum, htab, codetab);
@@ -820,10 +822,14 @@ function encodeColorTable(stream, palette) {
     stream.writeByte(color[2]);
   }
 }
-function encodeImageDescriptor(stream, width, height, localPalette) {
+function encodeImageDescriptor(stream, width, height, localPalette, left, top) {
   stream.writeByte(44);
-  writeUInt16(stream, 0);
-  writeUInt16(stream, 0);
+  // LOCAL PATCH (A+ Studio): the frame's origin on the canvas was hardcoded to 0,0, so every
+  // frame had to be a full-canvas image. A GIF frame may cover a sub-rectangle instead, which
+  // is how an animation that only changes a strip avoids re-encoding — and the player avoids
+  // re-compositing — the untouched remainder on every frame. Defaults to 0,0 when not given.
+  writeUInt16(stream, left || 0);
+  writeUInt16(stream, top || 0);
   writeUInt16(stream, width);
   writeUInt16(stream, height);
   if (localPalette) {

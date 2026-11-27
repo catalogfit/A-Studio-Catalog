@@ -106,6 +106,53 @@ test('ordered dithering breaks a flat tone between two palette entries into a mi
   assert.equal(changed(dithered, ctx.ditherOrdered(flat, W, H, FINE, 0.55)), 0);
 });
 
+test('gifenc writes sub-rectangle frames at the right offset, leaving the A+ untouched', () => {
+  // The vendored gifenc hardcoded every frame's origin to 0,0, forcing a full-canvas image per
+  // frame — the player had to decode and composite the whole 582x2582 canvas 25 times a second
+  // when only the strip changes. This checks the local patch: a frame written at y = TOP lands
+  // there, and the region above it survives untouched under dispose: 1.
+  const gifencSrc = fs.readFileSync(path.join(__dirname, '..', 'vendor', 'gifenc.js'), 'utf8');
+  const sandbox = { window: {}, module: { exports: {} }, console };
+  sandbox.exports = sandbox.module.exports;
+  vm.runInContext(gifencSrc, vm.createContext(sandbox));
+  const { GIFEncoder } = sandbox.window.gifenc;
+
+  const CW = 40, CH = 100, TOP = 70, BOT = 30;
+  const pal = [[255, 0, 0], [0, 255, 0], [0, 0, 255], [0, 0, 0]];
+  const gif = GIFEncoder();
+  const full = new Uint8Array(CW * CH);
+  full.fill(0, 0, CW * TOP);                       // 0 = red, the stand-in for the A+
+  full.fill(1, CW * TOP);                          // 1 = green, the strip
+  gif.writeFrame(full, CW, CH, { palette: pal, delay: 40, repeat: 0, dispose: 1 });
+  for (let f = 1; f <= 3; f++) {
+    const strip = new Uint8Array(CW * BOT).fill(3); // 3 = transparent
+    for (let x = 0; x < CW; x++) strip[f * CW + x] = 2;
+    gif.writeFrame(strip, CW, BOT, { palette: pal, delay: 40, transparent: true, transparentIndex: 3, dispose: 1, y: TOP });
+  }
+  gif.finish();
+  const bytes = gif.bytes();
+
+  // Re-read the image descriptors: frame 0 must be full canvas at 0,0; the rest the strip at TOP.
+  const descs = [];
+  for (let p = 0; p < bytes.length - 9; p++) {
+    if (bytes[p] !== 0x2C) continue;
+    const rd = (o) => bytes[o] | (bytes[o + 1] << 8);
+    descs.push({ x: rd(p + 1), y: rd(p + 3), w: rd(p + 5), h: rd(p + 7) });
+  }
+  const frame0 = descs.find(d => d.w === CW && d.h === CH);
+  assert.ok(frame0, 'expected one full-canvas frame');
+  assert.equal(frame0.y, 0);
+  const strips = descs.filter(d => d.h === BOT);
+  assert.equal(strips.length, 3, 'expected three strip-sized frames');
+  for (const s of strips) {
+    assert.equal(s.y, TOP, 'strip frame must be offset to y = ' + TOP);
+    assert.equal(s.w, CW);
+  }
+  // and the canvas is still declared at full height
+  assert.equal(bytes[6] | (bytes[7] << 8), CW);
+  assert.equal(bytes[8] | (bytes[9] << 8), CH);
+});
+
 test('the change threshold treats noise as unchanged but a real step as changed', () => {
   // mirrors closeIdx in gifEncoder: dr^2*2 + dg^2*4 + db^2*3 <= GIF_DIFF_T
   const T = Number(/var GIF_DIFF_T = (\d+)/.exec(SRC)[1]);
