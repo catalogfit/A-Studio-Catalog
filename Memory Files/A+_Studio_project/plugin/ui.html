@@ -754,39 +754,75 @@
   <!-- ==================== PANEL 2 — ADD DESIGN (ui/design.html) ==================== -->
   <!-- plugin-src/ui/design.html — owned by the design panel. Inserted into shell.html at "@panel design". -->
   <div class="view" id="view-design">
+    <style>
+      #view-design .ut-list { display: flex; flex-direction: column; gap: 8px; }
+      #view-design .ut-row { border: 1px solid var(--line); border-radius: 10px; padding: 10px 11px; background: var(--surface); }
+      #view-design .ut-row .t { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+      #view-design .ut-row .t b { font-size: 12px; overflow-wrap: anywhere; }
+      #view-design .ut-row .k { font-family: var(--font-mono); font-size: 10px; color: var(--text-2); overflow-wrap: anywhere; margin-top: 2px; }
+      #view-design .ut-row .w { font-size: 10.5px; color: var(--text-2); margin-top: 5px; }
+      #view-design .ut-row .acts { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+      #view-design .ut-row .acts button, #view-design .ut-choice button { font-size: 10.5px; padding: 5px 9px; border-radius: 7px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); cursor: pointer; }
+      #view-design .ut-row .acts button:disabled { opacity: .4; cursor: default; }
+      #view-design .ut-row .acts button.danger, #view-design .ut-choice button.danger { color: var(--danger); }
+      #view-design .ut-row .acts button.go, #view-design .ut-choice button.go { background: var(--panel-accent); color: var(--panel-ink); border-color: transparent; }
+      #view-design .ut-badge { display: inline-block; font-size: 9.5px; padding: 1px 6px; border-radius: 99px; border: 1px solid var(--line); margin-right: 4px; white-space: nowrap; }
+      #view-design .ut-badge.on { border-color: var(--ok); color: var(--ok); }
+      #view-design .ut-badge.off { color: var(--text-3); }
+      #view-design .ut-choice { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+      #view-design .ut-empty { border: 1px dashed var(--line); border-radius: 10px; padding: 14px; color: var(--text-2); font-size: 11px; line-height: 1.55; }
+      #view-design .track i { transition: width .2s; }
+    </style>
+
     <div class="sec">
       <div class="lab"><span class="n"><i>1</i> Frame on this page</span><span class="meta" id="ad-selmeta"></span></div>
       <div class="selbox" id="ad-sel">Select one frame to capture.</div>
     </div>
 
     <div class="sec">
-      <div class="lab"><span class="n"><i>2</i> Template identity</span></div>
-      <input id="ad-name" placeholder="Template name">
+      <div class="lab"><span class="n"><i>2</i> Name it</span></div>
+      <input id="ad-name" placeholder="Template name, e.g. Split hero" maxlength="90">
       <div class="row" style="margin-top:7px">
-        <select id="ad-cat"></select>
-        <select id="ad-gender"></select>
+        <input id="ad-cat" list="ad-cats" placeholder="Category: pick or type a new one" maxlength="60" autocomplete="off">
+        <datalist id="ad-cats"></datalist>
+        <select id="ad-gender">
+          <option value="men">Men</option>
+          <option value="women">Women</option>
+          <option value="unisex">Unisex</option>
+        </select>
       </div>
       <div class="row" style="margin-top:7px">
-        <input id="ad-id" placeholder="Template id — split-hero">
+        <input id="ad-id" placeholder="Template id (filled in from the name)" maxlength="60" autocomplete="off">
       </div>
-      <div class="hint">Keyed as <code>category/gender/id</code>.</div>
+      <div class="hint" id="ad-keyline">Saved as <code>category/gender/id</code>.</div>
     </div>
 
     <div class="sec">
-      <div class="lab"><span class="n"><i>3</i> Capture</span></div>
-      <button class="btn dark" id="ad-go" disabled>Add as template</button>
-      <div class="row" style="align-items:center;gap:8px;margin-top:9px">
-        <input type="checkbox" id="ad-ai" style="width:auto;flex:none">
-        <label for="ad-ai" style="font-size:10.5px">Semantic labelling — runs on the backend, no key here</label>
-      </div>
+      <div class="lab"><span class="n"><i>3</i> Save as your template</span></div>
+      <button class="btn dark" id="ad-go" disabled>Save as template</button>
+      <div class="hint" id="ad-where"></div>
+      <div id="ad-conflict"></div>
       <div id="ad-out"></div>
-      <div class="hint">The round-trip diff is the gate.
-        <details class="more">
-          <summary title="What the diff checks">?</summary>
-          <div class="hint">The captured skeleton is re-rendered and compared with your frame. Any
-          mismatch is listed with its path — <code>docs/add-to-template-plan.md</code>.</div>
-        </details>
+      <details class="more">
+        <summary title="How saving works">?</summary>
+        <div class="hint">Every layer of the frame is read, including its images. The plugin rebuilds the
+        copy next to your frame and compares the two before saving. Text layers named like
+        <code>@hero.word</code> take their copy from the sheet; large photos become photo slots.
+        Your template is saved on this computer and in your Google Drive under
+        <code>Cult A+ Design Lab/Templates</code>. Nothing is stored on the A+ service.</div>
+      </details>
+    </div>
+
+    <div class="sec">
+      <div class="lab"><span class="n"><i>4</i> My templates</span><span class="meta" id="ad-usage"></span></div>
+      <div id="ad-mine" class="ut-list"></div>
+      <div class="row" style="margin-top:9px">
+        <button class="btn ghost" id="ad-import">Import template file…</button>
       </div>
+      <input type="file" id="ad-file" accept=".json,application/json" class="hidden">
+      <div id="ad-mine-out"></div>
+      <div class="hint">Export a template to back it up or share it as a file. Anyone using this plugin
+      can import that file.</div>
     </div>
   </div>
 
@@ -3708,6 +3744,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
      drive          list / get / download / findOrCreateFolder / ensurePath / upload / update / trash
      sheets         read(urlOrId, { range })
      templateStore  list / cached / load / loadAsset / save / remove — "Cult A+ Design Lab/Templates"
+     userTemplates  the user's own templates across this computer / Drive / a file (docs/user-templates.md)
      storage        small per-user prefs in figma.clientStorage (namespaced "ui:")
      ui             note(), toast(), errorText()
      files          save(), toB64(), fromB64(), fmtBytes()
@@ -3734,6 +3771,7 @@ var state = {
   backend: BACKEND_DEFAULT, backendOverride: false,
   session: '', googleEmail: null, poll: null, needsReconsent: false, driveAccess: null,
   registry: null, bundledRegistry: null, manifestCache: {}, manifestSource: {},
+  userTemplates: [],          // merged rows from userTemplates (this computer + Drive) — see below
   selection: { frames: [], ids: [] },
   pageId: null, pageName: '',
   activeTab: 'automate',
@@ -3784,6 +3822,7 @@ var AUTH_CODES = { 'no-session': 1, 'invalid-session': 1, 'revoked': 1, 'needs-r
 // ---------- event bus (UI-internal) ----------
 // Events: init(msg) · registry(reg) · selection(sel) · page({id,name,frameCount}) · tab(name)
 //         rows-changed() · auth({connected, email, needsReconsent}) · auth-error(err)
+//         user-templates(rows) — the user's own templates changed (saved, imported, deleted, Drive listed)
 var bus = (function () {
   var h = {};
   return {
@@ -4283,6 +4322,7 @@ var templateStore = (function () {
     var a = f.appProperties || {};
     return {
       key: a.aplusKey, label: a.aplusLabel || a.aplusKey, category: a.aplusCategory || String(a.aplusKey).split('/')[0],
+      categoryLabel: a.aplusCatLabel || null, totalBytes: Number(a.aplusBytes) || null,
       gender: a.aplusGender || String(a.aplusKey).split('/')[1], id: a.aplusId || String(a.aplusKey).split('/')[2],
       status: a.aplusStatus || 'draft', version: Number(a.aplusVersion) || 1,
       fileId: f.id, folderId: (f.parents || [])[0] || null, modifiedTime: f.modifiedTime, size: f.size
@@ -4306,21 +4346,25 @@ var templateStore = (function () {
   }
   // cached() -> { index: [entry], manifests: { key: manifest } } from clientStorage; no network
   function cached() { return bridge.request('tplcache-list', {}, { timeoutMs: 10000 }); }
-  // load(key) -> { key, manifest, assets, savedAt, fileId } — Drive first, cache as fallback offline
-  async function load(key) {
+  // load(key, { cache }) -> { key, manifest, assets, savedAt, fileId } — Drive first, cache as fallback offline.
+  // cache:false skips the tplcache copy (user templates keep their own copy on this computer).
+  async function load(key, opts) {
     var files = await byKind('template-manifest', key);
     if (!files.length) throw PlatformError('not-found', 'No saved template "' + key + '" in your Drive.');
     var f = files[0];
     var bytes = await drive.download(f.id);
     var env = JSON.parse(new TextDecoder().decode(bytes));
-    var out = { key: key, manifest: env.manifest || env, assets: env.assets || [], savedAt: env.savedAt || null, fileId: f.id, folderId: (f.parents || [])[0] || null };
-    cachePut(key, entryOf(f), out.manifest);
+    var out = { key: key, manifest: env.manifest || env, assets: env.assets || [], savedAt: env.savedAt || null, fileId: f.id, folderId: (f.parents || [])[0] || null, entry: entryOf(f) };
+    if (!(opts && opts.cache === false)) cachePut(key, entryOf(f), out.manifest);
     return out;
   }
   function loadAsset(fileId) { return drive.download(fileId); }
 
-  // save(manifest, assets?) — assets: [{ name, mimeType, bytes: Uint8Array }]. Replaces in place
-  // when the key exists (same folder, same file ids where names match); stale assets are trashed.
+  // save(manifest, assets?, { onProgress, cache }) — assets: [{ name, mimeType, bytes: Uint8Array }].
+  // Replaces in place when the key exists (same folder, same file ids where names match). An asset
+  // already in the folder with the same name and size is not sent again (user-template images are
+  // named by content hash). Assets the manifest still lists in meta.assets are kept even when not
+  // passed in; anything else old is trashed.
   async function save(manifest, assets, opts) {
     opts = opts || {};
     var key = keyOf(manifest);
@@ -4343,6 +4387,12 @@ var templateStore = (function () {
       if (!a || !a.name || !a.bytes) continue;
       if (a.name === 'manifest.json') throw PlatformError('bad-request', 'An asset cannot be called manifest.json.');
       var prev = byName[a.name];
+      var size = a.bytes.byteLength !== undefined ? a.bytes.byteLength : a.bytes.length;
+      if (prev && prev.size === size && opts.skipUnchanged !== false) {
+        refs.push({ name: a.name, mimeType: a.mimeType || 'application/octet-stream', size: prev.size, fileId: prev.id });
+        if (opts.onProgress) opts.onProgress({ step: 'asset', index: i, total: list_.length, loaded: size, size: size, skipped: true });
+        continue;
+      }
       var up = await drive.upload(folderId, a.name, a.mimeType || 'application/octet-stream', a.bytes, {
         fileId: prev ? prev.id : null,
         appProperties: { aplusKind: 'template-asset', aplusKey: key },
@@ -4351,6 +4401,11 @@ var templateStore = (function () {
       refs.push({ name: a.name, mimeType: a.mimeType || 'application/octet-stream', size: up.size, fileId: up.id });
     }
     var keep = {}; refs.forEach(function (r) { keep[r.name] = 1; });
+    ((meta.assets) || []).forEach(function (a) {
+      if (!a || !a.name || keep[a.name] || !byName[a.name]) return;
+      keep[a.name] = 1;
+      refs.push({ name: a.name, mimeType: a.mime || 'application/octet-stream', size: byName[a.name].size, fileId: byName[a.name].id });
+    });
     for (var n in byName) {
       var f = byName[n];
       if (n !== 'manifest.json' && !keep[n] && f.appProperties && f.appProperties.aplusKind === 'template-asset') {
@@ -4363,14 +4418,17 @@ var templateStore = (function () {
       aplusKind: 'template-manifest', aplusKey: key,
       aplusLabel: clip(meta.label || key, 90), aplusCategory: clip(meta.category || key.split('/')[0], 60),
       aplusGender: clip(meta.gender || key.split('/')[1], 40), aplusId: clip(meta.id || key.split('/')[2], 60),
-      aplusStatus: clip(meta.status || 'draft', 20), aplusVersion: String(meta.version || 1)
+      aplusStatus: clip(meta.status || 'draft', 20), aplusVersion: String(meta.version || 1),
+      aplusCatLabel: clip(meta.categoryLabel || '', 60),
+      aplusBytes: String(refs.reduce(function (n, r) { return n + (Number(r.size) || 0); }, 0) + JSON.stringify(manifest).length)
     };
     var prevM = byName['manifest.json'];
+    if (opts.onProgress) opts.onProgress({ step: 'manifest', index: list_.length, total: list_.length });
     var mf = await drive.upload(folderId, 'manifest.json', 'application/json', JSON.stringify(envelope), {
       fileId: prevM ? prevM.id : null, appProperties: props, description: 'Cult A+ Design Lab template ' + key
     });
     var entry = entryOf(mf);
-    await cachePut(key, entry, manifest);
+    if (opts.cache !== false) await cachePut(key, entry, manifest);
     return { key: key, fileId: mf.id, folderId: folderId, assets: refs, replaced: replaced, entry: entry };
   }
 
@@ -4387,6 +4445,326 @@ var templateStore = (function () {
 
   return { list: list, cached: cached, load: load, loadAsset: loadAsset, save: save, remove: remove, PATH: TEMPLATES_PATH, SCHEMA: SCHEMA };
 })();
+
+// ---------- the user's own templates: this computer + their Drive + a file (never the backend) ----------
+// docs/user-templates.md. Three tiers, all belonging to the signed-in user:
+//   this computer  figma.clientStorage via the sandbox (usertpl-* messages, user-templates.js) —
+//                  index + manifests + images while under the storage budget
+//   their Drive    templateStore above, with their own token — "Cult A+ Design Lab/Templates/…"
+//   a file         Export / Import of "<key>.aplus-template.json" (manifest + images, base64)
+// Rows are merged by key into state.userTemplates and overlaid on the registry (setRegistry), so a
+// saved template shows in Automate's and Export's pickers at once and after every restart.
+var USER_TEMPLATE_FILE_SCHEMA = 'aplus.template-file/1';
+var USER_TEMPLATE_FILE_MAX = 60 * 1024 * 1024;
+var USER_KEY_RE = /^[a-z0-9][a-z0-9-]{0,59}\/[a-z0-9][a-z0-9-]{0,39}\/[a-z0-9][a-z0-9-]{0,59}$/;
+function slugify(s, max) {
+  var out = String(s == null ? '' : s).toLowerCase();
+  try { out = out.normalize('NFKD').replace(/[̀-ͯ]/g, ''); } catch (e) {}
+  out = out.replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  return out.slice(0, max || 60).replace(/-+$/, '');
+}
+function titleCase(s) { s = String(s || ''); return s.charAt(0).toUpperCase() + s.slice(1); }
+
+var userTemplates = (function () {
+  var local = [];          // rows from the sandbox: this computer
+  var usage = null;        // { own, foreign, total, budget, quota } bytes
+  var driveRows = null;    // null = Drive not listed yet; [] = listed, nothing there
+  var driveError = null;
+  var driveEnv = {};       // key -> templateStore.load() result, this session
+
+  function merged() {
+    var by = {}, order = [];
+    function row(k) { if (!by[k]) { by[k] = { key: k, local: null, drive: null }; order.push(k); } return by[k]; }
+    local.forEach(function (r) {
+      var e = row(r.key);
+      ['label', 'category', 'categoryLabel', 'gender', 'id', 'sub', 'savedAt', 'bytes'].forEach(function (f) { e[f] = r[f]; });
+      e.local = r.local && r.local.manifest ? r.local : null;
+      if (!driveRows && r.drive) e.drive = { fileId: r.drive.fileId, folderId: r.drive.folderId, unverified: true };
+    });
+    (driveRows || []).forEach(function (d) {
+      var e = row(d.key);
+      if (!e.label) {
+        e.label = d.label; e.category = d.category; e.gender = d.gender; e.id = d.id;
+        e.savedAt = d.modifiedTime; e.bytes = d.totalBytes || d.size || 0;
+      }
+      if (!e.categoryLabel) e.categoryLabel = d.categoryLabel || titleCase(d.category);
+      e.drive = { fileId: d.fileId, folderId: d.folderId, modifiedTime: d.modifiedTime, bytes: d.totalBytes || null };
+    });
+    return order.map(function (k) { return by[k]; })
+      .filter(function (e) { return e.local || e.drive; })
+      .sort(function (a, b) { return String(a.label || a.key).localeCompare(String(b.label || b.key)); });
+  }
+  function publish() {
+    state.userTemplates = merged();
+    if (state.registry) setRegistry(state.registry);     // re-applies the overlay, emits 'registry'
+    bus.emit('user-templates', state.userTemplates);
+  }
+  function find(key) { return (state.userTemplates || []).filter(function (e) { return e.key === key; })[0] || null; }
+  function where(e) { return !e ? 'none' : (e.local && e.drive ? 'both' : e.local ? 'computer' : 'drive'); }
+  function forget(key) { delete state.manifestCache[key]; delete state.manifestSource[key]; delete driveEnv[key]; }
+
+  function setLocal(r) { if (r) { local = r.index || []; usage = r.usage || usage; } }
+  async function refreshLocal() {
+    try { setLocal(await bridge.request('usertpl-list', {}, { timeoutMs: 15000 })); }
+    catch (e) { console.warn('[userTemplates] could not read this computer\'s templates', e && e.message); }
+    publish();
+  }
+  async function refreshDrive() {
+    if (!auth.isConnected()) return;
+    try { driveRows = await templateStore.list(); driveError = null; }
+    catch (e) { driveError = e; console.warn('[userTemplates] Drive list failed', e && e.message); }
+    publish();
+  }
+  // 'free' | 'user' | 'bundled' — bundled templates can never be replaced by the user's own
+  function keyStatus(key) {
+    if (find(key)) return 'user';
+    var p = String(key).split('/');
+    var cat = (state.bundledRegistry && state.bundledRegistry.categories || []).filter(function (c) { return c.id === p[0]; })[0];
+    var g = cat && (cat.genders || []).filter(function (x) { return x.id === p[1]; })[0];
+    if (g && (g.templates || []).some(function (t) { return t.id === p[2] && !t.user && !t.captured; })) return 'bundled';
+    return 'free';
+  }
+  function suggestFreeId(cat, gender, id) {
+    var base = String(id).replace(/-\d+$/, '') || 'template';
+    for (var n = 2; n < 200; n++) { var c = (base + '-' + n).slice(0, 60); if (keyStatus(cat + '/' + gender + '/' + c) === 'free') return c; }
+    return base + '-' + Date.now().toString(36);
+  }
+
+  async function driveLoad(key) {
+    if (driveEnv[key]) return driveEnv[key];
+    if (!auth.isConnected()) throw PlatformError('no-session', 'This template is in your Google Drive. Sign in to Google to use it on this computer.');
+    driveEnv[key] = await templateStore.load(key, { cache: false });
+    return driveEnv[key];
+  }
+  // The manifest only (previews, run). This computer first, then Drive.
+  async function getManifest(key) {
+    var e = find(key);
+    if (!e) return null;
+    if (e.local) {
+      var r = await bridge.request('usertpl-get', { key: key, assets: false }, { timeoutMs: 20000 });
+      if (r && r.manifest) return r.manifest;
+    }
+    if (e.drive) return (await driveLoad(key)).manifest;
+    return null;
+  }
+  // Manifest + every image's bytes, from wherever they are. onProgress({ text, done, total }).
+  async function collect(key, onProgress) {
+    var e = find(key), out = { manifest: null, assets: [], missing: [] };
+    var have = {};
+    {
+      // session memory / this computer first — right after a capture that did not fit locally,
+      // the sandbox still holds the fresh copy, which must win over an older Drive version
+      var r = await bridge.request('usertpl-get', { key: key, assets: true }, { timeoutMs: 60000 }).catch(function () { return null; });
+      if (r && r.manifest) { out.manifest = r.manifest; out.assets = r.assets || []; out.assets.forEach(function (a) { have[a.hash] = 1; }); }
+    }
+    var want = [];
+    var env = null;
+    if (!out.manifest && e && e.drive) { env = await driveLoad(key); out.manifest = env.manifest; }
+    if (!out.manifest) throw PlatformError('not-found', 'Template "' + key + '" is not on this computer or in your Drive.');
+    ((out.manifest.meta && out.manifest.meta.assets) || []).forEach(function (a) { if (!have[a.hash]) want.push(a); });
+    if (want.length && e && e.drive && auth.isConnected()) {
+      env = env || await driveLoad(key);
+      for (var i = 0; i < want.length; i++) {
+        var a = want[i];
+        var ref = (env.assets || []).filter(function (x) { return x.name === a.name; })[0];
+        if (!ref) continue;
+        if (onProgress) onProgress({ text: 'Downloading image ' + (i + 1) + ' of ' + want.length + ' from Drive…', done: i, total: want.length });
+        var bytes = await templateStore.loadAsset(ref.fileId);
+        out.assets.push({ hash: a.hash, mime: a.mime, name: a.name, width: a.width, height: a.height, bytes: bytes.length, data: bytes });
+        have[a.hash] = 1;
+      }
+    }
+    want.forEach(function (a) { if (!have[a.hash]) out.missing.push(a.hash); });
+    return out;
+  }
+
+  // Before Automate builds: make sure the sandbox has each user template's manifest and images.
+  // A template only in Drive is downloaded now (first use on this machine) and kept on this
+  // computer when it fits; returns { key: manifest } for the run message.
+  async function prepareRun(keys, onProgress) {
+    var manifests = {};
+    for (var i = 0; i < keys.length; i++) {
+      var key = keys[i], e = find(key);
+      if (!e) continue;
+      var st = await bridge.request('usertpl-status', { key: key }, { timeoutMs: 20000 }).catch(function () { return { manifest: false, missing: [] }; });
+      if (st.manifest && !st.missing.length) continue;            // the sandbox has everything
+      if (!e.drive) {
+        if (!st.manifest) throw PlatformError('not-found', '"' + (e.label || key) + '" is not on this computer any more. Import its template file again.');
+        continue;                                                  // builds with labelled placeholders for the missing images
+      }
+      if (onProgress) onProgress({ text: 'Getting "' + (e.label || key) + '" from your Drive…' });
+      var full = await collect(key, onProgress);
+      if (!st.manifest) {
+        var put = await bridge.request('usertpl-put', { manifest: full.manifest, assets: full.assets, replace: true,
+          drive: { fileId: e.drive.fileId, folderId: e.drive.folderId, savedAt: e.drive.modifiedTime || null } }, { timeoutMs: 60000 });
+        if (put && put.local && put.local.reason) console.info('[userTemplates] ' + key + ': ' + put.local.reason);
+        await refreshLocal();
+      } else {
+        await bridge.request('usertpl-stage', { key: key, assets: full.assets }, { timeoutMs: 60000 });
+      }
+      manifests[key] = full.manifest;
+    }
+    return manifests;
+  }
+
+  // Upload (or re-upload) one template to the user's Drive. onProgress({ text, pct }).
+  async function uploadToDrive(key, onProgress) {
+    if (!auth.isConnected()) throw PlatformError('no-session', 'Sign in to Google to back this template up to your Drive.');
+    var full = await collect(key);
+    var files_ = full.assets.map(function (a) { return { name: a.name, mimeType: a.mime, bytes: a.data }; });
+    var res = await templateStore.save(full.manifest, files_, {
+      cache: false,
+      onProgress: function (p) {
+        if (!onProgress) return;
+        if (p.step === 'manifest') return onProgress({ text: 'Uploading the template file…', pct: 96 });
+        var frac = p.size ? Math.min(1, p.loaded / p.size) : 0;
+        onProgress({ text: (p.skipped ? 'Already in Drive: image ' : 'Uploading image ') + (p.index + 1) + ' of ' + p.total + '…',
+          pct: Math.round(((p.index + frac) / Math.max(1, p.total)) * 92) });
+      }
+    });
+    var mark = { fileId: res.fileId, folderId: res.folderId, savedAt: new Date().toISOString() };
+    await bridge.request('usertpl-mark-drive', { key: key, drive: mark }, { timeoutMs: 15000 }).catch(function () {});
+    driveRows = (driveRows || []).filter(function (d) { return d.key !== key; }).concat([res.entry]);
+    local.forEach(function (r) { if (r.key === key) r.drive = mark; });
+    forget(key);
+    publish();
+    return { res: res, missing: full.missing };
+  }
+
+  // ---- the file tier ----
+  async function exportFile(key, onProgress) {
+    var full = await collect(key, onProgress);
+    var M = full.manifest;
+    var doc = {
+      schema: USER_TEMPLATE_FILE_SCHEMA, app: 'Cult A+ Design Lab', exportedAt: new Date().toISOString(),
+      key: M.meta.key, label: M.meta.label,
+      manifest: M,
+      assets: full.assets.map(function (a) {
+        return { hash: a.hash, name: a.name, mime: a.mime, width: a.width || null, height: a.height || null, bytes: a.data.length, data: files.toB64(a.data) };
+      }),
+      missingAssets: full.missing
+    };
+    var name = M.meta.key.replace(/\//g, '_') + '.aplus-template.json';
+    var blob = new Blob([JSON.stringify(doc)], { type: 'application/json' });
+    var link = files.save(blob, 'application/json', name);
+    return { name: name, bytes: blob.size, missing: full.missing.length, link: link };
+  }
+  function hasBadKeys(v, depth) {
+    if (!v || typeof v !== 'object' || depth > 40) return depth > 40;
+    for (var k in v) {
+      if (!Object.prototype.hasOwnProperty.call(v, k)) continue;
+      if (k === '__proto__' || k === 'constructor' || k === 'prototype') return true;
+      if (hasBadKeys(v[k], depth + 1)) return true;
+    }
+    return false;
+  }
+  // parseFile(text) -> { manifest, assets: [{hash, mime, name, width, height, data}], warnings }
+  function parseFile(text) {
+    function bad(m) { return PlatformError('bad-request', 'That file is not a usable template: ' + m); }
+    if (text.length > USER_TEMPLATE_FILE_MAX) throw bad('it is larger than ' + Math.round(USER_TEMPLATE_FILE_MAX / 1048576) + ' MB.');
+    var doc;
+    try { doc = JSON.parse(text); } catch (e) { throw bad('it is not JSON.'); }
+    if (!doc || doc.schema !== USER_TEMPLATE_FILE_SCHEMA) throw bad('it was not exported by Cult A+ Design Lab (schema ' + esc(String(doc && doc.schema)) + ').');
+    if (hasBadKeys(doc, 0)) throw bad('it contains reserved property names.');
+    var M = doc.manifest;
+    if (!M || M.schema !== 'aplus.template/2' || M.renderer !== 'aplus-capture-v1') throw bad('the template inside is of an unsupported kind.');
+    if (!M.meta || !USER_KEY_RE.test(String(M.meta.key || '')) || M.meta.key !== M.meta.category + '/' + M.meta.gender + '/' + M.meta.id) throw bad('its key is not "category/gender/id".');
+    if (!M.root || !M.root.type || !M.content || !M.fonts) throw bad('the template has no layers, sheet mapping or fonts.');
+    var warnings = [], assets = [];
+    var ok = { 'image/png': 1, 'image/jpeg': 1, 'image/gif': 1, 'image/webp': 1 };
+    (Array.isArray(doc.assets) ? doc.assets : []).forEach(function (a) {
+      if (!a || !/^[A-Za-z0-9_-]{6,128}$/.test(String(a.hash)) || typeof a.data !== 'string') { warnings.push('An image entry was malformed and was skipped.'); return; }
+      if (!ok[a.mime]) { warnings.push('Image ' + String(a.hash).slice(0, 8) + ' is not PNG/JPEG/GIF/WEBP and was skipped.'); return; }
+      var data;
+      try { data = files.fromB64(a.data); } catch (e) { warnings.push('Image ' + a.hash.slice(0, 8) + ' could not be decoded and was skipped.'); return; }
+      if (a.bytes && data.length !== Number(a.bytes)) { warnings.push('Image ' + a.hash.slice(0, 8) + ' is truncated and was skipped.'); return; }
+      assets.push({ hash: a.hash, mime: a.mime, name: String(a.name || a.hash).replace(/[^A-Za-z0-9_.-]/g, '').slice(0, 140) || a.hash, width: a.width || null, height: a.height || null, bytes: data.length, data: data });
+    });
+    var need = ((M.meta.assets) || []).length;
+    if (need > assets.length) warnings.push((need - assets.length) + ' of ' + need + ' image(s) are not in the file; those layers will show a labelled placeholder.');
+    return { manifest: M, assets: assets, warnings: warnings };
+  }
+  // Re-key a parsed template ("Save as new").
+  function rekey(M, id, label) {
+    var c = JSON.parse(JSON.stringify(M));
+    c.meta.id = id; c.meta.key = c.meta.category + '/' + c.meta.gender + '/' + id;
+    if (label) c.meta.label = label;
+    return c;
+  }
+  // Save a whole template (from a file): this computer, then Drive. Never throws for Drive — reports it.
+  async function saveWhole(M, assets, opts) {
+    opts = opts || {};
+    var r = await bridge.request('usertpl-put', { manifest: M, assets: assets, replace: !!opts.replace, drive: null }, { timeoutMs: 60000 });
+    forget(M.meta.key);
+    await refreshLocal();
+    var out = { key: M.meta.key, local: r.local, drive: null, driveError: null };
+    if (auth.isConnected()) {
+      try { out.drive = (await uploadToDrive(M.meta.key, opts.onProgress)).res; }
+      catch (e) { out.driveError = e; }
+    }
+    return out;
+  }
+  // Delete everywhere: this computer now, Drive copy to the Drive bin (recoverable for 30 days).
+  async function remove(key) {
+    var e = find(key), out = { key: key, local: false, drive: 'none', driveError: null };
+    if (e && e.local) { await bridge.request('usertpl-remove', { key: key }, { timeoutMs: 15000 }); out.local = true; }
+    if (e && e.drive) {
+      if (!auth.isConnected()) { out.drive = 'skipped'; }
+      else {
+        try { await templateStore.remove(key); out.drive = 'trashed'; driveRows = (driveRows || []).filter(function (d) { return d.key !== key; }); }
+        catch (err) {
+          if (err && err.code === 'not-found') { out.drive = 'gone'; driveRows = (driveRows || []).filter(function (d) { return d.key !== key; }); }
+          else { out.drive = 'failed'; out.driveError = err; }
+        }
+      }
+    }
+    forget(key);
+    await refreshLocal();
+    return out;
+  }
+
+  return {
+    list: function () { return state.userTemplates || []; }, find: find, where: where, isUser: function (k) { return !!find(k); },
+    usage: function () { return usage; }, driveListed: function () { return driveRows !== null; }, driveError: function () { return driveError; },
+    setLocal: function (r) { setLocal(r); publish(); }, refreshLocal: refreshLocal, refreshDrive: refreshDrive,
+    keyStatus: keyStatus, suggestFreeId: suggestFreeId, getManifest: getManifest, collect: collect, prepareRun: prepareRun,
+    uploadToDrive: uploadToDrive, exportFile: exportFile, parseFile: parseFile, rekey: rekey, saveWhole: saveWhole, remove: remove,
+    forget: forget, FILE_SCHEMA: USER_TEMPLATE_FILE_SCHEMA
+  };
+})();
+
+// The registry overlay: strip every user template (and categories/genders that existed only for
+// them), then add the current state.userTemplates. Idempotent, so it runs on every setRegistry.
+function applyUserTemplates(reg) {
+  if (!reg || !reg.categories) return reg;
+  var out = JSON.parse(JSON.stringify(reg));
+  out.categories = out.categories.map(function (c) {
+    c.genders = (c.genders || []).map(function (g) {
+      g.templates = (g.templates || []).filter(function (t) { return !t.user && !t.captured; });
+      return g;
+    }).filter(function (g) { return !(g.userOnly && !g.templates.length); });
+    return c;
+  }).filter(function (c) { return !(c.userOnly && !c.genders.length); });
+  (state.userTemplates || []).forEach(function (e) {
+    if (!e.category || !e.gender || !e.id) return;
+    var cat = out.categories.filter(function (c) { return c.id === e.category; })[0];
+    if (!cat) {
+      cat = { id: e.category, label: e.categoryLabel || titleCase(e.category), status: 'active', defaultGender: e.gender, genders: [], userOnly: true };
+      out.categories.push(cat);
+    }
+    cat.status = 'active';
+    var gen = (cat.genders || []).filter(function (g) { return g.id === e.gender; })[0];
+    if (!gen) {
+      gen = { id: e.gender, label: titleCase(e.gender), status: 'active', hero: ['', ''], templates: [], userOnly: true };
+      (cat.genders = cat.genders || []).push(gen);
+    }
+    gen.status = 'active';
+    gen.templates = (gen.templates || []).filter(function (t) { return t.id !== e.id; });
+    gen.templates.push({ id: e.id, label: e.label || e.id, version: 1, status: 'active', captured: true, user: true,
+      sub: 'Your template · ' + ({ both: 'this computer + Drive', computer: 'this computer', drive: 'your Drive' })[userTemplates.where(e)] });
+  });
+  return out;
+}
 
 // ---------- notes, toasts ----------
 var ui = {
@@ -4462,6 +4840,15 @@ function parseCatGender(bRaw, cRaw) {
   var cat = '', gen = '';
   words(bRaw).forEach(function (t) { if (!cat && ca[t]) cat = ca[t]; if (!gen && ga[t]) gen = ga[t]; });
   words(cRaw).forEach(function (t) { if (!gen && ga[t]) gen = ga[t]; });
+  if (!cat) {
+    // a category the user created ("Yoga Pants" -> yoga-pants): match the whole cell, with or
+    // without a gender word in it, against category ids and labels
+    var tries = [slugify(bRaw), slugify(words(bRaw).filter(function (t) { return !ga[t]; }).join(' '))];
+    registryCats().forEach(function (c) {
+      if (cat) return;
+      if (tries.indexOf(c.id) >= 0 || tries.indexOf(slugify(c.label)) >= 0) cat = c.id;
+    });
+  }
   return { cat: cat, gender: gen };
 }
 
@@ -4474,8 +4861,9 @@ function hasFeature(tpl, f) { return !!(tpl && (tpl.features || []).indexOf(f) >
 function genderReady(g) { return g && g.status === 'active' && activeTemplate(g); }
 
 // The ONLY way to change state.registry. Emits 'registry' so every panel re-renders its pickers.
+// The user's own templates are overlaid on whatever registry arrives (bundled, backend or this one).
 function setRegistry(reg) {
-  state.registry = reg;
+  state.registry = applyUserTemplates(reg);
   bus.emit('registry', reg);
 }
 // A backend can ADD templates but must never take one away. The Docker image bakes the
@@ -4531,6 +4919,14 @@ async function refreshRegistry() {
 async function fetchManifest(cat, gen, tpl) {
   var key = cat + '/' + gen + '/' + tpl;
   if (state.manifestCache[key]) return state.manifestCache[key];
+  // the user's own template: this computer, else their Drive — never the backend
+  if (userTemplates.isUser(key)) {
+    try {
+      var um = await userTemplates.getManifest(key);
+      if (um) { state.manifestCache[key] = um; state.manifestSource[key] = 'user'; return um; }
+    } catch (e) { console.warn('[platform] template ' + key + ': ' + errorText(e)); }
+    return null;
+  }
   try {
     var m = await backend.get('/api/templates/' + cat + '/' + gen + '/' + tpl, { timeoutMs: 30000 });
     if (m && m.meta) { state.manifestCache[key] = m; state.manifestSource[key] = 'backend'; return m; }
@@ -4666,6 +5062,8 @@ async function disconnectGoogle() {
   setGoogle('off'); showGate(true); gateProbe();
   bus.emit('auth', { connected: false, email: null, needsReconsent: false });
 }
+// signed in (or reconnected): the user's templates saved from other machines come back from Drive
+bus.on('auth', function (a) { if (a && a.connected && !a.needsReconsent) userTemplates.refreshDrive(); });
 // an auth failure anywhere (expired, revoked, scope) is surfaced once, not per call
 bus.on('auth-error', function (e) {
   var now = Date.now();
@@ -4702,6 +5100,7 @@ bridge.on('init', function (m) {
   state.bundledRegistry = m.registry;       // so a stale backend can never remove a bundled template
   window.BUNDLED_MANIFESTS = m.manifests || {};
   if (m.page) setPage(m.page);              // legacy init.page, still honoured
+  if (m.userTemplates) userTemplates.setLocal(m.userTemplates);   // this computer's templates, before the first overlay
   setRegistry(m.registry);                  // -> bus 'registry' (pickers, rules)
   setGoogle('off');
   bus.emit('init', m);                      // panels read their own init fields here
@@ -4739,7 +5138,7 @@ var platform = {
   BACKEND_DEFAULT: BACKEND_DEFAULT, TEMPLATES_PATH: TEMPLATES_PATH,
   state: state, Panels: Panels, $: $, esc: esc, PlatformError: PlatformError, errorText: errorText,
   bus: bus, bridge: bridge, backend: backend, auth: auth, googleFetch: googleFetch,
-  drive: drive, sheets: sheets, templateStore: templateStore, storage: storage, ui: ui, files: files,
+  drive: drive, sheets: sheets, templateStore: templateStore, userTemplates: userTemplates, storage: storage, ui: ui, files: files, slugify: slugify,
   registry: { cats: registryCats, catById: catById, genderById: genderById, activeTemplate: activeTemplate,
     hasFeature: hasFeature, genderReady: genderReady, set: setRegistry, refresh: refreshRegistry,
     merge: mergeRegistry, fetchManifest: fetchManifest },
@@ -5241,11 +5640,24 @@ window.platform = platform;
       }
       var manifests = {}, distinct = {};
       targets.forEach(function (t) { if (t.key) distinct[t.key] = t; });
+      // the user's own templates: make sure the sandbox has the manifest AND the images (a template
+      // saved on another machine is fetched from the user's Drive here, with progress)
+      var userKeys = Object.keys(distinct).filter(function (k) { return userTemplates.isUser(k); });
+      if (userKeys.length) {
+        try {
+          var prepared = await userTemplates.prepareRun(userKeys, function (p) { $('run').textContent = p.text || 'Preparing…'; });
+          for (var pk in prepared) manifests[pk] = prepared[pk];
+        } catch (e) {
+          setErr('Could not get your template ready: ' + errorText(e));
+          $('run').disabled = !!state.scopeBlocked; $('run').textContent = 'Run A+'; return;
+        }
+      }
       for (var k in distinct) {
+        if (manifests[k]) continue;
         var m = await fetchManifest(distinct[k].catId, distinct[k].genderId, distinct[k].templateId);
         if (m) manifests[k] = m;
       }
-      var source = Object.keys(manifests).some(function (k) { return state.manifestSource[k] === 'backend'; }) ? 'backend' : 'bundled';
+      var source = userKeys.length ? 'your templates' : Object.keys(manifests).some(function (k) { return state.manifestSource[k] === 'backend'; }) ? 'backend' : 'bundled';
       $('run').textContent = 'Building 0 / ' + rows.length + '…';
       bridge.send('run', { rows: rows, keys: keys, errors: errors, manifests: manifests, source: source });
     };
@@ -5501,165 +5913,396 @@ window.platform = platform;
 <script data-src="ui/design.js">
 /* =============================================================================================
    plugin-src/ui/design.js — the "Add design" panel.  OWNED BY THE DESIGN PANEL.
-   Markup: ui/design.html. Sandbox side: plugin-src/main-design.js (+ capture.js).
-   Uses platform.js: state, $, esc, bus, bridge, backend, registryCats, catById, templateStore.
+   Markup: ui/design.html. Sandbox side: plugin-src/main-design.js (+ capture.js, user-templates.js).
+   Uses platform.js: state, $, esc, bus, bridge, auth, files, errorText, registryCats, slugify,
+   userTemplates (this computer / Drive / file tiers — docs/user-templates.md).
    Publishes Panels.design.
+
+   Flow: select a frame -> name it (free-text category, gender, id) -> Save as template
+     1. capture in the sandbox (progress per stage, images included)
+     2. saved on this computer (clientStorage, within its budget)       -> registry refreshed at once
+     3. uploaded to the user's Drive (progress)                          -> "Saved · this computer + Drive"
+     A Drive failure leaves a "Retry upload" button; nothing is ever sent to the A+ backend.
    ============================================================================================= */
 (function () {
-    // ---------- PANEL 2 — add design ----------
-    function renderDesignPickers() {
-      var cats = registryCats();
-      var cur = $('ad-cat').value;
-      $('ad-cat').innerHTML = '<option value="">Category…</option>' + cats.map(function (c) {
-        return '<option value="' + esc(c.id) + '">' + esc(c.label) + '</option>';
-      }).join('');
-      if (cur) $('ad-cat').value = cur;
-      renderDesignGenders();
-    }
-    function renderDesignGenders() {
-      var c = catById($('ad-cat').value);
-      var gens = (c && c.genders) || [{ id: 'men', label: 'Men' }, { id: 'women', label: 'Women' }, { id: 'unisex', label: 'Unisex' }];
-      $('ad-gender').innerHTML = gens.map(function (g) {
-        return '<option value="' + esc(g.id) + '">' + esc(g.label) + '</option>';
-      }).join('');
-    }
-    $('ad-cat').onchange = function () { renderDesignGenders(); renderDesignSelection(); };
-    $('ad-name').oninput = renderDesignSelection;
-    $('ad-id').oninput = renderDesignSelection;
+  var D = state.design = {
+    idEdited: false,      // once the user types an id, the name stops overwriting it
+    busy: false,          // a capture / import is running
+    uploading: {},        // key -> { text, pct } while a Drive upload runs
+    uploadErr: {},        // key -> error text after a failed upload (Retry shown)
+    confirmDelete: null,  // key whose Delete is waiting for "Yes, delete"
+    lastCapture: null     // the capture-result being finished (Drive upload)
+  };
+  var GENDER_LABEL = { men: 'Men', women: 'Women', unisex: 'Unisex' };
+  var STEP_TEXT = {
+    scan: 'Finding the frame', capture: 'Reading every layer', classify: 'Finding text roles and photo slots',
+    images: 'Copying the images', 'render-probe': 'Rebuilding it to check the copy', diff: 'Comparing the copy with your frame',
+    'save-local': 'Saving on this computer'
+  };
+  var STEP_ORDER = ['scan', 'capture', 'classify', 'images', 'render-probe', 'diff', 'save-local'];
 
-    function renderDesignSelection() {
-      var f = (state.selection.frames || [])[0];
-      var n = (state.selection.frames || []).length;
-      $('ad-selmeta').textContent = n ? (n + ' selected') : '';
-      if (!f) {
-        $('ad-sel').innerHTML = 'Select one frame to capture.';
+  function fmt(n) { return files.fmtBytes(Math.max(0, Number(n) || 0)); }
+  function progressNote(title, text, pct) {
+    return '<div class="note pending"><b>' + esc(title) + '</b>' + esc(text || '') +
+      '<div class="track"><i style="width:' + Math.max(3, Math.min(100, pct || 0)) + '%"></i></div></div>';
+  }
+
+  // ---------- identity: category (free text), gender, name, id ----------
+  function renderCategoryList() {
+    var seen = {};
+    $('ad-cats').innerHTML = registryCats().map(function (c) {
+      if (seen[c.label]) return ''; seen[c.label] = 1;
+      return '<option value="' + esc(c.label) + '"></option>';
+    }).join('');
+  }
+  // The typed category: an existing one when the label or id matches, else a new id from the text.
+  function typedCategory() {
+    var raw = $('ad-cat').value.trim();
+    if (!raw) return null;
+    var hit = registryCats().filter(function (c) { return c.label.toLowerCase() === raw.toLowerCase() || c.id === raw.toLowerCase() || c.id === slugify(raw); })[0];
+    if (hit) return { id: hit.id, label: hit.label, existing: true };
+    var id = slugify(raw, 60);
+    return id ? { id: id, label: raw, existing: false } : null;
+  }
+  function currentKey() {
+    var c = typedCategory(), id = slugify($('ad-id').value, 60), g = $('ad-gender').value;
+    if (!c || !id) return null;
+    return { key: c.id + '/' + g + '/' + id, cat: c, gender: g, id: id };
+  }
+  $('ad-name').oninput = function () {
+    if (!D.idEdited) $('ad-id').value = slugify($('ad-name').value, 60);
+    renderForm();
+  };
+  $('ad-id').oninput = function () { D.idEdited = !!$('ad-id').value.trim(); renderForm(); };
+  $('ad-id').onblur = function () { var v = slugify($('ad-id').value, 60); if (v !== $('ad-id').value) { $('ad-id').value = v; renderForm(); } };
+  $('ad-cat').oninput = renderForm;
+  $('ad-gender').onchange = renderForm;
+
+  function renderForm() {
+    var f = (state.selection.frames || [])[0];
+    var n = (state.selection.frames || []).length;
+    $('ad-selmeta').textContent = n ? (n + ' selected') : '';
+    if (!f) $('ad-sel').innerHTML = 'Select one frame to capture.';
+    else {
+      $('ad-sel').innerHTML = '<b>' + esc(f.name) + '</b><br>' +
+        '<span class="muted">' + f.w + ' × ' + f.h + ' px</span>' +
+        (n > 1 ? '<br><span style="color:var(--danger)">' + n + ' frames selected. Only the first is saved.</span>' : '');
+    }
+    var k = currentKey();
+    if (!k) {
+      $('ad-keyline').innerHTML = $('ad-cat').value.trim() && !typedCategory()
+        ? '<span style="color:var(--danger)">Use at least one letter or digit in the category.</span>'
+        : 'Saved as <code>category/gender/id</code>.';
+    } else {
+      var st = userTemplates.keyStatus(k.key);
+      $('ad-keyline').innerHTML = 'Saved as <code>' + esc(k.key) + '</code>' +
+        (k.cat.existing ? '' : ' · new category <b>' + esc(k.cat.label) + '</b>') +
+        (st === 'user' ? ' · <span style="color:var(--danger)">you already have a template with this id</span>' : '') +
+        (st === 'bundled' ? ' · <span style="color:var(--danger)">a built-in template uses this id</span>' : '');
+    }
+    $('ad-where').innerHTML = auth.isConnected()
+      ? 'Saved on this computer and in your Google Drive (<code>Cult A+ Design Lab/Templates</code>).'
+      : 'Saved on this computer only. Sign in to Google to keep a copy in your Drive.';
+    $('ad-go').disabled = D.busy || !(f && $('ad-name').value.trim() && k);
+  }
+
+  // ---------- in-panel choices (no confirm() dialogs in a Figma plugin) ----------
+  // choose(host, html, [{ label, cls, fn }]) — renders a note with buttons; any button clears it.
+  function choose(host, html, options) {
+    host.innerHTML = '<div class="note pending">' + html + '<div class="ut-choice">' +
+      options.map(function (o, i) { return '<button data-i="' + i + '" class="' + (o.cls || '') + '">' + esc(o.label) + '</button>'; }).join('') +
+      '</div></div>';
+    host.querySelectorAll('.ut-choice button').forEach(function (b) {
+      b.onclick = function () { host.innerHTML = ''; options[Number(b.dataset.i)].fn(); };
+    });
+  }
+  // Same key already used? Ask: Replace / Save as new / Cancel (bundled keys: Save as new only).
+  function resolveKeyClash(host, k, label, go) {
+    var st = userTemplates.keyStatus(k.key);
+    if (st === 'free') return go(k, false);
+    var newId = userTemplates.suggestFreeId(k.cat.id, k.gender, k.id);
+    var opts = [];
+    if (st === 'user') opts.push({ label: 'Replace it', cls: 'danger', fn: function () { go(k, true); } });
+    opts.push({ label: 'Save as new (' + newId + ')', cls: 'go', fn: function () {
+      go({ key: k.cat.id + '/' + k.gender + '/' + newId, cat: k.cat, gender: k.gender, id: newId }, false);
+    } });
+    opts.push({ label: 'Cancel', fn: function () { renderForm(); } });
+    var e = userTemplates.find(k.key);
+    choose(host, st === 'user'
+      ? '<b>You already have “' + esc((e && e.label) || k.key) + '”</b>It is saved as <code>' + esc(k.key) + '</code> (' +
+        esc(whereText(e)) + '). Replace it with “' + esc(label) + '”, or keep both?'
+      : '<b>That id belongs to a built-in template</b><code>' + esc(k.key) + '</code> ships with the plugin and cannot be replaced.', opts);
+  }
+
+  // ---------- save: capture -> this computer -> Drive ----------
+  $('ad-go').onclick = function () {
+    var f = (state.selection.frames || [])[0], k = currentKey();
+    if (!f || !k) return;
+    $('ad-out').innerHTML = '';
+    resolveKeyClash($('ad-conflict'), k, $('ad-name').value.trim(), function (kk, replace) { startCapture(f, kk, replace); });
+  };
+  function startCapture(f, k, replace) {
+    D.busy = true; D.lastCapture = null;
+    $('ad-id').value = k.id;
+    renderForm();
+    $('ad-out').innerHTML = progressNote('Saving · 1 of ' + (auth.isConnected() ? 3 : 2), STEP_TEXT.scan + '…', 2);
+    bridge.send('capture-template', {
+      frameId: f.id, frameName: f.name, width: f.w, height: f.h, styleIds: f.ids || [], pageId: state.pageId,
+      template: { id: k.id, label: $('ad-name').value.trim(), categoryId: k.cat.id, categoryLabel: k.cat.label, genderId: k.gender, status: 'active' },
+      replace: !!replace
+    });
+    armCaptureFallback();
+  }
+  // Only fires when this code.js is older than the panel (nothing answers capture-template).
+  function armCaptureFallback() {
+    clearTimeout(state.pending.capture);
+    state.pending.capture = setTimeout(function () {
+      D.busy = false; renderForm();
+      $('ad-out').innerHTML = ui.note('warn', 'The plugin code is out of date',
+        'Nothing answered the save request. Close and reopen the plugin (or rebuild it). Nothing was saved and the frame is untouched.');
+    }, 4000);
+  }
+  function renderCaptureProgress(m) {
+    var i = Math.max(0, STEP_ORDER.indexOf(m.step));
+    var within = Number(m.total) > 0 ? Math.min(1, (Number(m.done) || 0) / Number(m.total)) : 0;
+    var pct = Math.round(((i + within) / STEP_ORDER.length) * 100);
+    var extra = m.step === 'images' && m.total ? ' (' + Math.min(m.done + 1, m.total) + ' of ' + m.total + ')' : '';
+    $('ad-out').innerHTML = progressNote(m.step === 'save-local' ? 'Saving on this computer' : 'Reading your frame',
+      (STEP_TEXT[m.step] || 'Working') + extra + '…', pct);
+  }
+
+  function whereText(e) {
+    var w = userTemplates.where(e);
+    return w === 'both' ? 'this computer + Drive' : w === 'computer' ? 'this computer only' : w === 'drive' ? 'your Drive only' : 'not saved';
+  }
+  function roundTripDetails(d) {
+    if (!d) return '';
+    var mis = d.mismatches || [];
+    var pct = typeof d.score === 'number' ? Math.round(d.score * 1000) / 10 + '%' : '—';
+    return '<details class="more"><summary title="Copy check">' + (mis.length ? mis.length + ' difference(s)' : 'Copy check: identical') + '</summary>' +
+      '<div class="hint">The plugin rebuilt your frame from the saved template and compared ' + esc(String(d.compared || 0)) +
+      ' properties: ' + esc(pct) + ' match.' + (mis.length ? ' These did not come back exactly:' : '') + '</div>' +
+      (mis.length ? '<div class="hint" style="max-height:180px;overflow:auto">' + mis.slice(0, 60).map(function (x) {
+        return '<div><code>' + esc(x.path || '') + '</code> expected ' + esc(String(x.expected)).slice(0, 80) + ', got ' + esc(String(x.actual)).slice(0, 80) + '</div>';
+      }).join('') + '</div>' : '') + '</details>';
+  }
+  function warningsBlock(w) {
+    if (!w || !w.length) return '';
+    return '<details class="more"><summary title="Notes">' + w.length + ' note(s)</summary><ul class="hint" style="margin:6px 0 0 15px;padding:0">' +
+      w.map(function (x) { return '<li>' + esc(String(x)) + '</li>'; }).join('') + '</ul></details>';
+  }
+
+  // The capture is saved (or not) on this computer; now the Drive copy, then the final status.
+  async function finishCapture(m) {
+    D.lastCapture = m;
+    await userTemplates.refreshLocal();          // -> setRegistry: Automate / Export pickers update now
+    userTemplates.forget(m.key);
+    var label = m.label || m.key;
+    var localOk = !!(m.local && m.local.manifest);
+    var head = '<b>' + esc(label) + '</b> · <code>' + esc(m.key) + '</code><br>' +
+      esc(m.stats.layers + ' layers · ' + m.images + ' image(s) · ' + fmt(m.manifestBytes + (m.imageBytes || 0)));
+    var details = roundTripDetails(m.diff) + warningsBlock(m.warnings);
+
+    if (!auth.isConnected()) {
+      $('ad-out').innerHTML = localOk
+        ? ui.note(m.local.reason ? 'pending' : 'info', 'Saved on this computer', head + (m.local.reason ? '<br>' + esc(m.local.reason) : '') +
+            '<br>Sign in to Google to keep a copy in your Drive.') + details
+        : ui.note('warn', 'Not saved yet', head + '<br>' + esc(m.local.reason || '') +
+            '<br>Sign in to Google to save it to your Drive, or download it as a file now.' +
+            '<div class="ut-choice"><button class="go" id="ad-save-file">Download template file</button></div>') + details;
+      wireSaveFile(m.key);
+      D.busy = false; renderForm(); renderMine();
+      return;
+    }
+    await uploadWithProgress(m.key, $('ad-out'), function (ok, err) {
+      if (ok) {
+        $('ad-out').innerHTML = ui.note(m.local.reason ? 'pending' : 'info',
+          localOk ? 'Saved · this computer + Google Drive' : 'Saved to Google Drive',
+          head + (m.local.reason ? '<br>' + esc(m.local.reason) : '') +
+          '<br>It is in Automate now, under <b>' + esc(categoryLabelOf(m.key)) + ' · ' + esc(GENDER_LABEL[m.key.split('/')[1]] || '') + '</b>.') + details;
       } else {
-        $('ad-sel').innerHTML = '<b>' + esc(f.name) + '</b><br>' +
-          '<span class="muted">' + f.w + ' × ' + f.h + ' px · node ' + esc(f.id) + '</span><br>' +
-          '<span class="muted">Style IDs: ' + (f.ids && f.ids.length ? esc(f.ids.join(', ')) : 'none in the frame name') + '</span>' +
-          (n > 1 ? '<br><span style="color:var(--danger)">' + n + ' frames selected — only the first is captured.</span>' : '');
+        $('ad-out').innerHTML = ui.note(localOk ? 'pending' : 'warn',
+          localOk ? 'Saved on this computer · Drive upload failed' : 'Not saved yet · Drive upload failed',
+          head + '<br>' + esc(errorText(err)) + (localOk ? '' : '<br>' + esc(m.local.reason || '') + ' Download the file so it is not lost.') +
+          '<div class="ut-choice"><button class="go" id="ad-retry">Retry upload</button>' +
+          (localOk ? '' : '<button id="ad-save-file">Download template file</button>') + '</div>') + details;
+        $('ad-retry').onclick = function () { finishCapture(m); };
+        wireSaveFile(m.key);
       }
-      // main.js answers `capture-template` now, so the original validation is back:
-      // a frame, a name, an id and a category.
-      $('ad-go').disabled = !(f && $('ad-name').value.trim() && $('ad-id').value.trim() && $('ad-cat').value);
-      $('ad-go').textContent = 'Add as template';
+      D.busy = false; renderForm();
+    });
+  }
+  function categoryLabelOf(key) {
+    var c = registryCats().filter(function (x) { return x.id === key.split('/')[0]; })[0];
+    return c ? c.label : key.split('/')[0];
+  }
+  function wireSaveFile(key) {
+    var b = $('ad-save-file');
+    if (b) b.onclick = function () { exportTemplate(key, $('ad-out')); };
+  }
+  // Runs the Drive upload for `key`, drawing progress into `host`; done(ok, err).
+  async function uploadWithProgress(key, host, done) {
+    D.uploading[key] = { text: 'Starting…', pct: 2 }; delete D.uploadErr[key];
+    host.innerHTML = progressNote('Uploading to your Google Drive', 'Starting…', 2);
+    renderMine();
+    try {
+      await userTemplates.uploadToDrive(key, function (p) {
+        D.uploading[key] = p;
+        host.innerHTML = progressNote('Uploading to your Google Drive', p.text, p.pct);
+      });
+      delete D.uploading[key];
+      done(true);
+    } catch (e) {
+      delete D.uploading[key]; D.uploadErr[key] = errorText(e);
+      done(false, e);
     }
+    renderMine();
+  }
 
-    $('ad-go').onclick = function () {
-      var f = (state.selection.frames || [])[0];
-      if (!f) return;
-      var payload = {
-        type: 'capture-template',
-        frameId: f.id,
-        frameName: f.name,
-        width: f.w, height: f.h,
-        styleIds: f.ids || [],
-        pageId: state.pageId,
-        template: {
-          id: $('ad-id').value.trim(),
-          label: $('ad-name').value.trim(),
-          categoryId: $('ad-cat').value,
-          genderId: $('ad-gender').value,
-          status: 'draft'
-        },
-        semanticLabelling: $('ad-ai').checked,   // backend-side, never a key in this UI
-        backend: backend.url()
-      };
-      $('ad-go').disabled = true;
-      $('ad-out').innerHTML = '<div class="note pending"><b>Capturing</b>Reading the frame…<div class="track"><i></i></div></div>';
-      bridge.send(payload.type, payload);
-      armCaptureFallback();
-    };
+  // ---------- My templates ----------
+  function renderMine() {
+    var list = userTemplates.list();
+    var u = userTemplates.usage();
+    $('ad-usage').textContent = u ? ('This computer: ' + fmt(u.own) + ' used · ' + fmt(Math.max(0, u.budget - u.total)) + ' free') : '';
+    if (!list.length) {
+      $('ad-mine').innerHTML = '<div class="ut-empty"><b>No templates yet.</b><br>Select a finished A+ frame, name it above and press ' +
+        '<b>Save as template</b>. It appears here and in Automate straight away.' +
+        (auth.isConnected() && !userTemplates.driveListed() ? '<br><span class="muted">Checking your Drive…</span>' : '') + '</div>';
+      return;
+    }
+    $('ad-mine').innerHTML = list.map(function (e) {
+      var up = D.uploading[e.key], err = D.uploadErr[e.key];
+      var canDrive = auth.isConnected();
+      var size = e.bytes || (e.drive && e.drive.bytes) || 0;
+      var partial = e.local && e.local.assetsTotal && e.local.assetsStored < e.local.assetsTotal;
+      var acts;
+      if (D.confirmDelete === e.key) {
+        acts = '<span class="w" style="margin:0">' + (e.drive ? 'Delete from this computer and move the Drive copy to the Drive bin?' : 'Delete from this computer? This cannot be undone.') + '</span>' +
+          '<button class="danger" data-act="delete-yes">Yes, delete</button><button data-act="delete-no">Keep</button>';
+      } else {
+        acts = '<button data-act="export">Export file</button>' +
+          (e.local && !e.drive && canDrive ? '<button class="go" data-act="upload"' + (up ? ' disabled' : '') + '>' + (err ? 'Retry upload' : 'Upload to Drive') + '</button>' : '') +
+          '<button class="danger" data-act="delete"' + (!e.local && !canDrive ? ' disabled title="Sign in to Google to delete a Drive template"' : '') + '>Delete</button>';
+      }
+      return '<div class="ut-row" data-key="' + esc(e.key) + '">' +
+        '<div class="t"><b>' + esc(e.label || e.key) + '</b><span class="muted" style="font-size:10px">' + (size ? fmt(size) : '') + '</span></div>' +
+        '<div class="k">' + esc(e.key) + '</div>' +
+        '<div class="w"><span class="ut-badge ' + (e.local ? 'on' : 'off') + '">This computer' + (partial ? ' · ' + e.local.assetsStored + '/' + e.local.assetsTotal + ' images' : '') + '</span>' +
+        '<span class="ut-badge ' + (e.drive ? 'on' : 'off') + '">Drive' + (e.drive && e.drive.unverified ? ' (not checked yet)' : '') + '</span></div>' +
+        (up ? '<div class="w">' + esc(up.text) + '</div><div class="track"><i style="width:' + Math.max(3, up.pct || 0) + '%"></i></div>' : '') +
+        (err && !up ? '<div class="w" style="color:var(--danger)">Drive upload failed: ' + esc(err) + '</div>' : '') +
+        (!e.local && e.drive ? '<div class="w">Downloads from your Drive the first time you use it here.</div>' : '') +
+        '<div class="acts">' + acts + '</div></div>';
+    }).join('') + (userTemplates.driveError() ? '<div class="hint" style="color:var(--danger)">Could not list your Drive templates: ' + esc(errorText(userTemplates.driveError())) + '</div>' : '');
+    $('ad-mine').querySelectorAll('.ut-row button').forEach(function (b) {
+      b.onclick = function () { onRowAction(b.closest('.ut-row').dataset.key, b.dataset.act); };
+    });
+  }
+  async function onRowAction(key, act) {
+    var out = $('ad-mine-out');
+    if (act === 'export') return exportTemplate(key, out);
+    if (act === 'upload') {
+      return uploadWithProgress(key, out, function (ok, err) {
+        out.innerHTML = ok ? ui.note('info', 'Uploaded to your Drive', '<code>' + esc(key) + '</code> is now in <code>Cult A+ Design Lab/Templates</code>.')
+          : ui.note('warn', 'Drive upload failed', esc(errorText(err)));
+      });
+    }
+    if (act === 'delete') { D.confirmDelete = key; return renderMine(); }
+    if (act === 'delete-no') { D.confirmDelete = null; return renderMine(); }
+    if (act === 'delete-yes') {
+      D.confirmDelete = null;
+      out.innerHTML = progressNote('Deleting', key, 40);
+      try {
+        var r = await userTemplates.remove(key);
+        var bits = [];
+        if (r.local) bits.push('removed from this computer');
+        if (r.drive === 'trashed') bits.push('Drive copy moved to the Drive bin (restore it from drive.google.com within 30 days)');
+        if (r.drive === 'gone') bits.push('the Drive copy was already gone');
+        if (r.drive === 'skipped') bits.push('the Drive copy was kept because you are not signed in');
+        out.innerHTML = r.drive === 'failed'
+          ? ui.note('warn', 'Deleted here · Drive copy not moved to the bin', esc(errorText(r.driveError)) + ' It will show up again from Drive; delete it once more to retry.')
+          : ui.note('info', 'Deleted', '<code>' + esc(key) + '</code>: ' + esc(bits.join('; ') || 'nothing to delete') + '.');
+      } catch (e) { out.innerHTML = ui.note('warn', 'Could not delete', esc(errorText(e))); }
+      renderMine(); renderForm();
+    }
+  }
+  async function exportTemplate(key, host) {
+    host.innerHTML = progressNote('Preparing the template file', 'Collecting the images…', 30);
+    try {
+      var r = await userTemplates.exportFile(key, function (p) { host.innerHTML = progressNote('Preparing the template file', p.text, 30 + 60 * (p.done || 0) / Math.max(1, p.total || 1)); });
+      host.innerHTML = ui.note(r.missing ? 'pending' : 'info', 'Template file ready', '<code>' + esc(r.name) + '</code> · ' + esc(fmt(r.bytes)) +
+        (r.missing ? '<br>' + r.missing + ' image(s) were not available here and are not in the file.' : '') + '<br>' + r.link);
+    } catch (e) { host.innerHTML = ui.note('warn', 'Could not export', esc(errorText(e))); }
+  }
 
-    // Kept for the case where the plugin build is older than this UI. In normal use the
-    // first capture-progress clears it, so it no longer fires.
-    function armCaptureFallback() {
-      clearTimeout(state.pending.capture);
-      state.pending.capture = setTimeout(function () {
-        renderDesignSelection();
-        $('ad-out').innerHTML = '<div class="note warn"><b>No handler — nothing was captured</b>' +
-          'This <code>code.js</code> is older than the panel and does not answer <code>capture-template</code>. ' +
-          'Rebuild the plugin. Nothing was written and the frame is untouched.</div>';
-      }, 1500);
-    }
-
-    // ---------- capture render: progress, stats, and the round-trip diff ----------
-    function renderCaptureProgress(m) {
-      var done = Number(m.done) || 0, total = Number(m.total) || 0;
-      var pct = total > 0 ? Math.max(0, Math.min(100, Math.round(done / total * 100))) : 0;
-      $('ad-out').innerHTML = '<div class="note pending"><b>Capturing' + (total ? ' · ' + done + '/' + total : '') + '</b>' +
-        esc(m.step || 'Working…') +
-        '<div class="track"><i style="width:' + pct + '%"></i></div></div>';
-    }
-    function statTiles(st) {
-      st = st || {};
-      var keys = ['layers', 'texts', 'images', 'slots'];
-      var have = keys.filter(function (k) { return st[k] !== undefined && st[k] !== null; });
-      if (!have.length) return '';
-      return '<div class="stats">' + have.map(function (k) {
-        return '<div class="s"><b>' + esc(String(st[k])) + '</b>' + esc(k) + '</div>';
-      }).join('') + '</div>';
-    }
-    // The diff score is the quality gate, so it is the largest thing on the panel and the
-    // mismatches are listed in full rather than counted.
-    function diffBlock(d) {
-      if (!d) return '';
-      var mis = d.mismatches || [];
-      var clean = !mis.length;
-      var score = (d.score === undefined || d.score === null) ? '—'
-        : (typeof d.score === 'number' ? (d.score <= 1 ? Math.round(d.score * 100) + '%' : String(d.score)) : String(d.score));
-      return '<div class="diff ' + (clean ? 'clean' : 'dirty') + '">' +
-        '<div class="top"><span class="score">' + esc(score) + '</span>' +
-        '<span class="vd"><b>Round trip</b><span>' + (clean
-          ? 'Re-renders identically. Safe to use.'
-          : esc(mis.length + ' propert' + (mis.length > 1 ? 'ies do' : 'y does') + ' not come back. The template was captured but did not round-trip cleanly.')) +
-        '</span></span></div>' +
-        (clean ? '' : '<div class="mis">' + mis.map(function (x) {
-          return '<div class="m"><div class="path">' + esc(x.path || '(no path)') + '</div>' +
-            '<div class="ab">expected <em>' + esc(String(x.expected)) + '</em> · got <em>' + esc(String(x.actual)) + '</em></div></div>';
-        }).join('') + '</div>') +
-        '</div>';
-    }
-    function renderCaptureResult(m) {
-      var d = m.diff || null;
-      var clean = !!(d && !(d.mismatches || []).length);
-      var w = m.warnings || [];
-      $('ad-out').innerHTML =
-        '<div class="note ' + (clean ? 'info' : 'pending') + '"><b>' +
-          (clean ? 'Captured · clean round trip' : 'Captured · round trip incomplete') + '</b>' +
-          esc(((m.manifest && m.manifest.meta && m.manifest.meta.label) || $('ad-name').value.trim() || 'Template') +
-              ' saved as a draft.') +
-        '</div>' +
-        statTiles(m.stats) +
-        diffBlock(d) +
-        (w.length ? '<div class="note warn"><b>Warnings</b><ul style="margin:4px 0 0 15px;padding:0">' +
-          w.map(function (x) { return '<li>' + esc(String(x)) + '</li>'; }).join('') + '</ul></div>' : '');
-    }
+  // ---------- import a template file ----------
+  $('ad-import').onclick = function () { $('ad-file').value = ''; $('ad-file').click(); };
+  $('ad-file').onchange = async function () {
+    var file = $('ad-file').files && $('ad-file').files[0];
+    var out = $('ad-mine-out');
+    if (!file) return;
+    var parsed;
+    try {
+      if (file.size > 60 * 1024 * 1024) throw PlatformError('bad-request', 'That file is larger than 60 MB.');
+      out.innerHTML = progressNote('Reading ' + file.name, 'Checking the template…', 20);
+      parsed = userTemplates.parseFile(await file.text());
+    } catch (e) { out.innerHTML = ui.note('warn', 'Could not import ' + file.name, esc(errorText(e))); return; }
+    var M = parsed.manifest, meta = M.meta;
+    var k = { key: meta.key, cat: { id: meta.category, label: meta.categoryLabel || meta.category }, gender: meta.gender, id: meta.id };
+    resolveKeyClash(out, k, meta.label || meta.key, async function (kk, replace) {
+      var man = kk.key === meta.key ? M : userTemplates.rekey(M, kk.id, null);
+      out.innerHTML = progressNote('Importing “' + (meta.label || meta.key) + '”', 'Saving on this computer…', 25);
+      try {
+        var r = await userTemplates.saveWhole(man, parsed.assets, {
+          replace: replace,
+          onProgress: function (p) { out.innerHTML = progressNote('Importing “' + (meta.label || meta.key) + '”', p.text, 30 + 0.7 * (p.pct || 0)); }
+        });
+        var where = [];
+        if (r.local && r.local.manifest) where.push('this computer');
+        if (r.drive) where.push('Google Drive');
+        out.innerHTML = ui.note(r.driveError || !where.length || (r.local && r.local.reason) ? 'pending' : 'info',
+          where.length ? 'Imported · ' + where.join(' + ') : 'Not saved',
+          '<code>' + esc(r.key) + '</code>' +
+          (r.local && r.local.reason ? '<br>' + esc(r.local.reason) : '') +
+          (r.driveError ? '<br>Drive upload failed: ' + esc(errorText(r.driveError)) + ' Use <b>Upload to Drive</b> on the template below.' : '') +
+          (parsed.warnings.length ? '<br>' + parsed.warnings.map(esc).join('<br>') : ''));
+      } catch (e) { out.innerHTML = ui.note('warn', 'Could not import', esc(errorText(e))); }
+      renderMine(); renderForm();
+    });
+  };
 
   // ---------- events from the platform and the sandbox ----------
-  bus.on('registry', function () { renderDesignPickers(); });
-  bus.on('selection', function () { renderDesignSelection(); });
-  bus.on('tab', function (name) { if (name === 'design') renderDesignSelection(); });
+  bus.on('registry', function () { renderCategoryList(); renderForm(); });
+  bus.on('user-templates', function () { renderMine(); renderForm(); });
+  bus.on('auth', function () { renderForm(); renderMine(); });
+  bus.on('selection', function () { renderForm(); });
+  bus.on('tab', function (name) { if (name === 'design') { renderForm(); renderMine(); } });
   bridge.on('capture-progress', function (m) {
     clearTimeout(state.pending.capture);   // the handler exists; the fallback must not fire
     renderCaptureProgress(m);
   });
   bridge.on('capture-result', function (m) {
     clearTimeout(state.pending.capture);
-    renderDesignSelection();
-    renderCaptureResult(m);
+    finishCapture(m).catch(function (e) {
+      D.busy = false; renderForm();
+      $('ad-out').innerHTML = ui.note('warn', 'Something went wrong after saving', esc(errorText(e)));
+    });
   });
   bridge.on('capture-error', function (m) {
     clearTimeout(state.pending.capture);
-    renderDesignSelection();
-    $('ad-out').innerHTML = '<div class="note warn"><b>Capture failed</b>' +
-      esc(m.message || 'No reason given.') + '</div>';
+    D.busy = false; renderForm();
+    $('ad-out').innerHTML = ui.note('warn', m.code === 'exists' ? 'Already saved' : 'Could not save the template', esc(m.message || 'No reason given.'));
   });
 
-  Panels.design = {};
+  Panels.design = {
+    // for other panels / tests: the user's templates as listed in My templates
+    templates: function () { return userTemplates.list(); }
+  };
 
   // first paint
-  renderDesignSelection();
+  renderCategoryList();
+  renderForm();
+  renderMine();
 })();
 </script>
 <script data-src="ui/export.js">
@@ -5976,6 +6619,7 @@ window.platform = platform;
     var botH = Math.round(W * asset.height / asset.width / 2) * 2;
     var H = topH + botH; if (H % 2) { botH += 1; H += 1; }
     var fps = Math.min(DEFAULT_FPS, asset.fps || DEFAULT_FPS);
+    if (fmt === 'gif') fps = gifFps(fps);
     var n = Math.max(1, Math.round(asset.duration * fps));
     var canvas = new OffscreenCanvas(W, H);
     var ctx = canvas.getContext('2d', { willReadFrequently: fmt === 'gif' });
@@ -6065,10 +6709,27 @@ window.platform = platform;
   //    animation is not dithered, so still pixels stay still and compress away.
   // (A fresh palette per animation frame re-numbers every pixel every frame — nothing is ever
   //  unchanged — measured 21.3 MB vs ~3.4 MB for the same Running.mp4.)
+  // A GIF stores each frame's delay in CENTISECONDS, so only frame rates that divide 100 play
+  // evenly. 30 fps needs 3.33cs and has to be written as an alternating 3,4,3,3,4,… — every
+  // third frame is held 33% longer than its neighbours, which reads as judder on continuous
+  // motion like a runner. Snapping to the nearest rate that divides 100 makes every delay
+  // identical. MP4 has a real timebase and is left alone.
+  var GIF_RATES = [50, 25, 20, 10];
+  function gifFps(want) {
+    var best = GIF_RATES[0], bd = Infinity;
+    for (var i = 0; i < GIF_RATES.length; i++) {
+      var d = Math.abs(GIF_RATES[i] - want);
+      if (d < bd) { bd = d; best = GIF_RATES[i]; }
+    }
+    return best;
+  }
   var GIF_TOP_DITHER = 0.75;
+  var GIF_ANIM_DITHER = 0.55;
+  // How far two palette colours may sit apart before a pixel counts as "changed", in the same
+  // weighted space nearest() uses (dr^2*2 + dg^2*4 + db^2*3). 120 tolerates about +-3 per channel:
+  // enough to swallow sensor and compression noise, far below a visible step.
+  var GIF_DIFF_T = 120;
   async function gifPalettes(ctx, asset, W, topH, botH) {
-    var top = ctx.getImageData(0, 0, W, topH).data;
-    var topPal = gifenc.quantize(top, 256, { format: 'rgb565' });
     var SAMPLES = 8, parts = [], total = 0;
     for (var s = 0; s < SAMPLES; s++) {
       ctx.drawImage(await asset.frameAt((s + 0.5) * asset.duration / SAMPLES), 0, topH, W, botH);
@@ -6076,15 +6737,35 @@ window.platform = platform;
     }
     var all = new Uint8ClampedArray(total), o = 0;
     parts.forEach(function (p) { all.set(p, o); o += p.length; });
-    return { top: topPal, anim: gifenc.quantize(all, 255, { format: 'rgb565' }) };
+    var animPal = gifenc.quantize(all, 255, { format: 'rgb565' });
+
+    // Frame 1 carries ONE colour table but shows BOTH the A+ and the first animation frame, so
+    // the table has to cover both. Quantising the A+ alone (as this did) left the video with only
+    // the A+'s greys and skin tones to land on, and dithering a full-colour park scene onto them
+    // is what put heavy speckle on the opening frame of every loop.
+    var top = ctx.getImageData(0, 0, W, topH).data;
+    ctx.drawImage(await asset.frameAt(0), 0, topH, W, botH);
+    var first = ctx.getImageData(0, topH, W, botH).data;
+    var mix = new Uint8ClampedArray(top.length + first.length);
+    mix.set(top, 0); mix.set(first, top.length);
+    return { top: gifenc.quantize(mix, 256, { format: 'rgb565' }), anim: animPal };
   }
-  // Floyd–Steinberg onto a fixed palette. Nearest-colour lookups are cached on an RGB565 key,
-  // so ~1 M pixels take tens of milliseconds.
-  function ditherFS(rgba, w, h, pal, strength) {
-    var k8 = strength === undefined ? 1 : strength;
-    var out = new Uint8Array(w * h), cache = new Int16Array(65536).fill(-1);
-    var cur = new Float32Array((w + 2) * 3), nxt = new Float32Array((w + 2) * 3);
-    function nearest(r, g, b) {
+  // 8x8 Bayer matrix, centred on zero. Ordered dithering is used for the animation because its
+  // threshold depends only on (x, y): a pixel whose colour did not change dithers to the SAME
+  // index every frame, so it still diffs away to transparent. Floyd-Steinberg cannot do that —
+  // it propagates error along the scanline, so one noisy pixel re-rolls everything after it and
+  // nothing is ever unchanged. That is why the animation was previously left undithered, which
+  // banded the smooth areas instead.
+  var BAYER8 = (function () {
+    var m = [0,32,8,40,2,34,10,42, 48,16,56,24,50,18,58,26, 12,44,4,36,14,46,6,38, 60,28,52,20,62,30,54,22,
+             3,35,11,43,1,33,9,41, 51,19,59,27,49,17,57,25, 15,47,7,39,13,45,5,37, 63,31,55,23,61,29,53,21];
+    var out = new Float32Array(64);
+    for (var i = 0; i < 64; i++) out[i] = m[i] / 64 - 0.5;
+    return out;
+  })();
+  function palNearest(pal) {
+    var cache = new Int16Array(65536).fill(-1);
+    return function (r, g, b) {
       var key = ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3);
       var c = cache[key];
       if (c >= 0) return c;
@@ -6094,7 +6775,26 @@ window.platform = platform;
         if (d < bd) { bd = d; best = p; }
       }
       cache[key] = best; return best;
+    };
+  }
+  function ditherOrdered(rgba, w, h, pal, strength) {
+    var amt = (strength === undefined ? 1 : strength) * 32;
+    var out = new Uint8Array(w * h), nearest = palNearest(pal);
+    function clamp(v) { return v < 0 ? 0 : v > 255 ? 255 : v | 0; }
+    for (var y = 0; y < h; y++) {
+      for (var x = 0; x < w; x++) {
+        var i = (y * w + x) * 4, t = BAYER8[(y & 7) * 8 + (x & 7)] * amt;
+        out[y * w + x] = nearest(clamp(rgba[i] + t), clamp(rgba[i + 1] + t), clamp(rgba[i + 2] + t));
+      }
     }
+    return out;
+  }
+  // Floyd–Steinberg onto a fixed palette. Nearest-colour lookups are cached on an RGB565 key,
+  // so ~1 M pixels take tens of milliseconds.
+  function ditherFS(rgba, w, h, pal, strength) {
+    var k8 = strength === undefined ? 1 : strength;
+    var out = new Uint8Array(w * h), nearest = palNearest(pal);
+    var cur = new Float32Array((w + 2) * 3), nxt = new Float32Array((w + 2) * 3);
     function clamp(v) { return v < 0 ? 0 : v > 255 ? 255 : v | 0; }
     for (var y = 0; y < h; y++) {
       var t = cur; cur = nxt; nxt = t; nxt.fill(0);
@@ -6117,23 +6817,45 @@ window.platform = platform;
     var topTable = pals.top.slice(); while (topTable.length < 256) topTable.push([0, 0, 0]);
     var anim = pals.anim, animTable = anim.slice(); while (animTable.length < 255) animTable.push([0, 0, 0]); animTable.push([0, 0, 0]); // 255 = transparent
     var out = new Uint8Array(W * H), prev = null;
+    // Is the colour at index `a` indistinguishable from the one at `b`? Used so that sensor and
+    // compression noise in the source does not force a pixel to be rewritten every frame: without
+    // it a still background flickers between two near-identical palette entries, which both
+    // shimmers on screen and defeats the transparent-pixel compression.
+    var closeCache = new Int8Array(65536).fill(-1);
+    function closeIdx(a, b) {
+      var key = (a << 8) | b, c = closeCache[key];
+      if (c >= 0) return c === 1;
+      var A = anim[a], B = anim[b];
+      var dr = A[0] - B[0], dg = A[1] - B[1], db = A[2] - B[2];
+      var r = (dr * dr * 2 + dg * dg * 4 + db * db * 3) <= GIF_DIFF_T ? 1 : 0;
+      closeCache[key] = r; return r === 1;
+    }
     function delayMs(i) { var cs = Math.round((i + 1) * 100 / fps); var d = cs - prevCs; prevCs = cs; return d * 10; }
     return {
       add: async function (ctx, canvas, i) {
         if (i === 0) {
-          // frame 1: the A+ (its own palette, gently dithered) + the first animation frame
+          // frame 1 carries one table covering the A+ AND the first animation frame (see
+          // gifPalettes). The A+ is Floyd-Steinberg dithered for the smoothest gradients; the
+          // strip is ordered-dithered so it matches how every later frame is drawn.
           var all = new Uint8Array(W * H);
           all.set(ditherFS(ctx.getImageData(0, 0, W, topH).data, W, topH, pals.top, GIF_TOP_DITHER), 0);
-          all.set(ditherFS(ctx.getImageData(0, topH, W, botH).data, W, botH, pals.top, GIF_TOP_DITHER), W * topH);
+          all.set(ditherOrdered(ctx.getImageData(0, topH, W, botH).data, W, botH, pals.top, GIF_ANIM_DITHER), W * topH);
           gif.writeFrame(all, W, H, { palette: topTable, delay: delayMs(i), repeat: 0, dispose: 1 });
           out.fill(255, 0, W * topH);                        // the A+ area: transparent from now on
           return;
         }
-        var cur = G.applyPalette(ctx.getImageData(0, topH, W, botH).data, anim, 'rgb565');
+        var cur = ditherOrdered(ctx.getImageData(0, topH, W, botH).data, W, botH, anim, GIF_ANIM_DITHER);
         var base = W * topH;
-        // frame 2 redraws the whole strip in the animation palette; later frames only what changed
-        for (var k = 0; k < cur.length; k++) out[base + k] = (prev && cur[k] === prev[k]) ? 255 : cur[k];
-        prev = cur;
+        // frame 2 redraws the whole strip in the animation palette; later frames only what moved.
+        // `prev` tracks what is actually ON SCREEN, not the previous source frame, so a slow
+        // drift still redraws once it crosses the threshold instead of never catching up.
+        if (!prev) { out.set(cur, base); prev = cur.slice(); }
+        else {
+          for (var k = 0; k < cur.length; k++) {
+            if (closeIdx(cur[k], prev[k])) { out[base + k] = 255; }
+            else { out[base + k] = cur[k]; prev[k] = cur[k]; }
+          }
+        }
         gif.writeFrame(out, W, H, { palette: animTable, delay: delayMs(i), transparent: true, transparentIndex: 255, dispose: 1 });
       },
       finish: async function () { gif.finish(); return gif.bytes(); },

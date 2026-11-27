@@ -311,6 +311,7 @@
     var botH = Math.round(W * asset.height / asset.width / 2) * 2;
     var H = topH + botH; if (H % 2) { botH += 1; H += 1; }
     var fps = Math.min(DEFAULT_FPS, asset.fps || DEFAULT_FPS);
+    if (fmt === 'gif') fps = gifFps(fps);
     var n = Math.max(1, Math.round(asset.duration * fps));
     var canvas = new OffscreenCanvas(W, H);
     var ctx = canvas.getContext('2d', { willReadFrequently: fmt === 'gif' });
@@ -400,10 +401,27 @@
   //    animation is not dithered, so still pixels stay still and compress away.
   // (A fresh palette per animation frame re-numbers every pixel every frame — nothing is ever
   //  unchanged — measured 21.3 MB vs ~3.4 MB for the same Running.mp4.)
+  // A GIF stores each frame's delay in CENTISECONDS, so only frame rates that divide 100 play
+  // evenly. 30 fps needs 3.33cs and has to be written as an alternating 3,4,3,3,4,… — every
+  // third frame is held 33% longer than its neighbours, which reads as judder on continuous
+  // motion like a runner. Snapping to the nearest rate that divides 100 makes every delay
+  // identical. MP4 has a real timebase and is left alone.
+  var GIF_RATES = [50, 25, 20, 10];
+  function gifFps(want) {
+    var best = GIF_RATES[0], bd = Infinity;
+    for (var i = 0; i < GIF_RATES.length; i++) {
+      var d = Math.abs(GIF_RATES[i] - want);
+      if (d < bd) { bd = d; best = GIF_RATES[i]; }
+    }
+    return best;
+  }
   var GIF_TOP_DITHER = 0.75;
+  var GIF_ANIM_DITHER = 0.55;
+  // How far two palette colours may sit apart before a pixel counts as "changed", in the same
+  // weighted space nearest() uses (dr^2*2 + dg^2*4 + db^2*3). 120 tolerates about +-3 per channel:
+  // enough to swallow sensor and compression noise, far below a visible step.
+  var GIF_DIFF_T = 120;
   async function gifPalettes(ctx, asset, W, topH, botH) {
-    var top = ctx.getImageData(0, 0, W, topH).data;
-    var topPal = gifenc.quantize(top, 256, { format: 'rgb565' });
     var SAMPLES = 8, parts = [], total = 0;
     for (var s = 0; s < SAMPLES; s++) {
       ctx.drawImage(await asset.frameAt((s + 0.5) * asset.duration / SAMPLES), 0, topH, W, botH);
@@ -411,15 +429,35 @@
     }
     var all = new Uint8ClampedArray(total), o = 0;
     parts.forEach(function (p) { all.set(p, o); o += p.length; });
-    return { top: topPal, anim: gifenc.quantize(all, 255, { format: 'rgb565' }) };
+    var animPal = gifenc.quantize(all, 255, { format: 'rgb565' });
+
+    // Frame 1 carries ONE colour table but shows BOTH the A+ and the first animation frame, so
+    // the table has to cover both. Quantising the A+ alone (as this did) left the video with only
+    // the A+'s greys and skin tones to land on, and dithering a full-colour park scene onto them
+    // is what put heavy speckle on the opening frame of every loop.
+    var top = ctx.getImageData(0, 0, W, topH).data;
+    ctx.drawImage(await asset.frameAt(0), 0, topH, W, botH);
+    var first = ctx.getImageData(0, topH, W, botH).data;
+    var mix = new Uint8ClampedArray(top.length + first.length);
+    mix.set(top, 0); mix.set(first, top.length);
+    return { top: gifenc.quantize(mix, 256, { format: 'rgb565' }), anim: animPal };
   }
-  // Floyd–Steinberg onto a fixed palette. Nearest-colour lookups are cached on an RGB565 key,
-  // so ~1 M pixels take tens of milliseconds.
-  function ditherFS(rgba, w, h, pal, strength) {
-    var k8 = strength === undefined ? 1 : strength;
-    var out = new Uint8Array(w * h), cache = new Int16Array(65536).fill(-1);
-    var cur = new Float32Array((w + 2) * 3), nxt = new Float32Array((w + 2) * 3);
-    function nearest(r, g, b) {
+  // 8x8 Bayer matrix, centred on zero. Ordered dithering is used for the animation because its
+  // threshold depends only on (x, y): a pixel whose colour did not change dithers to the SAME
+  // index every frame, so it still diffs away to transparent. Floyd-Steinberg cannot do that —
+  // it propagates error along the scanline, so one noisy pixel re-rolls everything after it and
+  // nothing is ever unchanged. That is why the animation was previously left undithered, which
+  // banded the smooth areas instead.
+  var BAYER8 = (function () {
+    var m = [0,32,8,40,2,34,10,42, 48,16,56,24,50,18,58,26, 12,44,4,36,14,46,6,38, 60,28,52,20,62,30,54,22,
+             3,35,11,43,1,33,9,41, 51,19,59,27,49,17,57,25, 15,47,7,39,13,45,5,37, 63,31,55,23,61,29,53,21];
+    var out = new Float32Array(64);
+    for (var i = 0; i < 64; i++) out[i] = m[i] / 64 - 0.5;
+    return out;
+  })();
+  function palNearest(pal) {
+    var cache = new Int16Array(65536).fill(-1);
+    return function (r, g, b) {
       var key = ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3);
       var c = cache[key];
       if (c >= 0) return c;
@@ -429,7 +467,26 @@
         if (d < bd) { bd = d; best = p; }
       }
       cache[key] = best; return best;
+    };
+  }
+  function ditherOrdered(rgba, w, h, pal, strength) {
+    var amt = (strength === undefined ? 1 : strength) * 32;
+    var out = new Uint8Array(w * h), nearest = palNearest(pal);
+    function clamp(v) { return v < 0 ? 0 : v > 255 ? 255 : v | 0; }
+    for (var y = 0; y < h; y++) {
+      for (var x = 0; x < w; x++) {
+        var i = (y * w + x) * 4, t = BAYER8[(y & 7) * 8 + (x & 7)] * amt;
+        out[y * w + x] = nearest(clamp(rgba[i] + t), clamp(rgba[i + 1] + t), clamp(rgba[i + 2] + t));
+      }
     }
+    return out;
+  }
+  // Floyd–Steinberg onto a fixed palette. Nearest-colour lookups are cached on an RGB565 key,
+  // so ~1 M pixels take tens of milliseconds.
+  function ditherFS(rgba, w, h, pal, strength) {
+    var k8 = strength === undefined ? 1 : strength;
+    var out = new Uint8Array(w * h), nearest = palNearest(pal);
+    var cur = new Float32Array((w + 2) * 3), nxt = new Float32Array((w + 2) * 3);
     function clamp(v) { return v < 0 ? 0 : v > 255 ? 255 : v | 0; }
     for (var y = 0; y < h; y++) {
       var t = cur; cur = nxt; nxt = t; nxt.fill(0);
@@ -452,23 +509,45 @@
     var topTable = pals.top.slice(); while (topTable.length < 256) topTable.push([0, 0, 0]);
     var anim = pals.anim, animTable = anim.slice(); while (animTable.length < 255) animTable.push([0, 0, 0]); animTable.push([0, 0, 0]); // 255 = transparent
     var out = new Uint8Array(W * H), prev = null;
+    // Is the colour at index `a` indistinguishable from the one at `b`? Used so that sensor and
+    // compression noise in the source does not force a pixel to be rewritten every frame: without
+    // it a still background flickers between two near-identical palette entries, which both
+    // shimmers on screen and defeats the transparent-pixel compression.
+    var closeCache = new Int8Array(65536).fill(-1);
+    function closeIdx(a, b) {
+      var key = (a << 8) | b, c = closeCache[key];
+      if (c >= 0) return c === 1;
+      var A = anim[a], B = anim[b];
+      var dr = A[0] - B[0], dg = A[1] - B[1], db = A[2] - B[2];
+      var r = (dr * dr * 2 + dg * dg * 4 + db * db * 3) <= GIF_DIFF_T ? 1 : 0;
+      closeCache[key] = r; return r === 1;
+    }
     function delayMs(i) { var cs = Math.round((i + 1) * 100 / fps); var d = cs - prevCs; prevCs = cs; return d * 10; }
     return {
       add: async function (ctx, canvas, i) {
         if (i === 0) {
-          // frame 1: the A+ (its own palette, gently dithered) + the first animation frame
+          // frame 1 carries one table covering the A+ AND the first animation frame (see
+          // gifPalettes). The A+ is Floyd-Steinberg dithered for the smoothest gradients; the
+          // strip is ordered-dithered so it matches how every later frame is drawn.
           var all = new Uint8Array(W * H);
           all.set(ditherFS(ctx.getImageData(0, 0, W, topH).data, W, topH, pals.top, GIF_TOP_DITHER), 0);
-          all.set(ditherFS(ctx.getImageData(0, topH, W, botH).data, W, botH, pals.top, GIF_TOP_DITHER), W * topH);
+          all.set(ditherOrdered(ctx.getImageData(0, topH, W, botH).data, W, botH, pals.top, GIF_ANIM_DITHER), W * topH);
           gif.writeFrame(all, W, H, { palette: topTable, delay: delayMs(i), repeat: 0, dispose: 1 });
           out.fill(255, 0, W * topH);                        // the A+ area: transparent from now on
           return;
         }
-        var cur = G.applyPalette(ctx.getImageData(0, topH, W, botH).data, anim, 'rgb565');
+        var cur = ditherOrdered(ctx.getImageData(0, topH, W, botH).data, W, botH, anim, GIF_ANIM_DITHER);
         var base = W * topH;
-        // frame 2 redraws the whole strip in the animation palette; later frames only what changed
-        for (var k = 0; k < cur.length; k++) out[base + k] = (prev && cur[k] === prev[k]) ? 255 : cur[k];
-        prev = cur;
+        // frame 2 redraws the whole strip in the animation palette; later frames only what moved.
+        // `prev` tracks what is actually ON SCREEN, not the previous source frame, so a slow
+        // drift still redraws once it crosses the threshold instead of never catching up.
+        if (!prev) { out.set(cur, base); prev = cur.slice(); }
+        else {
+          for (var k = 0; k < cur.length; k++) {
+            if (closeIdx(cur[k], prev[k])) { out[base + k] = 255; }
+            else { out[base + k] = cur[k]; prev[k] = cur[k]; }
+          }
+        }
         gif.writeFrame(out, W, H, { palette: animTable, delay: delayMs(i), transparent: true, transparentIndex: 255, dispose: 1 });
       },
       finish: async function () { gif.finish(); return gif.bytes(); },
