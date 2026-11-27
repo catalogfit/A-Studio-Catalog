@@ -1,0 +1,37 @@
+<!-- plugin-src/ui/design.html — owned by the design panel. Inserted into shell.html at "@panel design". -->
+  <div class="view" id="view-design">
+    <div class="sec">
+      <div class="lab"><span class="n"><i>1</i> Frame on this page</span><span class="meta" id="ad-selmeta"></span></div>
+      <div class="selbox" id="ad-sel">Select one frame to capture.</div>
+    </div>
+
+    <div class="sec">
+      <div class="lab"><span class="n"><i>2</i> Template identity</span></div>
+      <input id="ad-name" placeholder="Template name">
+      <div class="row" style="margin-top:7px">
+        <select id="ad-cat"></select>
+        <select id="ad-gender"></select>
+      </div>
+      <div class="row" style="margin-top:7px">
+        <input id="ad-id" placeholder="Template id — split-hero">
+      </div>
+      <div class="hint">Keyed as <code>category/gender/id</code>.</div>
+    </div>
+
+    <div class="sec">
+      <div class="lab"><span class="n"><i>3</i> Capture</span></div>
+      <button class="btn dark" id="ad-go" disabled>Add as template</button>
+      <div class="row" style="align-items:center;gap:8px;margin-top:9px">
+        <input type="checkbox" id="ad-ai" style="width:auto;flex:none">
+        <label for="ad-ai" style="font-size:10.5px">Semantic labelling — runs on the backend, no key here</label>
+      </div>
+      <div id="ad-out"></div>
+      <div class="hint">The round-trip diff is the gate.
+        <details class="more">
+          <summary title="What the diff checks">?</summary>
+          <div class="hint">The captured skeleton is re-rendered and compared with your frame. Any
+          mismatch is listed with its path — <code>docs/add-to-template-plan.md</code>.</div>
+        </details>
+      </div>
+    </div>
+  </div>

@@ -17,6 +17,14 @@
 //   GET  /auth/callback   -> Google redirect target; exchanges the code, shows a done page
 //   GET  /auth/status     -> { configured, connected, email }
 //   POST /auth/logout     -> disconnect
+//   POST /auth/token      -> { session } -> { accessToken, expiresAt, expiresIn, scopes, email, driveAccess, needsReconsent }
+//                            a SHORT-LIVED Google access token for the user's own account, so the plugin
+//                            talks to Drive/Sheets directly (bytes never transit this server). The refresh
+//                            token is never returned. Rate-limited. See docs/architecture-client-side.md.
+//   GIF rules (which animation goes under which category — backend/gif-rules.json):
+//   GET  /api/gif-rules   -> the rules file
+//   POST /api/gif-match   -> { session, category, gender? } -> { found, file: {id,name,mimeType,size,width,height} } | { found:false, reason }
+//                            Drive METADATA only, no bytes.
 //   POST /api/sheet       -> { session, url } -> reads that sheet with the user's account -> { rows }
 //   Drive (needs the drive.readonly scope — existing users must re-consent once):
 //   POST /api/drive/list      -> { session, folder } -> { files: [{id,name,mimeType,size,...}] }
@@ -44,6 +52,8 @@ var sessionStore = require('./session');
 var store = require('./store');
 var labeller = require('./label');
 var llm = require('./llm');
+var gifrules = require('./gifrules');
+var ratelimit = require('./ratelimit');
 
 var PORT = process.env.PORT || 8787;
 var MAX_BODY_BYTES = Number(process.env.MAX_BODY_BYTES || 96 * 1024 * 1024);
@@ -56,6 +66,14 @@ var MAX_LABEL_BODY_BYTES = Number(process.env.MAX_LABEL_BODY_BYTES || 4 * 1024 *
 var REQUIRE_SESSION = String(process.env.REQUIRE_SESSION || 'true').toLowerCase() !== 'false';
 var COMPOSE_MAX_CONCURRENT = Number(process.env.COMPOSE_MAX_CONCURRENT || 2);
 var composeInFlight = 0;
+// /auth/token mints nothing new while the cached access token is valid (ensureToken caches it), so
+// these limits only bound abuse: a stolen-blob replay loop, or a plugin bug that calls it in a loop.
+var TOKEN_RATE_PER_SESSION = Number(process.env.TOKEN_RATE_PER_SESSION || 30);   // per minute
+var TOKEN_RATE_PER_IP = Number(process.env.TOKEN_RATE_PER_IP || 120);             // per minute
+var GIF_MATCH_RATE_PER_IP = Number(process.env.GIF_MATCH_RATE_PER_IP || 60);      // per minute
+var tokenBySession = ratelimit.limiter({ windowMs: 60000, max: TOKEN_RATE_PER_SESSION });
+var tokenByIp = ratelimit.limiter({ windowMs: 60000, max: TOKEN_RATE_PER_IP });
+var gifMatchByIp = ratelimit.limiter({ windowMs: 60000, max: GIF_MATCH_RATE_PER_IP });
 var ROOT = __dirname;
 var TEMPLATES = path.join(ROOT, 'templates');
 var SAFE = /^[a-z0-9][a-z0-9-]*$/i; // category / template id guard (no path traversal)
@@ -71,7 +89,16 @@ function send(res, code, body, type) {
   });
   res.end(typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body, null, 2));
 }
-function err(res, code, message) { send(res, code, { error: message }); }
+// `errCode` is machine-readable (no-session, invalid-session, revoked, needs-reconsent,
+// insufficient-scope, rate-limited, …) so the plugin can map it without parsing English.
+function err(res, code, message, errCode) { send(res, code, errCode ? { error: message, code: errCode } : { error: message }); }
+function errFrom(res, e, fallback) {
+  return err(res, statusOf(e, fallback), String((e && e.message) || e), (e && typeof e.code === 'string') ? e.code : undefined);
+}
+function tooMany(res, verdict, what) {
+  res.setHeader('Retry-After', String(verdict.retryAfter));
+  return err(res, 429, 'Too many ' + what + ' requests — try again in ' + verdict.retryAfter + ' s.', 'rate-limited');
+}
 function query(u) { var q = {}, i = u.indexOf('?'); if (i >= 0) u.slice(i + 1).split('&').forEach(function (kv) { var p = kv.split('='); if (p[0]) q[decodeURIComponent(p[0])] = decodeURIComponent((p[1] || '').replace(/\+/g, ' ')); }); return q; }
 
 // A+ PNGs arrive base64-encoded inside the JSON body, so this buffers up to ~96 MB by default.
@@ -139,7 +166,9 @@ var server = http.createServer(async function (req, res) {
         // Presence booleans and the model id only — never the key, never a dollar figure.
         llm: llm.info(),
         templateStore: store.info(),
-        limits: { requireSession: REQUIRE_SESSION, composeMaxConcurrent: COMPOSE_MAX_CONCURRENT, composeInFlight: composeInFlight }
+        limits: { requireSession: REQUIRE_SESSION, composeMaxConcurrent: COMPOSE_MAX_CONCURRENT, composeInFlight: composeInFlight,
+          tokenPerSessionPerMin: TOKEN_RATE_PER_SESSION, tokenPerIpPerMin: TOKEN_RATE_PER_IP, gifMatchPerIpPerMin: GIF_MATCH_RATE_PER_IP },
+        gifRules: (function () { try { var gr = gifrules.load(); return { ok: true, categories: Object.keys(gr.categories).length, folderId: (gr.source || {}).folderId || null }; } catch (e) { return { ok: false, error: e.message }; } })()
       });
     }
     if (url === '/' ) return send(res, 200, { service: 'aplus-template-backend', try: '/api/templates' });
@@ -158,13 +187,56 @@ var server = http.createServer(async function (req, res) {
     if (url === '/auth/status') return send(res, 200, google.status(q.session || ''));
     if (url === '/auth/logout' && req.method === 'POST') { var b0 = await readBody(req); google.logout(sessionOf(b0, q)); return send(res, 200, { ok: true }); }
 
+    // ----- short-lived access token for the plugin's direct Drive/Sheets calls -----
+    // POST only, session in the BODY (never a query string: URLs end up in logs). The response is
+    // no-store. The refresh token stays sealed in the session blob and is never returned.
+    if (url === '/auth/token') {
+      if (req.method !== 'POST') return err(res, 405, 'Use POST with { session } in the body.');
+      var ipV = tokenByIp.hit(ratelimit.clientIp(req));
+      if (!ipV.ok) return tooMany(res, ipV, 'token');
+      var bTok = await readBody(req, 64 * 1024);
+      var sTok = String((bTok && (bTok.session || bTok.sessionId)) || '');
+      if (!sTok) return err(res, 401, 'Not connected — sign in with Google first.', 'no-session');
+      if (!google.configured()) return err(res, 503, 'Google sign-in is not configured on this backend.', 'not-configured');
+      var sV = tokenBySession.hit(google.sessionKey(sTok));
+      if (!sV.ok) return tooMany(res, sV, 'token');
+      try {
+        var tok = await google.accessToken(sTok);
+        res.setHeader('Cache-Control', 'no-store');
+        res.setHeader('Pragma', 'no-cache');
+        res.writeHead(200, {
+          'Content-Type': 'application/json; charset=utf-8',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Headers': 'Content-Type',
+          'Cache-Control': 'no-store'
+        });
+        return res.end(JSON.stringify(tok));
+      } catch (e) { return errFrom(res, e, 401); }
+    }
+
+    // ----- GIF rules: config + Drive-metadata match -----
+    if (url === '/api/gif-rules' && req.method === 'GET') {
+      try { return send(res, 200, gifrules.load()); }
+      catch (e) { return errFrom(res, e, 500); }
+    }
+    if (url === '/api/gif-match' && req.method === 'POST') {
+      var gmV = gifMatchByIp.hit(ratelimit.clientIp(req));
+      if (!gmV.ok) return tooMany(res, gmV, 'gif-match');
+      var bGm = await readBody(req, 64 * 1024);
+      var sGm = sessionOf(bGm, q);
+      if (!sGm) return err(res, 401, 'Not connected — sign in with Google first.', 'no-session');
+      if (!bGm.category) return err(res, 400, 'Missing "category".', 'bad-request');
+      try { return send(res, 200, await gifrules.match(google, sGm, bGm.category, bGm.gender || null)); }
+      catch (e) { return errFrom(res, e, 400); }
+    }
+
     // ----- read a Google Sheet with the connected account -----
     if (url === '/api/sheet' && req.method === 'POST') {
       var b = await readBody(req);
       if (!b.session) return err(res, 401, 'Not connected — sign in with Google first.');
       if (!b.url) return err(res, 400, 'Missing sheet url.');
       try { var out = await google.readSheet(sessionOf(b, q), b.url); return send(res, 200, out); }
-      catch (e) { return err(res, 400, String((e && e.message) || e)); }
+      catch (e) { return errFrom(res, e, 400); }
     }
 
     // ----- Drive: list a folder of category GIFs, and fetch one -----
@@ -180,7 +252,7 @@ var server = http.createServer(async function (req, res) {
           all: String(bl.all != null ? bl.all : q.all) === 'true',
           mimeTypes: Array.isArray(bl.mimeTypes) ? bl.mimeTypes : null
         }));
-      } catch (e) { return err(res, statusOf(e, 400), String((e && e.message) || e)); }
+      } catch (e) { return errFrom(res, e, 400); }
     }
 
     if (url === '/api/drive/file' && (req.method === 'POST' || req.method === 'GET')) {
@@ -213,7 +285,10 @@ var server = http.createServer(async function (req, res) {
       } catch (e) { return err(res, statusOf(e, 400), String((e && e.message) || e)); }
     }
 
-    // ----- the export composite -----
+    // ----- the export composite (FALLBACK ONLY) -----
+    // Since the client-side refactor, GIF/MP4 compositing runs on the user's device (gifenc /
+    // WebCodecs + mp4-muxer in the plugin iframe). This endpoint stays as a documented, clearly
+    // labelled fallback for browsers without H.264 WebCodecs — see docs/architecture-client-side.md.
     // Body is JSON with base64 payloads (see docs/export-pipeline.md for why, not multipart).
     if (url === '/api/compose' && req.method === 'POST') {
       var bc = await readBody(req);
@@ -379,7 +454,8 @@ server.listen(PORT, function () {
   console.log('A+ template backend on http://localhost:' + PORT);
   console.log('  GET  /api/templates');
   console.log('  Google sign-in: ' + (google.configured() ? 'configured (redirect ' + google.REDIRECT_URI + ')' : 'NOT configured — set GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET to enable'));
-  console.log('  Drive scope: drive.readonly  — existing users must connect Google again once.');
+  console.log('  Scopes: drive + spreadsheets.readonly + openid + email — sessions from before the full-drive change report needsReconsent.');
+  console.log('  POST /auth/token: short-lived access tokens, ' + TOKEN_RATE_PER_SESSION + '/min per session, ' + TOKEN_RATE_PER_IP + '/min per IP');
   console.log('  ffmpeg: ' + (tool.available
     ? tool.version + (tool.encoders.libx264 ? ' (libx264 ok)' : ' (NO libx264 — format:"mp4" unavailable)')
     : 'NOT FOUND — /api/compose will return 503. Use the Docker image or install ffmpeg.'));

@@ -10,16 +10,22 @@
 // SCOPES — and why each one:
 //   openid, email                        identify who connected (the UI shows the address)
 //   spreadsheets.readonly                read the content sheet without "Publish to web"
-//   drive.readonly                       list a shared folder of category GIFs and download one
+//   drive                                full Drive: read the team's animation folder AND write the
+//                                        user's own templates + exports into "Cult A+ Design Lab/"
+//                                        in their My Drive (docs/architecture-client-side.md)
 //
-// drive.readonly replaced drive.file in Nov 2026. drive.file only ever sees files THIS app
-// created, so it can list a team folder of GIFs and find nothing — which is what it did. Google
-// offers no "read one folder" scope; drive.readonly is the narrowest scope that can list an
-// existing folder and fetch its bytes. It is a restricted scope, but this Cloud project is
-// Internal to the curefit.com Workspace, so no Google app verification is required.
+// History: drive.file (until Nov 2026) could not see an existing team folder; drive.readonly
+// (Nov 2026) could read it but not write templates back. Full `drive` is the only scope that
+// covers both. It is a restricted scope, but this Cloud project is Internal to the curefit.com
+// Workspace, so no Google app verification is required.
 //
-// !! EXISTING USERS MUST RE-CONSENT ONCE. A token minted under drive.file does not gain
-// drive.readonly on refresh. status() reports needsReconsent:true for those sessions.
+// !! EXISTING USERS MUST RE-CONSENT ONCE. A token minted under drive.file / drive.readonly does
+// not gain `drive` on refresh. status() reports needsReconsent:true for those sessions, and the
+// read-only paths (gif-match, list, download) keep working with drive.readonly meanwhile.
+//
+// Since the client-side refactor the plugin talks to Drive/Sheets DIRECTLY with a short-lived
+// access token minted by accessToken() below (POST /auth/token). The refresh token never leaves
+// this server: it stays sealed inside the session blob (session.js).
 
 require('./env');
 
@@ -31,15 +37,34 @@ var CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 var CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
 var REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || ('http://localhost:' + (process.env.PORT || 8787) + '/auth/callback');
 
+var SCOPE_DRIVE = 'https://www.googleapis.com/auth/drive';
+var SCOPE_DRIVE_READONLY = 'https://www.googleapis.com/auth/drive.readonly';
+var SCOPE_SHEETS_READONLY = 'https://www.googleapis.com/auth/spreadsheets.readonly';
 var SCOPE_LIST = [
   'openid',
   'email',
-  'https://www.googleapis.com/auth/spreadsheets.readonly',
-  'https://www.googleapis.com/auth/drive.readonly'
+  SCOPE_SHEETS_READONLY,
+  SCOPE_DRIVE
 ];
 var SCOPES = SCOPE_LIST.join(' ');
-// The scope whose absence means "this session predates the Drive change".
-var REQUIRED_DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
+
+// Scopes are compared as whole tokens. A substring test would be wrong now: the full-Drive scope
+// URL is a prefix of the drive.readonly URL, so indexOf() would call a read-only session "full".
+function scopeList(scopes) { return String(scopes || '').split(/\s+/).filter(Boolean); }
+function hasScope(scopes, want) { return scopeList(scopes).indexOf(want) >= 0; }
+function canReadDrive(scopes) { return hasScope(scopes, SCOPE_DRIVE) || hasScope(scopes, SCOPE_DRIVE_READONLY); }
+function canWriteDrive(scopes) { return hasScope(scopes, SCOPE_DRIVE); }
+
+// Errors carry a machine-readable `code` (and an HTTP status) so the plugin can map them to a
+// clear message without parsing English: no-session, invalid-session, revoked, needs-reconsent,
+// insufficient-scope, not-found, forbidden, google-error.
+function codedError(code, status, message) {
+  var e = new Error(message);
+  e.code = code;
+  e.statusCode = status;
+  return e;
+}
+var RECONSENT_READ_MSG = 'This Google session predates the Drive change — please disconnect and connect Google again to grant Drive access.';
 
 function configured() { return !!(CLIENT_ID && CLIENT_SECRET); }
 
@@ -120,11 +145,11 @@ function sealOf(sess) {
 // Turn whatever the plugin sent (sealed blob, or a legacy hex id) into a working session object.
 function resolveSession(ref) {
   ref = String(ref || '');
-  if (!ref) throw new Error('Not connected — sign in with Google first.');
+  if (!ref) throw codedError('no-session', 401, 'Not connected — sign in with Google first.');
 
   if (sessionStore.isSealed(ref)) {
     var p = sessionStore.open(ref);
-    if (!p || !p.rt) throw new Error('Your Google session is no longer valid — please connect Google again.');
+    if (!p || !p.rt) throw codedError('invalid-session', 401, 'Your Google session is no longer valid — please connect Google again.');
     var k = liveKey(ref);
     var cached = live[k] || (live[k] = {});
     cached.refresh_token = p.rt;
@@ -135,11 +160,9 @@ function resolveSession(ref) {
   }
 
   var s = pending[ref];
-  if (!s || !(s.refresh_token || s.access_token)) throw new Error('Not connected — sign in with Google first.');
+  if (!s || !(s.refresh_token || s.access_token)) throw codedError('no-session', 401, 'Not connected — sign in with Google first.');
   return s;
 }
-
-function hasDriveScope(scopes) { return String(scopes || '').indexOf(REQUIRED_DRIVE_SCOPE) >= 0; }
 
 // ---------------------------------------------------------------------------------------------
 // OAuth
@@ -155,7 +178,8 @@ function newSession() {
     'response_type=code',
     'scope=' + encodeURIComponent(SCOPES),
     'access_type=offline',
-    'include_granted_scopes=true',
+    // NOT include_granted_scopes: that folds every scope this client was ever granted (a live
+    // session carried Gmail + Calendar) into the new token. Ask for exactly SCOPES.
     'prompt=consent', // forces a refresh_token AND re-shows the new Drive scope to existing users
     'state=' + encodeURIComponent(id)
   ].join('&');
@@ -211,7 +235,10 @@ function status(ref) {
   base.connected = true;
   base.email = sess.email || null;
   base.scopes = String(sess.scopes || '').split(/\s+/).filter(Boolean);
-  base.needsReconsent = !hasDriveScope(sess.scopes);
+  // needsReconsent = "this session cannot do everything the plugin now needs" (full Drive).
+  // driveAccess says what it CAN do meanwhile: 'full', 'read' (drive.readonly) or 'none'.
+  base.driveAccess = canWriteDrive(sess.scopes) ? 'full' : (canReadDrive(sess.scopes) ? 'read' : 'none');
+  base.needsReconsent = !canWriteDrive(sess.scopes);
   base.session = sess.sealed || null;
   return base;
 }
@@ -228,12 +255,12 @@ function logout(ref) {
 
 async function ensureToken(sess) {
   if (sess.access_token && sess.expiry && Date.now() < sess.expiry - 60000) return sess.access_token;
-  if (!sess.refresh_token) throw new Error('not authenticated');
+  if (!sess.refresh_token) throw codedError('no-session', 401, 'not authenticated');
   var r = await postForm('oauth2.googleapis.com', '/token', {
     refresh_token: sess.refresh_token, client_id: CLIENT_ID, client_secret: CLIENT_SECRET, grant_type: 'refresh_token'
   });
-  if (r.status === 400 || r.status === 401) throw new Error('Your Google connection was revoked or expired — please connect Google again.');
-  if (r.status !== 200 || !r.json || !r.json.access_token) throw new Error('token refresh failed (' + r.status + ')');
+  if (r.status === 400 || r.status === 401) throw codedError('revoked', 401, 'Your Google connection was revoked or expired — please connect Google again.');
+  if (r.status !== 200 || !r.json || !r.json.access_token) throw codedError('google-error', 502, 'token refresh failed (' + r.status + ')');
   sess.access_token = r.json.access_token;
   sess.expiry = Date.now() + (r.json.expires_in || 3600) * 1000;
   if (r.json.scope) sess.scopes = r.json.scope;
@@ -241,6 +268,68 @@ async function ensureToken(sess) {
 }
 
 async function tokenFor(ref) { return ensureToken(resolveSession(ref)); }
+
+// POST /auth/token. Hands the plugin a short-lived access token for the user's OWN account so
+// Drive/Sheets bytes go device <-> Google directly and never transit this server. The refresh
+// token is never returned. Why this is acceptable: docs/architecture-client-side.md.
+//
+// DOWN-SCOPED. A Google grant accumulates every scope the user ever gave this OAuth client
+// (include_granted_scopes, or the same client used elsewhere) — a live session was seen carrying
+// Gmail and Calendar scopes. The plugin must never hold those, so its token is minted with an
+// explicit `scope` on the refresh grant: only PLUGIN_SCOPES ∩ granted. Google returns the narrowed
+// set in `scope`; we report exactly that. The token is cached per session until ~60 s before expiry.
+var PLUGIN_SCOPES = [
+  'openid',
+  'email',
+  'https://www.googleapis.com/auth/userinfo.email',
+  SCOPE_SHEETS_READONLY,
+  SCOPE_DRIVE,
+  SCOPE_DRIVE_READONLY
+];
+function pluginScopesFor(granted) {
+  var have = scopeList(granted);
+  var want = PLUGIN_SCOPES.filter(function (sc) { return have.indexOf(sc) >= 0; });
+  // full drive makes drive.readonly redundant; asking for both is harmless but noisy
+  if (want.indexOf(SCOPE_DRIVE) >= 0) want = want.filter(function (sc) { return sc !== SCOPE_DRIVE_READONLY; });
+  // 'email' and userinfo.email are the same grant under two names; Google echoes the long one
+  if (want.indexOf('https://www.googleapis.com/auth/userinfo.email') >= 0) want = want.filter(function (sc) { return sc !== 'email'; });
+  return want;
+}
+
+async function accessToken(ref) {
+  var sess = resolveSession(ref);
+  if (!sess.refresh_token) throw codedError('no-session', 401, 'not authenticated');
+  var p = sess.plugin;
+  if (!p || !p.token || Date.now() >= p.expiry - 60000) {
+    var want = pluginScopesFor(sess.scopes);
+    if (!want.length) throw codedError('needs-reconsent', 403, 'This Google session carries none of the scopes the plugin uses — please connect Google again.');
+    var r = await postForm('oauth2.googleapis.com', '/token', {
+      refresh_token: sess.refresh_token, client_id: CLIENT_ID, client_secret: CLIENT_SECRET,
+      grant_type: 'refresh_token', scope: want.join(' ')
+    });
+    if (r.status === 400 || r.status === 401) {
+      var reason = (r.json && (r.json.error || '')) || '';
+      if (reason === 'invalid_scope') throw codedError('needs-reconsent', 403, 'Google refused the narrowed scope set — please connect Google again.');
+      throw codedError('revoked', 401, 'Your Google connection was revoked or expired — please connect Google again.');
+    }
+    if (r.status !== 200 || !r.json || !r.json.access_token) throw codedError('google-error', 502, 'token refresh failed (' + r.status + ')');
+    p = sess.plugin = {
+      token: r.json.access_token,
+      expiry: Date.now() + (r.json.expires_in || 3600) * 1000,
+      scopes: r.json.scope || want.join(' ')
+    };
+  }
+  return {
+    accessToken: p.token,
+    tokenType: 'Bearer',
+    expiresAt: p.expiry,
+    expiresIn: Math.max(0, Math.floor((p.expiry - Date.now()) / 1000)),
+    scopes: scopeList(p.scopes),
+    email: sess.email || null,
+    driveAccess: canWriteDrive(p.scopes) ? 'full' : (canReadDrive(p.scopes) ? 'read' : 'none'),
+    needsReconsent: !canWriteDrive(sess.scopes)
+  };
+}
 
 // ---------------------------------------------------------------------------------------------
 // Sheets
@@ -302,13 +391,15 @@ function parseFileRef(input) {
 }
 
 function driveError(status, text) {
-  if (status === 401) return new Error('Google rejected the token — please connect Google again.');
+  if (status === 401) return codedError('revoked', 401, 'Google rejected the token — please connect Google again.');
   if (status === 403) {
-    if (/insufficient|scope/i.test(String(text))) return new Error('This Google session predates the Drive change — please disconnect and connect Google again to grant Drive read access.');
-    return new Error('This Google account cannot see that Drive item.');
+    if (/insufficient|scope/i.test(String(text))) return codedError('insufficient-scope', 403, RECONSENT_READ_MSG);
+    if (/rateLimit|quota/i.test(String(text))) return codedError('quota', 429, 'Google Drive quota or rate limit hit — try again in a minute.');
+    return codedError('forbidden', 403, 'This Google account cannot see that Drive item.');
   }
-  if (status === 404) return new Error('No such Drive item, or this Google account cannot see it.');
-  return new Error('Drive request failed (' + status + ').');
+  if (status === 404) return codedError('not-found', 404, 'No such Drive item, or this Google account cannot see it.');
+  if (status === 429) return codedError('quota', 429, 'Google Drive rate limit hit — try again in a minute.');
+  return codedError('google-error', 502, 'Drive request failed (' + status + ').');
 }
 
 var DRIVE_COMMON = 'supportsAllDrives=true&includeItemsFromAllDrives=true';
@@ -320,7 +411,7 @@ var ANIMATION_MIMES = ['image/gif', 'video/mp4', 'video/quicktime', 'video/webm'
 async function listFolder(ref, opts) {
   opts = opts || {};
   var sess = resolveSession(opts.session);
-  if (!hasDriveScope(sess.scopes)) throw new Error('This Google session predates the Drive change — please disconnect and connect Google again to grant Drive read access.');
+  if (!canReadDrive(sess.scopes)) throw codedError('needs-reconsent', 403, RECONSENT_READ_MSG);
   var token = await ensureToken(sess);
 
   var folderId = parseFolderRef(ref);
@@ -351,6 +442,7 @@ async function listFolder(ref, opts) {
         modifiedTime: f.modifiedTime || null,
         width: (f.imageMediaMetadata && f.imageMediaMetadata.width) || (f.videoMediaMetadata && f.videoMediaMetadata.width) || null,
         height: (f.imageMediaMetadata && f.imageMediaMetadata.height) || (f.videoMediaMetadata && f.videoMediaMetadata.height) || null,
+        durationMillis: (f.videoMediaMetadata && f.videoMediaMetadata.durationMillis != null) ? Number(f.videoMediaMetadata.durationMillis) : null,
         webViewLink: f.webViewLink || null
       });
     });
@@ -372,18 +464,22 @@ async function listFolder(ref, opts) {
 
 async function fileMeta(ref, fileRef) {
   var sess = resolveSession(ref);
+  if (!canReadDrive(sess.scopes)) throw codedError('needs-reconsent', 403, RECONSENT_READ_MSG);
   var token = await ensureToken(sess);
   var id = parseFileRef(fileRef);
   if (!id) throw new Error('That does not look like a Google Drive file link or id.');
-  var r = await getJson('www.googleapis.com', '/drive/v3/files/' + encodeURIComponent(id) + '?' + DRIVE_COMMON + '&fields=' + encodeURIComponent('id,name,mimeType,size,modifiedTime,imageMediaMetadata(width,height)'), token);
+  var r = await getJson('www.googleapis.com', '/drive/v3/files/' + encodeURIComponent(id) + '?' + DRIVE_COMMON + '&fields=' + encodeURIComponent('id,name,mimeType,size,modifiedTime,parents,imageMediaMetadata(width,height),videoMediaMetadata(width,height,durationMillis)'), token);
   if (r.status !== 200 || !r.json) throw driveError(r.status, r.text);
   var f = r.json;
+  var im = f.imageMediaMetadata || {}, vm = f.videoMediaMetadata || {};
   return {
     id: f.id, name: f.name, mimeType: f.mimeType,
     size: f.size != null ? Number(f.size) : null,
     modifiedTime: f.modifiedTime || null,
-    width: (f.imageMediaMetadata && f.imageMediaMetadata.width) || null,
-    height: (f.imageMediaMetadata && f.imageMediaMetadata.height) || null
+    parents: f.parents || [],
+    width: im.width || vm.width || null,
+    height: im.height || vm.height || null,
+    durationMillis: vm.durationMillis != null ? Number(vm.durationMillis) : null
   };
 }
 
@@ -391,7 +487,7 @@ async function fileMeta(ref, fileRef) {
 // are rejected with a clear message rather than a confusing 403.
 async function downloadFile(ref, fileRef) {
   var sess = resolveSession(ref);
-  if (!hasDriveScope(sess.scopes)) throw new Error('This Google session predates the Drive change — please disconnect and connect Google again to grant Drive read access.');
+  if (!canReadDrive(sess.scopes)) throw codedError('needs-reconsent', 403, RECONSENT_READ_MSG);
   var token = await ensureToken(sess);
   var meta = await fileMeta(ref, fileRef);
   if (/^application\/vnd\.google-apps\./.test(meta.mimeType)) throw new Error('"' + meta.name + '" is a Google-native file, not a downloadable asset.');
@@ -415,6 +511,13 @@ module.exports = {
   parseFolderRef: parseFolderRef,
   parseFileRef: parseFileRef,
   tokenFor: tokenFor,
+  accessToken: accessToken,
+  sessionKey: function (ref) { return liveKey(String(ref || '')); },   // a hash, safe to use as a rate-limit key
+  canReadDrive: canReadDrive,
+  canWriteDrive: canWriteDrive,
+  scopeList: scopeList,
+  SCOPE_DRIVE: SCOPE_DRIVE,
+  SCOPE_DRIVE_READONLY: SCOPE_DRIVE_READONLY,
   REDIRECT_URI: REDIRECT_URI,
   SCOPES: SCOPES,
   SCOPE_LIST: SCOPE_LIST,

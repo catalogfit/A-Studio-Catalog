@@ -1,0 +1,92 @@
+<!-- plugin-src/ui/automate.html — owned by the automate panel. Inserted into shell.html at "@panel automate". -->
+  <div class="view on" id="view-automate">
+
+    <div class="sec">
+      <div class="lab"><span class="n"><i>1</i> Content source</span><span class="meta" id="scopemeta"></span></div>
+      <div class="seg">
+        <button class="on" data-src="link">Sheet link</button>
+        <button data-src="paste">Paste rows</button>
+        <button data-src="selection">Selection</button>
+      </div>
+
+      <div id="src-link" style="margin-top:10px">
+        <div class="row">
+          <input id="link" placeholder="Google Sheet link">
+          <button class="btn ghost" id="load">Load</button>
+        </div>
+        <div id="scope-note"></div>
+        <!-- Connect Google lived here. It is now the startup gate: by the time this
+             panel is visible the user is signed in, so the button, its hint and the
+             "Publish to web → CSV" fallback copy have all been removed. -->
+        <details class="more">
+          <summary title="Link formats">?</summary>
+          <div class="hint">
+            <b>One row only:</b> right-click the row's cell → <b>Get link to this cell</b>,
+            or append <code>&amp;range=A5</code>, <code>&amp;range=5:9</code> or
+            <code>&amp;range=Sheet1!A5:J9</code>. The scope is shown above before you run.
+          </div>
+        </details>
+      </div>
+
+      <div id="src-paste" class="hidden" style="margin-top:10px">
+        <textarea id="paste" placeholder="Paste rows, columns A–J"></textarea>
+        <details class="more">
+          <summary title="Column schema">?</summary>
+          <div class="hint">A Style IDs · <b>B Category</b> · <b>C Gender</b> (men / women) · D Card 1 Hero · E Card 2 Fabric · F–I Cards 3–6 · J Fit comparison. One line per text box in a cell. Bold = **word**.</div>
+        </details>
+      </div>
+
+      <div id="src-selection" class="hidden" style="margin-top:10px">
+        <div class="selbox" id="selinfo">Select an A+ frame.</div>
+        <div class="hint">Your picks below override columns B and C — load the sheet first.</div>
+      </div>
+
+      <div class="found hidden" id="found"></div>
+    </div>
+
+    <div class="sec">
+      <div class="lab"><span class="n"><i>2</i> Category</span></div>
+      <div class="cats" id="cats"></div>
+    </div>
+
+    <div class="sec">
+      <div class="lab"><span class="n"><i>3</i> Gender</span></div>
+      <div class="chips" id="genders"></div>
+    </div>
+
+    <div class="sec">
+      <div class="lab"><span class="n"><i>4</i> Template</span><span class="meta" id="tplmeta"></span></div>
+      <div class="tpls" id="tpls"></div>
+      <div class="preview" id="preview"><div class="empty">Pick a template.</div></div>
+      <div class="hint" id="tplnote"></div>
+    </div>
+
+    <div class="sec">
+      <div class="lab"><span class="n"><i>5</i> Review</span><span class="meta" id="rv-count"></span></div>
+      <div class="hint" style="margin-top:0">Edits apply to this run; the sheet is never written back.</div>
+      <div class="rv" id="review"><div class="empty">Load a sheet.</div></div>
+      <div class="okbar">
+        <input type="checkbox" id="rv-ok">
+        <label for="rv-ok">I have reviewed these values.</label>
+      </div>
+    </div>
+
+    <div class="err" id="err"></div>
+
+    <button class="btn primary" id="run" disabled>Run A+</button>
+    <div class="hint">Photo slots are left empty — drop images in.</div>
+
+    <div class="panel" id="extras">
+      <div class="ph" id="extras-h"><span>✚ Add a block to the selection</span><span class="chev">›</span></div>
+      <div class="body">
+        <div class="hint" style="margin-top:0">Select the finished A+ frame(s), then add.</div>
+        <div class="row" style="margin-top:8px">
+          <input id="cmp-left" placeholder="Regular fit">
+          <input id="cmp-right" placeholder="Slim fit">
+        </div>
+        <button class="btn ghost" id="addcmp" style="width:100%;margin-top:8px" disabled>Add fit comparison</button>
+      </div>
+    </div>
+
+    <div class="report" id="report"></div>
+  </div>

@@ -1,0 +1,28 @@
+{
+  "schema": "aplus.gif-rules/1",
+  "comment": "Which animation goes under an A+ in the animated export, keyed by category. Served as-is by GET /api/gif-rules and resolved against Drive metadata by POST /api/gif-match. Owned by the Export panel. Convention: a category with no explicit rule uses the file named after the category in the source folder (Running -> Running.mp4 or Running.gif), case-insensitive, extension chosen by `prefer`.",
+  "source": {
+    "folderId": "10RViOBmMmhxj3WhmnfiQdiKQxcNopKnF",
+    "folderName": "Gifs",
+    "folderUrl": "https://drive.google.com/drive/folders/10RViOBmMmhxj3WhmnfiQdiKQxcNopKnF"
+  },
+  "convention": {
+    "match": "category-name",
+    "caseInsensitive": true,
+    "ignorePunctuation": true,
+    "prefer": ["video/mp4", "image/gif", "video/quicktime", "video/webm"]
+  },
+  "output": {
+    "comment": "House format for a finished A+ GIF (example in Drive: 708202.gif). Encoding happens on the user's device.",
+    "width": 582,
+    "fps": 30,
+    "layout": "static A+ on top, animation full-width below",
+    "targetBytes": { "min": 3000000, "max": 5000000 }
+  },
+  "categories": {
+    "running": { "label": "Running", "file": "Running", "aliases": ["run"] },
+    "training": { "label": "Training", "file": "Training", "aliases": ["train"] },
+    "lifestyle": { "label": "Lifestyle", "file": "Lifestyle", "aliases": ["comfort"] },
+    "seamless": { "label": "Seamless", "file": "Seamless", "aliases": ["flex"] }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "aplus-plugin-tests",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Headless-Chrome UI harness + mocked-figma sandbox harness for the Cult A+ Design Lab plugin. See README.md.",
+  "scripts": {
+    "build": "node ../build.js",
+    "test": "node ../build.js && node --test --test-concurrency=1 --test-reporter=spec *.test.js",
+    "test:ui": "node --test --test-concurrency=1 --test-reporter=spec smoke.test.js platform.test.js",
+    "test:sandbox": "node --test --test-reporter=spec sandbox.test.js",
+    "test:live": "node --test --test-reporter=spec live/*.live.js"
+  },
+  "devDependencies": {
+    "puppeteer-core": "25.17.0"
+  }
+}

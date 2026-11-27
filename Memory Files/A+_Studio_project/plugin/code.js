@@ -1,3 +1,4 @@
+// ===== renderer.js =====
 // ===== A+ Studio · manifest-driven renderer (aplus-standard-v1) =====
 // Builds one A+ design from a TEMPLATE MANIFEST (served by the backend) and one sheet row.
 // The design lives in the manifest; this file just interprets it. Text stays editable
@@ -766,6 +767,7 @@ async function buildFromManifest(M, row, opts) {
   return { frame: fr, label: lbl, warnings: warn };
 }
 
+// ===== manifest-fallback.js =====
 // ===== A+ Studio · bundled fallback (auto-generated from backend/templates) =====
 // Used when the backend is unreachable, so the plugin always works offline.
 // Manifest keys are "<category>/<gender>/<template>" and every "extends" is already resolved.
@@ -10347,6 +10349,7 @@ var FALLBACK_MANIFESTS = {
   }
 };
 
+// ===== capture.js =====
 // ===== A+ Studio · frame capture (aplus-capture-v1) =====
 // Select a finished A+ frame, get a reusable template manifest back.
 //
@@ -11743,13 +11746,48 @@ async function capHandleCaptureTemplate(msg) {
   }
 }
 
-
-// ===== plugin main: resolve a template manifest, build one A+ per sheet row =====
-// Network (fetching manifests from the backend) happens in ui.html; this side renders.
-// If the UI could not reach the backend, we fall back to the manifest bundled in this file.
+// ===== main.js =====
+// ===== plugin main (CORE) — OWNED BY THE PLATFORM =====
+// The Figma-sandbox half of the platform: shows the UI, keeps the UI's view of page + selection
+// consistent, owns figma.clientStorage, and routes UI messages to the panel handlers registered in
+// main-automate.js / main-design.js / main-export.js (concatenated after this file by build.js).
+//
+// Panel files use exactly three hooks from here:
+//   onUiMessage(type, async function (msg) { ... })      handle one UI message type
+//   onInit(async function (initMsg) { initMsg.x = ... })  add fields to the 'init' message
+//   replyTo(msg, result) / replyError(msg, err)           answer a bridge.request() from the UI
+// plus the shared helpers idsFromNode(), nearbyLabelIds(), fallbackManifest().
 figma.showUI(__html__, { width: 460, height: 760, themeColors: true });
 
 function fallbackManifest(key) { return FALLBACK_MANIFESTS[key] || null; }
+
+// ---------- message router ----------
+var UI_HANDLERS = {};
+function onUiMessage(type, fn) {
+  if (UI_HANDLERS[type]) throw new Error('Two handlers registered for UI message "' + type + '"');
+  UI_HANDLERS[type] = fn;
+}
+var INIT_CONTRIBUTORS = [];
+function onInit(fn) { INIT_CONTRIBUTORS.push(fn); }
+// Replies to the UI's bridge.request(type, payload): the UI waits for { type:'reply', reqId }.
+function replyTo(msg, result) { if (msg && msg.reqId) figma.ui.postMessage({ type: 'reply', reqId: msg.reqId, ok: true, result: result === undefined ? null : result }); }
+function replyError(msg, e, code) {
+  if (msg && msg.reqId) figma.ui.postMessage({ type: 'reply', reqId: msg.reqId, ok: false, code: code || (e && e.code) || 'sandbox-error', error: String((e && e.message) || e) });
+}
+
+figma.ui.onmessage = async function (msg) {
+  if (!msg || !msg.type) return;
+  var fn = UI_HANDLERS[msg.type];
+  if (!fn) {
+    if (msg.reqId) replyError(msg, 'No handler for "' + msg.type + '" in this code.js — rebuild the plugin.', 'no-handler');
+    return;
+  }
+  try { await fn(msg); }
+  catch (e) {
+    if (msg.reqId) replyError(msg, e);
+    else figma.ui.postMessage({ type: 'error', message: String((e && e.message) || e) });
+  }
+};
 
 // ---------- what is selected right now ----------
 // Used by the "build from the selected frame" flow: pick an A+ on the canvas and the
@@ -11863,88 +11901,37 @@ function syncToUi() {
   postSelection(false);
 }
 
-(async function () {
-  var saved = await figma.clientStorage.getAsync('sheetLink');
-  var backend = await figma.clientStorage.getAsync('backendUrl');
+// ---------- startup ----------
+// Runs on a microtask, i.e. after this whole file (and the main-*.js files concatenated after it)
+// has executed, so every onInit() contributor and onUiMessage() handler is registered first.
+async function bootPlugin() {
+  var backendOverride = await figma.clientStorage.getAsync('backendUrl');
   var session = await figma.clientStorage.getAsync('googleSession');
-  var exportConfig = await figma.clientStorage.getAsync('exportConfig');
-  // Templates captured from a frame live in clientStorage. They are folded into the same
-  // registry and manifest map the bundled Running templates use, so they show up in the
-  // category → gender → template picker and route from the sheet with no special casing.
-  var captured = { index: [], manifests: {} };
-  try { captured = await capLoadTemplates(); }
-  catch (e) { figma.notify('A+: saved templates could not be read (' + (e && e.message) + ')'); }
-  Object.keys(captured.manifests).forEach(function (k) { FALLBACK_MANIFESTS[k] = captured.manifests[k]; });
-  capMergeIntoRegistry(FALLBACK_REGISTRY, captured.index);
-  figma.ui.postMessage({
+  var init = {
     type: 'init',
-    sheetLink: saved || '',
-    backendUrl: backend || '',
+    backendUrl: backendOverride || '',   // developer override only; empty = the built-in constant
     session: session || '',
-    exportConfig: exportConfig || null,  // GIF folder + category→GIF rules from the Export tab
     registry: FALLBACK_REGISTRY,
-    manifests: FALLBACK_MANIFESTS,   // so the UI can draw template previews with no backend
-    captured: captured.index,        // which of the above came from a captured frame
+    manifests: FALLBACK_MANIFESTS,       // so the UI can draw template previews with no backend
     page: figma.currentPage.name
-  });
+  };
+  for (var i = 0; i < INIT_CONTRIBUTORS.length; i++) {
+    try { await INIT_CONTRIBUTORS[i](init); }
+    catch (e) { figma.notify('A+: startup step failed (' + ((e && e.message) || e) + ')'); }
+  }
+  // contributors may have folded more templates into the FALLBACK_* maps
+  init.registry = FALLBACK_REGISTRY;
+  init.manifests = FALLBACK_MANIFESTS;
+  figma.ui.postMessage(init);
   postPage();                // same shape the UI gets on every later page change
   postSelection(true);
   ready = true;              // only now may the listeners below post anything
-})();
+}
+Promise.resolve().then(bootPlugin).catch(function (e) { figma.notify('A+: could not start (' + ((e && e.message) || e) + ')'); });
 
 // ---------- follow the user across pages and selections ----------
 figma.on('selectionchange', syncToUi);
 figma.on('currentpagechange', syncToUi);
-
-// ---------- export ----------
-// Finds the A+ frame for a style ID on the current page and exports it with exportAsync.
-// Figma can only emit PNG/JPG/SVG/PDF; when the user asked for an animated composite the UI
-// receives the PNG here and sends it to the backend's /api/compose with the matched Drive GIF.
-function styleFrameCandidates() {
-  var pool = [];
-  figma.currentPage.children.forEach(function (n) {
-    if (n.type === 'FRAME') pool.push(n);
-    else if (n.type === 'SECTION') n.children.forEach(function (c) { if (c.type === 'FRAME') pool.push(c); });
-  });
-  return pool;
-}
-function findStyleFrames(styleId) {
-  // a selected frame wins, so "select the A+ and press Export" always exports what you selected
-  var sel = figma.currentPage.selection.filter(function (n) { return n.type === 'FRAME'; });
-  var pool = sel.concat(styleFrameCandidates().filter(function (n) { return sel.indexOf(n) < 0; }));
-  var byName = pool.filter(function (n) { return (String(n.name).match(/\d{6}/g) || []).indexOf(styleId) >= 0; });
-  if (byName.length) return byName;
-  return pool.filter(function (n) {
-    var ids = idsFromNode(n);
-    if (!ids.length) ids = nearbyLabelIds(n);
-    return ids.indexOf(styleId) >= 0;
-  });
-}
-async function handleExportStyle(msg) {
-  var reqId = msg.reqId;
-  try {
-    if (msg.pageId && msg.pageId !== figma.currentPage.id) {
-      throw new Error('You changed pages after this list was drawn. Go back to the page holding style ' + msg.styleId + ', or refresh the Export tab.');
-    }
-    var hits = findStyleFrames(String(msg.styleId || ''));
-    if (!hits.length) throw new Error('No frame for style ' + msg.styleId + ' on this page. Build it on the Automate tab first, or select its frame.');
-    var frame = hits[0];
-    var fmt = String(msg.format || 'PNG').toUpperCase();
-    if (['PNG', 'JPG', 'SVG', 'PDF'].indexOf(fmt) < 0) throw new Error('Figma cannot export "' + fmt + '".');
-    var scale = Math.max(1, Math.min(4, Number(msg.scale) || 1));
-    var settings = (fmt === 'PNG' || fmt === 'JPG') ? { format: fmt, constraint: { type: 'SCALE', value: scale } } : { format: fmt };
-    var bytes = await frame.exportAsync(settings);
-    figma.ui.postMessage({
-      type: 'export-bytes', reqId: reqId, styleId: msg.styleId, format: fmt, composite: msg.composite || null,
-      frameName: frame.name, frameId: frame.id, matches: hits.length,
-      width: Math.round(frame.width * (settings.constraint ? scale : 1)),
-      height: Math.round(frame.height * (settings.constraint ? scale : 1)),
-      bytes: bytes
-    });
-  } catch (e) {
-    figma.ui.postMessage({ type: 'export-error', reqId: reqId, styleId: msg.styleId, message: String((e && e.message) || e) });
-  }
-}
 
 // a page rename with no page switch is not pushed. The hook that would catch it,
 // figma.on('documentchange'), requires figma.loadAllPagesAsync() first under
@@ -11952,50 +11939,138 @@ async function handleExportStyle(msg) {
 // title. Instead the UI refreshes the name itself with a 'ping-page' message, which is
 // cheap and handled below — so a stale name only lasts until the UI next pings.
 
-figma.ui.onmessage = async function (msg) {
-  if (msg.type === 'save-link') { await figma.clientStorage.setAsync('sheetLink', msg.link || ''); return; }
-  if (msg.type === 'save-backend') { await figma.clientStorage.setAsync('backendUrl', msg.url || ''); return; }
-  if (msg.type === 'save-session') { await figma.clientStorage.setAsync('googleSession', msg.session || ''); return; }
-  if (msg.type === 'save-export-config') { await figma.clientStorage.setAsync('exportConfig', msg.config || null); return; }
+// ---------- core messages ----------
+onUiMessage('save-session', async function (msg) { await figma.clientStorage.setAsync('googleSession', msg.session || ''); });
+// developer override of the backend URL (no UI field; from the plugin console: aplusDev.setBackend(url))
+onUiMessage('save-backend', async function (msg) { await figma.clientStorage.setAsync('backendUrl', msg.url || ''); });
+// the pings answer unconditionally — the UI asked, so the de-dup above must not swallow it
+onUiMessage('ping-selection', async function () { postSelection(true); });
+onUiMessage('ping-page', async function () { postPage(); });
+onUiMessage('notify', async function (msg) { figma.notify(String(msg.text || '').slice(0, 300), msg.error ? { error: true } : undefined); });
 
-  // ---------- export one style's A+ frame (the UI composites a GIF onto it if asked) ----------
-  if (msg.type === 'export-style') { await handleExportStyle(msg); return; }
-  // the pings answer unconditionally — the UI asked, so the de-dup above must not swallow it
-  if (msg.type === 'ping-selection') { postSelection(true); return; }
-  if (msg.type === 'ping-page') { postPage(); return; }
+// Small per-user prefs for panels — always namespaced "ui:" so a panel can never overwrite the
+// session, the backend override or the template cache. Values must be small (clientStorage quota).
+var STORAGE_VALUE_MAX = 64 * 1024;
+onUiMessage('storage-get', async function (msg) {
+  replyTo(msg, await figma.clientStorage.getAsync('ui:' + String(msg.key || '')));
+});
+onUiMessage('storage-set', async function (msg) {
+  var v = msg.value === undefined ? null : msg.value;
+  if (JSON.stringify(v === null ? '' : v).length > STORAGE_VALUE_MAX) return replyError(msg, 'Value too large for clientStorage (max 64 KB). Store big things in Drive.', 'too-large');
+  if (v === null) await figma.clientStorage.deleteAsync('ui:' + String(msg.key || ''));
+  else await figma.clientStorage.setAsync('ui:' + String(msg.key || ''), v);
+  replyTo(msg, true);
+});
 
-  // ---------- capture the selected frame as a reusable template ----------
-  if (msg.type === 'capture-template') { await capHandleCaptureTemplate(msg); return; }
-
-  // ---------- add the fit comparison card to the frames that are selected ----------
-  if (msg.type === 'add-comparison') {
-    var Mc = (msg.manifests && msg.manifests[msg.key]) || fallbackManifest(msg.key);
-    if (!Mc) { figma.ui.postMessage({ type: 'error', message: 'No template loaded for "' + msg.key + '".' }); return; }
-    if (!Mc.comparison) { figma.ui.postMessage({ type: 'error', message: 'This template has no fit comparison block.' }); return; }
-    var targets = figma.currentPage.selection.filter(function (n) { return n.type === 'FRAME'; });
-    if (!targets.length) { figma.ui.postMessage({ type: 'error', message: 'Select the A+ frame(s) first.' }); return; }
-    try {
-      var fc = await loadFontsFromManifest(Mc);
-      var labels = [
-        (msg.labels && msg.labels[0]) || Mc.content.comparison.defaults[0],
-        (msg.labels && msg.labels[1]) || Mc.content.comparison.defaults[1]
-      ];
-      var rep = [];
-      for (var t = 0; t < targets.length; t++) {
-        try { addComparisonToFrame(Mc, fc.F, targets[t], labels); rep.push({ name: targets[t].name, ok: true, warnings: [] }); }
-        catch (e) { rep.push({ name: targets[t].name, ok: false, warnings: [String((e && e.message) || e)] }); }
-      }
-      figma.commitUndo();
-      figma.ui.postMessage({ type: 'done', report: rep, missingFonts: fc.missing, source: msg.source || 'bundled', template: Mc.meta.label });
-      figma.notify('A+: fit comparison added to ' + rep.filter(function (r) { return r.ok; }).length + ' frame(s)');
-    } catch (e) {
-      figma.ui.postMessage({ type: 'error', message: String((e && e.message) || e) });
-    }
-    return;
+// ---------- template cache (clientStorage) ----------
+// A CACHE of the user's Drive template library (templateStore in platform.js). Drive is the
+// source of truth; this only makes the picker work offline and instantly. Manifests only — never
+// image bytes — and bounded: one entry <= TPLCACHE_ENTRY_MAX, all entries <= TPLCACHE_TOTAL_MAX,
+// oldest evicted first. An entry too big to cache keeps its index row (no body).
+var TPLCACHE_INDEX = 'tplcache:index';
+var TPLCACHE_ENTRY_MAX = 400 * 1024;
+var TPLCACHE_TOTAL_MAX = 2 * 1024 * 1024;
+function tplBodyKey(key) { return 'tplcache:m:' + key; }
+async function tplIndex() { return (await figma.clientStorage.getAsync(TPLCACHE_INDEX)) || []; }
+async function tplPut(key, entry, manifest) {
+  var idx = (await tplIndex()).filter(function (e) { return e && e.key !== key; });
+  var size = 0, body = null;
+  if (manifest) { body = JSON.stringify(manifest); size = body.length; }
+  var row = { key: key, entry: entry || null, cachedAt: Date.now(), bytes: body && size <= TPLCACHE_ENTRY_MAX ? size : 0 };
+  if (row.bytes) await figma.clientStorage.setAsync(tplBodyKey(key), manifest);
+  else await figma.clientStorage.deleteAsync(tplBodyKey(key));
+  idx.push(row);
+  // evict oldest bodies until the total fits
+  idx.sort(function (a, b) { return a.cachedAt - b.cachedAt; });
+  var total = idx.reduce(function (n, e) { return n + (e.bytes || 0); }, 0);
+  for (var i = 0; i < idx.length && total > TPLCACHE_TOTAL_MAX; i++) {
+    if (!idx[i].bytes || idx[i].key === key) continue;
+    total -= idx[i].bytes; idx[i].bytes = 0;
+    await figma.clientStorage.deleteAsync(tplBodyKey(idx[i].key));
   }
+  await figma.clientStorage.setAsync(TPLCACHE_INDEX, idx);
+  return { cached: !!row.bytes, bytes: size };
+}
+onUiMessage('tplcache-put', async function (msg) { replyTo(msg, await tplPut(String(msg.key), msg.entry, msg.manifest)); });
+onUiMessage('tplcache-remove', async function (msg) {
+  var key = String(msg.key);
+  await figma.clientStorage.setAsync(TPLCACHE_INDEX, (await tplIndex()).filter(function (e) { return e && e.key !== key; }));
+  await figma.clientStorage.deleteAsync(tplBodyKey(key));
+  replyTo(msg, true);
+});
+// keep exactly the keys Drive reported; refresh their index rows, drop the rest
+onUiMessage('tplcache-sync', async function (msg) {
+  var keep = {}; (msg.keys || []).forEach(function (k) { keep[k] = 1; });
+  var entries = {}; (msg.entries || []).forEach(function (e) { if (e && e.key) entries[e.key] = e; });
+  var idx = await tplIndex(), out = [];
+  for (var i = 0; i < idx.length; i++) {
+    var e = idx[i];
+    if (!e || !keep[e.key]) { if (e) await figma.clientStorage.deleteAsync(tplBodyKey(e.key)); continue; }
+    if (entries[e.key]) e.entry = entries[e.key];
+    out.push(e); delete entries[e.key];
+  }
+  Object.keys(entries).forEach(function (k) { out.push({ key: k, entry: entries[k], cachedAt: Date.now(), bytes: 0 }); });
+  await figma.clientStorage.setAsync(TPLCACHE_INDEX, out);
+  replyTo(msg, { count: out.length });
+});
+onUiMessage('tplcache-list', async function (msg) {
+  var idx = await tplIndex(), manifests = {};
+  for (var i = 0; i < idx.length; i++) {
+    if (!idx[i] || !idx[i].bytes) continue;
+    var m = await figma.clientStorage.getAsync(tplBodyKey(idx[i].key));
+    if (m) manifests[idx[i].key] = m;
+  }
+  replyTo(msg, { index: idx.map(function (e) { return { key: e.key, entry: e.entry, cachedAt: e.cachedAt, hasManifest: !!manifests[e.key] }; }), manifests: manifests });
+});
+onUiMessage('tplcache-clear', async function (msg) {
+  var idx = await tplIndex();
+  for (var i = 0; i < idx.length; i++) if (idx[i]) await figma.clientStorage.deleteAsync(tplBodyKey(idx[i].key));
+  await figma.clientStorage.deleteAsync(TPLCACHE_INDEX);
+  replyTo(msg, true);
+});
 
-  if (msg.type !== 'run') return;
+// ===== main-automate.js =====
+// ===== sandbox handlers: Automate A+ — OWNED BY THE AUTOMATE PANEL =====
+// UI counterpart: plugin-src/ui/automate.js. Renderer: plugin-src/renderer.js.
+// Hooks from main.js (core): onUiMessage, onInit, replyTo/replyError, fallbackManifest.
+// Messages handled:  save-link {link} · add-comparison {key, manifests, labels, source} ·
+//                    run {rows, keys, errors, manifests, source}
+// Messages posted:   progress {done,total} · done {report, missingFonts, source, template} · error {message}
 
+onInit(async function (init) {
+  init.sheetLink = (await figma.clientStorage.getAsync('sheetLink')) || '';
+});
+
+onUiMessage('save-link', async function (msg) { await figma.clientStorage.setAsync('sheetLink', msg.link || ''); });
+
+// ---------- add the fit comparison card to the frames that are selected ----------
+onUiMessage('add-comparison', async function (msg) {
+  var Mc = (msg.manifests && msg.manifests[msg.key]) || fallbackManifest(msg.key);
+  if (!Mc) { figma.ui.postMessage({ type: 'error', message: 'No template loaded for "' + msg.key + '".' }); return; }
+  if (!Mc.comparison) { figma.ui.postMessage({ type: 'error', message: 'This template has no fit comparison block.' }); return; }
+  var targets = figma.currentPage.selection.filter(function (n) { return n.type === 'FRAME'; });
+  if (!targets.length) { figma.ui.postMessage({ type: 'error', message: 'Select the A+ frame(s) first.' }); return; }
+  try {
+    var fc = await loadFontsFromManifest(Mc);
+    var labels = [
+      (msg.labels && msg.labels[0]) || Mc.content.comparison.defaults[0],
+      (msg.labels && msg.labels[1]) || Mc.content.comparison.defaults[1]
+    ];
+    var rep = [];
+    for (var t = 0; t < targets.length; t++) {
+      try { addComparisonToFrame(Mc, fc.F, targets[t], labels); rep.push({ name: targets[t].name, ok: true, warnings: [] }); }
+      catch (e) { rep.push({ name: targets[t].name, ok: false, warnings: [String((e && e.message) || e)] }); }
+    }
+    figma.commitUndo();
+    figma.ui.postMessage({ type: 'done', report: rep, missingFonts: fc.missing, source: msg.source || 'bundled', template: Mc.meta.label });
+    figma.notify('A+: fit comparison added to ' + rep.filter(function (r) { return r.ok; }).length + ' frame(s)');
+  } catch (e) {
+    figma.ui.postMessage({ type: 'error', message: String((e && e.message) || e) });
+  }
+});
+
+// ---------- build one A+ per sheet row ----------
+onUiMessage('run', async function (msg) {
   // Per-row routing: the UI has already resolved each row's category (column B) and gender
   // (column C) to a manifest key ("running/women/template-1") in msg.keys[i], or an error
   // string in msg.errors[i] for rows it could not route. Backend manifests arrive in msg.manifests.
@@ -12067,4 +12142,93 @@ figma.ui.onmessage = async function (msg) {
   } catch (e) {
     figma.ui.postMessage({ type: 'error', message: String(e && e.message || e) });
   }
-};
+});
+
+// ===== main-design.js =====
+// ===== sandbox handlers: Add design — OWNED BY THE DESIGN PANEL =====
+// UI counterpart: plugin-src/ui/design.js. Capture engine: plugin-src/capture.js.
+// Hooks from main.js (core): onUiMessage, onInit, replyTo/replyError.
+// Messages handled:  capture-template {frameId, frameName, width, height, styleIds, pageId, template, semanticLabelling, backend}
+// Messages posted:   capture-progress {step, done, total} · capture-result {...} · capture-error {message}
+// Init contribution: init.captured — index of templates captured from frames (clientStorage today;
+//                    moving to the user's Drive via platform templateStore is this panel's job).
+
+onInit(async function (init) {
+  // Templates captured from a frame live in clientStorage. They are folded into the same
+  // registry and manifest map the bundled Running templates use, so they show up in the
+  // category → gender → template picker and route from the sheet with no special casing.
+  var captured = { index: [], manifests: {} };
+  try { captured = await capLoadTemplates(); }
+  catch (e) { figma.notify('A+: saved templates could not be read (' + (e && e.message) + ')'); }
+  Object.keys(captured.manifests).forEach(function (k) { FALLBACK_MANIFESTS[k] = captured.manifests[k]; });
+  capMergeIntoRegistry(FALLBACK_REGISTRY, captured.index);
+  init.captured = captured.index;   // which of the registry's templates came from a captured frame
+});
+
+// ---------- capture the selected frame as a reusable template ----------
+onUiMessage('capture-template', async function (msg) { await capHandleCaptureTemplate(msg); });
+
+// ===== main-export.js =====
+// ===== sandbox handlers: Export — OWNED BY THE EXPORT PANEL =====
+// UI counterpart: plugin-src/ui/export.js.
+// Hooks from main.js (core): onUiMessage, onInit, replyTo/replyError, idsFromNode, nearbyLabelIds.
+// Messages handled:  export-style {reqId, styleId, pageId, format, composite, scale} · save-export-config {config}
+// Messages posted:   export-bytes {reqId, styleId, format, composite, frameName, frameId, matches, width, height, bytes}
+//                    export-error {reqId, styleId, message}
+// Init contribution: init.exportConfig — the GIF folder + category→GIF rules saved from the Export tab.
+
+onInit(async function (init) {
+  init.exportConfig = (await figma.clientStorage.getAsync('exportConfig')) || null;
+});
+
+onUiMessage('save-export-config', async function (msg) { await figma.clientStorage.setAsync('exportConfig', msg.config || null); });
+
+// ---------- export ----------
+// Finds the A+ frame for a style ID on the current page and exports it with exportAsync.
+// Figma can only emit PNG/JPG/SVG/PDF; animated output is composited from these bytes in the UI.
+function styleFrameCandidates() {
+  var pool = [];
+  figma.currentPage.children.forEach(function (n) {
+    if (n.type === 'FRAME') pool.push(n);
+    else if (n.type === 'SECTION') n.children.forEach(function (c) { if (c.type === 'FRAME') pool.push(c); });
+  });
+  return pool;
+}
+function findStyleFrames(styleId) {
+  // a selected frame wins, so "select the A+ and press Export" always exports what you selected
+  var sel = figma.currentPage.selection.filter(function (n) { return n.type === 'FRAME'; });
+  var pool = sel.concat(styleFrameCandidates().filter(function (n) { return sel.indexOf(n) < 0; }));
+  var byName = pool.filter(function (n) { return (String(n.name).match(/\d{6}/g) || []).indexOf(styleId) >= 0; });
+  if (byName.length) return byName;
+  return pool.filter(function (n) {
+    var ids = idsFromNode(n);
+    if (!ids.length) ids = nearbyLabelIds(n);
+    return ids.indexOf(styleId) >= 0;
+  });
+}
+async function handleExportStyle(msg) {
+  var reqId = msg.reqId;
+  try {
+    if (msg.pageId && msg.pageId !== figma.currentPage.id) {
+      throw new Error('You changed pages after this list was drawn. Go back to the page holding style ' + msg.styleId + ', or refresh the Export tab.');
+    }
+    var hits = findStyleFrames(String(msg.styleId || ''));
+    if (!hits.length) throw new Error('No frame for style ' + msg.styleId + ' on this page. Build it on the Automate tab first, or select its frame.');
+    var frame = hits[0];
+    var fmt = String(msg.format || 'PNG').toUpperCase();
+    if (['PNG', 'JPG', 'SVG', 'PDF'].indexOf(fmt) < 0) throw new Error('Figma cannot export "' + fmt + '".');
+    var scale = Math.max(1, Math.min(4, Number(msg.scale) || 1));
+    var settings = (fmt === 'PNG' || fmt === 'JPG') ? { format: fmt, constraint: { type: 'SCALE', value: scale } } : { format: fmt };
+    var bytes = await frame.exportAsync(settings);
+    figma.ui.postMessage({
+      type: 'export-bytes', reqId: reqId, styleId: msg.styleId, format: fmt, composite: msg.composite || null,
+      frameName: frame.name, frameId: frame.id, matches: hits.length,
+      width: Math.round(frame.width * (settings.constraint ? scale : 1)),
+      height: Math.round(frame.height * (settings.constraint ? scale : 1)),
+      bytes: bytes
+    });
+  } catch (e) {
+    figma.ui.postMessage({ type: 'export-error', reqId: reqId, styleId: msg.styleId, message: String((e && e.message) || e) });
+  }
+}
+onUiMessage('export-style', handleExportStyle);

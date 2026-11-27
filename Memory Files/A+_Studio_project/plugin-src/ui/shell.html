@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* ============================================================================
+     Cult A+ Design Lab — plugin chrome
+     Implements docs/ui-design-tokens.md. Black-first by design: this panel does
+     NOT invert for Figma's light theme, exactly as the reference images read.
+     Hex values are the sampled working approximations recorded in that doc —
+     replace with the cultstore Figma variable set when it is available.
+     ========================================================================= */
+
+  /* ==========================================================================
+     >>> FONT INSERTION POINT — the ONLY place fonts are declared. <<<
+
+     Sora and Inter are NOT in this project and nothing here downloads them.
+     Each @font-face below carries `local()` only, so the face is used if the
+     machine happens to have it installed, and otherwise the rule resolves to
+     nothing and the stacks in --font-display / --font-ui take over. That
+     fallback is the live state today and is designed to look deliberate.
+
+     TO INSTALL the real faces: uncomment the `src` continuation on each rule
+     and paste the subset woff2 as base64. Nothing else in this file changes.
+         src: local('Sora SemiBold'), local('Sora-SemiBold'),
+              url(data:font/woff2;base64,<BASE64>) format('woff2');
+
+     Files needed — Latin subset, woff2, ~15-25KB each:
+       Sora   600, 700   · github.com/jonathanabennett/Sora  (OFL)
+       Inter  400, 500, 600 · github.com/rsms/inter/releases (OFL)
+     Put them through a Latin subsetter, then base64 them in here.
+
+     Deliberately NO Google Fonts <link>: that only works because
+     plugin/manifest.json still sets networkAccess.allowedDomains to ["*"],
+     which the manifest itself flags for tightening before any publish — so a
+     <link> would break silently later. Self-hosted base64 survives that.
+     ====================================================================== */
+  @font-face { font-family: 'Sora'; font-style: normal; font-weight: 600; font-display: swap;
+               src: local('Sora SemiBold'), local('Sora-SemiBold'); }
+  @font-face { font-family: 'Sora'; font-style: normal; font-weight: 700; font-display: swap;
+               src: local('Sora Bold'), local('Sora-Bold'); }
+  @font-face { font-family: 'Inter'; font-style: normal; font-weight: 400; font-display: swap;
+               src: local('Inter Regular'), local('Inter-Regular'); }
+  @font-face { font-family: 'Inter'; font-style: normal; font-weight: 500; font-display: swap;
+               src: local('Inter Medium'), local('Inter-Medium'); }
+  @font-face { font-family: 'Inter'; font-style: normal; font-weight: 600; font-display: swap;
+               src: local('Inter SemiBold'), local('Inter-SemiBold'); }
+
+  :root {
+    /* ---- foundation ---- */
+    --bg: #000000;
+    --surface: #0D0D0E;
+    --surface-2: #161618;
+    --line: #242428;
+    --text: #FFFFFF;
+    --text-2: #A6A6AD;
+    --text-3: #6B6B73;          /* 3.98:1 on black — decorative / disabled only, never body */
+
+    /* ---- warm accent ramp — identity and emphasis ---- */
+    --warm-cream:  #FDF6EC;
+    --warm-blush:  #EDB79B;
+    --warm-coral:  #E2603C;
+    --warm-peach:  #E8A882;
+    --warm-sienna: #6E2E1E;     /* 2.07:1 on black — FILL ONLY, must never carry text */
+    --warm-clay:   #8A4332;     /* 2.93:1 on black — fill / border only */
+    --warm-orange: #E8742F;
+    --warm-gold:   #F2C94C;
+    --warm-red:    #E2563A;
+
+    --grad-primary: linear-gradient(180deg, var(--warm-orange) 0%, var(--warm-gold) 100%);
+
+    --accent:      var(--warm-coral);
+    --accent-hot:  var(--warm-gold);
+    --accent-deep: var(--warm-sienna);
+
+    /* ---- cult mark accents — status and panel coding only ---- */
+    --cult-pink:   #E8456B;
+    --cult-blue:   #5BB8E8;
+    --cult-yellow: #F5D04E;
+    --ok:          #4ADE80;
+    --danger:      var(--cult-pink);   /* referenced inline by the review renderer */
+
+    /* ---- per-view accent; each panel overrides it ---- */
+    --panel-accent: var(--warm-coral);
+    --panel-ink: var(--bg);            /* readable text colour on --panel-accent */
+
+    /* ---- type ---- */
+    --font-display: 'Sora', 'Avenir Next', Avenir, 'Segoe UI Variable Display',
+                    -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-ui:      'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+                    'Helvetica Neue', Arial, sans-serif;
+    --font-mono:    ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+    --radius: 12px;
+    --ring: 0 0 0 3px color-mix(in srgb, var(--panel-accent) 38%, transparent);
+    --shadow: 0 10px 30px rgba(0,0,0,.6);
+
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 16px 16px 26px;
+    font: 400 12px/1.55 var(--font-ui);
+    color: var(--text); background: var(--bg);
+    -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "cv05" 1, "ss01" 1;
+  }
+  ::selection { background: var(--warm-gold); color: var(--bg); }
+  ::-webkit-scrollbar { width: 9px; height: 9px; }
+  ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 9px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--warm-clay); }
+  ::-webkit-scrollbar-track { background: transparent; }
+
+  /* ---------- masthead: typographic lockup, editorial, on the ground itself ----------
+     The cult mark is deliberately NOT redrawn. `.mark` below is the swap slot:
+     drop plugin/assets/cult-mark.svg in as an <img class="mark-art"> (or inline
+     <svg class="mark-art">) inside `.mark` and delete `.mark-type` — no other
+     rule needs to change. ---------------------------------------------------- */
+  .head { position: relative; padding: 2px 0 0; }
+  .head .top { display: flex; align-items: center; gap: 11px; }
+  /* the mark sits on the ground itself — no tile. currentColor makes the black
+     strokes of the cult mark read white here; the three accents stay brand-fixed. */
+  .logo {
+    height: 36px; flex: none; color: var(--text);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .mark-art { height: 100%; width: auto; display: block; }
+  .wordmark {
+    font-family: var(--font-display); font-size: 14px; font-weight: 700;
+    letter-spacing: .13em; text-transform: uppercase; color: var(--text); line-height: 1;
+  }
+  .wordmark em { font-style: normal; color: var(--warm-gold); }
+  .head .tag {
+    margin-left: auto; font-size: 9.5px; font-weight: 500; letter-spacing: .16em;
+    text-transform: uppercase; color: var(--text-2);
+    border: 1px solid var(--line); border-radius: 999px; padding: 4px 9px;
+  }
+  .pagebar {
+    position: relative; margin-top: 12px; padding-top: 10px;
+    display: flex; align-items: baseline; gap: 7px;
+  }
+  .pagebar::before {
+    content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2px;
+    background: var(--grad-primary); border-radius: 2px;
+  }
+  .pagebar .k {
+    font-family: var(--font-display); font-size: 9px; font-weight: 600; flex: none;
+    letter-spacing: .12em; text-transform: uppercase; color: var(--warm-gold);
+  }
+  .pagebar #page {
+    font-family: var(--font-ui); font-size: 11.5px; line-height: 1.3; font-weight: 600;
+    letter-spacing: 0; color: var(--text);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+  }
+  .pagebar .sub { font-size: 10px; color: var(--text-2); white-space: nowrap; flex: none; }
+
+  /* ---------- top-level tabs — each carries its panel's colour ---------- */
+  .tabs { display: flex; gap: 2px; margin: 20px 0 2px; border-bottom: 1px solid var(--line); }
+  .tabs button {
+    flex: 1; border: 0; background: transparent; color: var(--text-2); cursor: pointer;
+    font-family: var(--font-display); font-weight: 600; font-size: 10px;
+    letter-spacing: .12em; text-transform: uppercase;
+    padding: 10px 4px 11px; border-bottom: 2px solid transparent; margin-bottom: -1px;
+    transition: color .15s, border-color .15s;
+  }
+  .tabs button:hover { color: var(--text); }
+  .tabs button.on { color: var(--text); }
+  .tabs button[data-tab="automate"].on { border-bottom-color: var(--warm-coral); }
+  .tabs button[data-tab="design"].on   { border-bottom-color: var(--cult-blue); }
+  .tabs button[data-tab="export"].on   { border-bottom-color: var(--warm-gold); }
+  .view { display: none; }
+  .view.on { display: block; }
+  #view-automate { --panel-accent: var(--warm-coral); --panel-ink: var(--bg); }
+  #view-design   { --panel-accent: var(--cult-blue);  --panel-ink: var(--bg); }
+  #view-export   { --panel-accent: var(--warm-gold);  --panel-ink: var(--bg); }
+
+  /* ---------- status pills ---------- */
+  .status { display: flex; gap: 7px; margin: 16px 0 4px; }
+  .pill {
+    flex: 1; display: flex; align-items: center; gap: 8px; padding: 9px 11px;
+    border: 1px solid var(--line); border-radius: 10px; background: var(--surface);
+    cursor: pointer; transition: border-color .15s, background .15s; min-width: 0;
+  }
+  .pill:hover { border-color: var(--warm-clay); background: var(--surface-2); }
+  .pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-3); flex: none; }
+  .pill.on .dot { background: var(--ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 20%, transparent); }
+  .pill .t { min-width: 0; }
+  .pill .t b {
+    display: block; font-family: var(--font-display); font-size: 10px; font-weight: 600;
+    letter-spacing: .1em; text-transform: uppercase; color: var(--text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .pill .t span { display: block; font-size: 10px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* ---------- section labels ---------- */
+  .sec { margin-top: 26px; }
+  .lab { display: flex; justify-content: space-between; align-items: baseline; margin: 0 0 10px; gap: 10px; }
+  .lab .n {
+    display: inline-flex; align-items: center; gap: 9px;
+    font-family: var(--font-display); font-size: 10px; font-weight: 600;
+    letter-spacing: .12em; text-transform: uppercase; color: var(--text);
+  }
+  .lab .n i {
+    width: 17px; height: 17px; border-radius: 5px; flex: none;
+    background: var(--panel-accent); color: var(--panel-ink);
+    font-family: var(--font-display); font-style: normal; font-size: 9px; font-weight: 700;
+    letter-spacing: 0; display: inline-flex; align-items: center; justify-content: center;
+  }
+  .lab .meta {
+    font-size: 9.5px; font-weight: 500; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--text-2); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  /* ---------- pickers ---------- */
+  .cats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .cat {
+    border: 1px solid var(--line); background: var(--surface); color: var(--text);
+    border-radius: 10px; padding: 11px; text-align: left; cursor: pointer;
+    font-family: var(--font-ui); font-size: 12px;
+    transition: border-color .15s, background .15s, transform .05s; position: relative;
+  }
+  .cat:hover:not(:disabled) { border-color: var(--warm-clay); background: var(--surface-2); }
+  .cat:active:not(:disabled) { transform: translateY(1px); }
+  .cat b { display: block; font-family: var(--font-display); font-size: 12px; font-weight: 600; letter-spacing: -.01em; }
+  .cat span { color: var(--text-2); font-size: 10px; }
+  .cat.on { border-color: var(--panel-accent); background: var(--surface-2); }
+  .cat.on::after {
+    content: ""; position: absolute; left: 11px; right: 11px; bottom: 6px; height: 3px;
+    background: var(--panel-accent); border-radius: 2px;
+  }
+  .cat:disabled { opacity: .4; cursor: default; }
+
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip {
+    border: 1px solid var(--line); background: var(--surface); color: var(--text);
+    border-radius: 999px; padding: 7px 16px; cursor: pointer;
+    font-family: var(--font-display); font-weight: 600; font-size: 11px; letter-spacing: .04em;
+    transition: border-color .15s, background .15s, color .15s;
+  }
+  .chip:hover:not(:disabled) { border-color: var(--warm-clay); background: var(--surface-2); }
+  .chip.on { border-color: transparent; background: var(--panel-accent); color: var(--panel-ink); }
+  .chip:disabled { opacity: .35; cursor: default; }
+
+  .tpls { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+  .tpl {
+    border: 1px solid var(--line); background: var(--surface); border-radius: 11px; padding: 10px;
+    cursor: pointer; font-family: var(--font-ui); color: var(--text); text-align: left;
+    transition: border-color .15s, background .15s; position: relative;
+  }
+  .tpl:hover:not(:disabled) { border-color: var(--warm-clay); background: var(--surface-2); }
+  .tpl.on { border-color: var(--panel-accent); background: var(--surface-2); }
+  .tpl.on::after {
+    content: ""; position: absolute; left: 10px; top: 10px; width: 18px; height: 3px;
+    background: var(--panel-accent); border-radius: 2px;
+  }
+  .tpl.on b { margin-top: 8px; }
+  .tpl b { display: block; font-family: var(--font-display); font-size: 11.5px; font-weight: 600; }
+  .tpl span { display: block; color: var(--text-2); font-size: 10px; line-height: 1.45; }
+  .tpl:disabled { opacity: .4; cursor: default; }
+
+  /* the source switcher — class kept, the JS binds to `.seg button` */
+  .seg { display: flex; gap: 3px; background: var(--surface); padding: 3px; border-radius: 10px; border: 1px solid var(--line); }
+  .seg button {
+    flex: 1; border: 0; background: transparent; color: var(--text-2); padding: 8px 4px;
+    border-radius: 7px; cursor: pointer;
+    font-family: var(--font-display); font-weight: 600; font-size: 10px;
+    letter-spacing: .1em; text-transform: uppercase; transition: background .15s, color .15s;
+  }
+  .seg button:hover { color: var(--text); }
+  .seg button.on { background: var(--panel-accent); color: var(--panel-ink); }
+
+  /* ---------- fields ---------- */
+  input, textarea, select {
+    width: 100%; border: 1px solid var(--line); border-radius: 9px; padding: 10px 11px;
+    font: 400 12px/1.5 var(--font-ui); color: var(--text); background: var(--surface-2);
+    transition: border-color .15s, box-shadow .15s;
+  }
+  input::placeholder, textarea::placeholder { color: var(--text-3); }
+  input:focus, textarea:focus, select:focus { outline: none; border-color: var(--panel-accent); box-shadow: var(--ring); }
+  textarea { height: 108px; resize: vertical; font-family: var(--font-mono); font-size: 11px; font-weight: 500; }
+  select { appearance: none; cursor: pointer; padding-right: 26px;
+    background-image: linear-gradient(45deg, transparent 50%, var(--text-2) 50%), linear-gradient(135deg, var(--text-2) 50%, transparent 50%);
+    background-position: calc(100% - 14px) 50%, calc(100% - 9px) 50%;
+    background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; }
+  .row { display: flex; gap: 8px; }
+  .hint { color: var(--text-2); font-size: 10.5px; margin-top: 9px; line-height: 1.62; }
+  .hint b { color: var(--text); font-weight: 600; }
+  .hint code { background: var(--surface-2); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; font-family: var(--font-mono); font-size: 10px; color: var(--warm-peach); }
+
+  /* ---------- (?) progressive disclosure — reference detail, revealed on demand ----------
+     Reference material that used to sit inline as a paragraph now lives behind this.
+     No library, no dependency: a plain <details>. Tokens only, nothing new declared. */
+  .more { margin-top: 8px; }
+  .more > summary {
+    list-style: none; cursor: pointer; width: 17px; height: 17px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: 1px solid var(--line); background: var(--surface-2); color: var(--text-2);
+    font-family: var(--font-ui); font-size: 10px; font-weight: 600; line-height: 1;
+    transition: border-color .15s, color .15s;
+  }
+  .more > summary::-webkit-details-marker { display: none; }
+  .more > summary:hover { border-color: var(--warm-clay); color: var(--text); }
+  .more[open] > summary { border-color: var(--panel-accent); color: var(--text); }
+  .more .hint { margin-top: 8px; }
+
+  /* ---------- buttons ---------- */
+  .btn {
+    border: 0; border-radius: 9px; padding: 10px 14px;
+    font-family: var(--font-display); font-weight: 600; font-size: 11.5px; cursor: pointer;
+    transition: filter .15s, opacity .15s, background .15s, border-color .15s; white-space: nowrap;
+  }
+  .btn:active { filter: brightness(.94); }
+  .ghost { background: var(--surface-2); color: var(--text); border: 1px solid var(--line); }
+  .ghost:hover:not(:disabled) { border-color: var(--panel-accent); }
+  .ghost:disabled { opacity: .4; cursor: default; }
+  .google {
+    background: var(--surface); color: var(--text); border: 1px solid var(--line); width: 100%;
+    margin-top: 9px; display: inline-flex; align-items: center; justify-content: center;
+    gap: 10px; padding: 11px;
+  }
+  .google:hover { border-color: var(--warm-clay); background: var(--surface-2); }
+  .gmark { width: 15px; height: 15px; flex: none; }
+  .primary {
+    background: var(--grad-primary); color: var(--bg); width: 100%; margin-top: 22px;
+    font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; padding: 14px;
+    box-shadow: 0 8px 26px color-mix(in srgb, var(--warm-orange) 26%, transparent);
+  }
+  .primary:hover:not(:disabled) { filter: brightness(1.06); }
+  .primary:disabled { background: var(--surface-2); color: var(--text-3); cursor: default; box-shadow: none; }
+  .dark {
+    background: var(--panel-accent); color: var(--panel-ink); width: 100%;
+    font-weight: 700; letter-spacing: .09em; text-transform: uppercase; font-size: 11px; padding: 13px;
+  }
+  .dark:hover:not(:disabled) { filter: brightness(1.07); }
+  .dark:disabled { background: var(--surface-2); color: var(--text-3); cursor: default; }
+
+  /* ---------- found / report ---------- */
+  .found {
+    margin-top: 11px; padding: 11px; background: var(--surface); border: 1px solid var(--line);
+    border-left: 3px solid var(--panel-accent); border-radius: 9px; max-height: 130px; overflow: auto;
+  }
+  .found .h {
+    font-family: var(--font-display); font-weight: 600; font-size: 10px;
+    letter-spacing: .12em; text-transform: uppercase; margin-bottom: 6px; color: var(--text);
+  }
+  .found div.r { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-2); font-size: 11px; padding: 2px 0; }
+  .report { margin-top: 16px; }
+  .item { border-top: 1px solid var(--line); padding: 9px 0; font-size: 11.5px; color: var(--text-2); }
+  .item b { color: var(--text); font-weight: 600; }
+  .item b.ok { color: var(--ok); } .item b.bad { color: var(--danger); }
+  .item ul { margin: 5px 0 0 16px; padding: 0; color: var(--text-2); }
+  .err { color: var(--danger); margin-top: 11px; font-size: 11px; min-height: 0; font-weight: 500; }
+  .authlink { margin-top: 9px; font-size: 11px; color: var(--text-2); }
+  .authlink a { color: var(--cult-blue); font-weight: 600; }
+
+  /* ---------- collapsible panels ---------- */
+  .panel { margin-top: 14px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); overflow: hidden; }
+  .panel > .ph {
+    display: flex; align-items: center; gap: 9px; padding: 11px 13px; cursor: pointer;
+    font-family: var(--font-display); font-weight: 600; font-size: 10px;
+    letter-spacing: .11em; text-transform: uppercase; color: var(--text);
+  }
+  .panel > .ph:hover { background: var(--surface-2); }
+  .panel > .ph .chev { margin-left: auto; color: var(--text-2); transition: transform .15s; }
+  .panel.open > .ph .chev { transform: rotate(90deg); }
+  .panel.open > .ph { border-bottom: 1px solid var(--line); }
+  .panel .body { padding: 13px; }
+  .panel:not(.open) .body { display: none; }
+
+  /* ---------- template preview ---------- */
+  .preview {
+    margin-top: 11px; height: 300px; overflow-y: auto; overflow-x: hidden;
+    border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); position: relative;
+  }
+  .preview svg { display: block; width: 100%; height: auto; }
+  .preview .empty { padding: 30px 12px; text-align: center; color: var(--text-2); font-size: 11px; }
+  .hidden { display: none !important; }
+  .muted { color: var(--text-2); }
+  .selbox {
+    margin-top: 11px; padding: 11px; background: var(--surface); border: 1px solid var(--line);
+    border-radius: 9px; font-size: 11px; color: var(--text-2);
+  }
+  .selbox b { color: var(--text); font-weight: 600; }
+
+  /* ---------- honest state notes ---------- */
+  .note {
+    margin-top: 11px; padding: 11px 12px; border-radius: 9px; font-size: 10.5px; line-height: 1.65;
+    border: 1px solid var(--line); background: var(--surface); color: var(--text-2);
+  }
+  .note b {
+    display: block; font-family: var(--font-display); font-size: 9.5px; font-weight: 600;
+    letter-spacing: .13em; text-transform: uppercase; margin-bottom: 5px; color: var(--text);
+  }
+  .note code { background: var(--surface-2); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; font-family: var(--font-mono); font-size: 10px; color: var(--warm-peach); }
+  .note.pending { border-left: 3px solid var(--cult-yellow); }
+  .note.info    { border-left: 3px solid var(--cult-blue); }
+  .note.warn    { border-left: 3px solid var(--cult-pink); }
+  .note label { color: var(--text-2); }
+
+  /* ---------- review ---------- */
+  .rv {
+    margin-top: 11px; max-height: 430px; overflow: auto;
+    border: 1px solid var(--line); border-radius: 11px; background: var(--surface); padding: 5px;
+  }
+  .rv .card { background: var(--bg); border: 1px solid var(--line); border-radius: 9px; padding: 11px; margin: 5px; }
+  .rv .card h4 {
+    margin: 0; font-family: var(--font-display); font-size: 12px; font-weight: 700;
+    letter-spacing: -.01em; color: var(--text); display: flex; align-items: baseline; gap: 8px;
+  }
+  .rv .card h4 em {
+    font-style: normal; font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+    letter-spacing: .04em; text-transform: uppercase; color: var(--warm-peach);
+  }
+  .rv .tgt { font-size: 10px; color: var(--text-2); margin: 4px 0 9px; }
+  .rv .tgt.bad { color: var(--danger); }
+  .rv .f { margin-top: 8px; }
+  .rv .f label {
+    display: block; font-family: var(--font-display); font-size: 9px; font-weight: 600;
+    letter-spacing: .12em; text-transform: uppercase; color: var(--text-2); margin-bottom: 4px;
+  }
+  .rv-in { height: auto; min-height: 32px; font-family: var(--font-ui); font-size: 11px; padding: 7px 9px; resize: vertical; }
+  .rv .empty { padding: 24px 12px; text-align: center; color: var(--text-2); font-size: 11px; }
+  .okbar {
+    display: flex; align-items: center; gap: 10px; margin-top: 11px; padding: 11px 12px;
+    border: 1px solid var(--line); border-radius: 9px; background: var(--surface);
+    font-size: 11px; color: var(--text-2);
+  }
+  .okbar label { color: var(--text); }
+  .okbar input { width: auto; flex: none; }
+  input[type="checkbox"] { accent-color: var(--panel-accent); width: auto; flex: none; }
+
+  /* ---------- sign-in gate — the front door, not an error screen ----------
+     Shown INSTEAD of the tabs until the backend reports a connected Google
+     account. Everything it needs to get out of its own way (the backend URL)
+     lives on it, so a first run can never dead-end. -------------------------- */
+  /* the gate is the whole screen: one centred card, the masthead hidden behind it */
+  body.gated .head { display: none; }
+  #gate {
+    margin: 26px 0; padding: 34px 26px 26px; text-align: center;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 18px;
+  }
+  #gate .lockup { color: var(--text); height: 74px; margin-bottom: 24px; }
+  #gate .lockup svg { height: 100%; width: auto; display: inline-block; }
+  #gate h2 {
+    margin: 0; font-family: var(--font-display); font-size: 21px; font-weight: 700;
+    letter-spacing: -.02em; line-height: 1.26; color: var(--text);
+  }
+  #gate h2 em { font-style: normal; color: var(--warm-gold); }
+  #gate .p {
+    margin: 11px auto 0; max-width: 300px;
+    font-size: 11.5px; line-height: 1.62; color: var(--text-2);
+  }
+  /* white, as Google's own branding guidance expects, and the only bright surface
+     on the gate so there is exactly one thing to press */
+  #gate .btn.google {
+    margin-top: 26px; padding: 15px; font-size: 13px; font-weight: 600; gap: 12px;
+    background: #FFFFFF; color: #111113; border-color: #FFFFFF;
+  }
+  #gate .btn.google:hover { background: #ECECEE; border-color: #ECECEE; }
+  #gate .btn.google .gmark { width: 18px; height: 18px; }
+  #gate .foot {
+    margin-top: 26px; padding-top: 18px; border-top: 1px solid var(--line);
+    font-size: 10px; line-height: 1.6; color: var(--text-2);
+  }
+  #gate .foot .more { margin-top: 10px; }
+  #gate .foot .more > summary {
+    width: auto; height: auto; border-radius: 999px; padding: 3px 11px;
+    font-size: 9px; letter-spacing: .1em; text-transform: uppercase;
+  }
+  #gate .foot .row, #gate .foot .hint { text-align: left; }
+  #gate .alt {
+    display: block; width: 100%; margin-top: 10px; border: 0; background: transparent; cursor: pointer;
+    font-family: var(--font-ui); font-size: 10.5px; color: var(--text-2); text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  #gate .alt:hover { color: var(--text); }
+
+  /* ---------- capture: live steps, stats, round-trip diff ---------- */
+  .track { height: 4px; margin-top: 8px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
+  .track > i { display: block; height: 100%; width: 0; border-radius: 3px; background: var(--grad-primary); transition: width .25s; }
+  .stats { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 11px; }
+  .stats .s {
+    flex: 1 1 60px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface);
+    padding: 8px 10px; font-size: 9.5px; font-weight: 500; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--text-2);
+  }
+  .stats .s b { display: block; font-family: var(--font-mono); font-size: 14px; font-weight: 600; letter-spacing: 0; color: var(--text); }
+  .diff { margin-top: 11px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); overflow: hidden; }
+  .diff.clean { border-left: 3px solid var(--ok); }
+  .diff.dirty { border-left: 3px solid var(--cult-yellow); }
+  .diff > .top { display: flex; align-items: center; gap: 11px; padding: 12px 13px; }
+  .diff .score { font-family: var(--font-display); font-size: 27px; font-weight: 700; letter-spacing: -.02em; line-height: 1; }
+  .diff.clean .score { color: var(--ok); }
+  .diff.dirty .score { color: var(--cult-yellow); }
+  .diff .vd { min-width: 0; }
+  .diff .vd b {
+    display: block; font-family: var(--font-display); font-size: 9.5px; font-weight: 600;
+    letter-spacing: .13em; text-transform: uppercase; color: var(--text);
+  }
+  .diff .vd span { display: block; font-size: 10.5px; color: var(--text-2); line-height: 1.5; }
+  .mis { max-height: 190px; overflow: auto; border-top: 1px solid var(--line); }
+  .mis .m { padding: 8px 13px; border-bottom: 1px solid var(--line); }
+  .mis .m:last-child { border-bottom: 0; }
+  .mis .path { font-family: var(--font-mono); font-size: 10.5px; font-weight: 500; color: var(--warm-peach); word-break: break-all; }
+  .mis .ab { margin-top: 3px; font-size: 10.5px; color: var(--text-2); }
+  .mis .ab em { font-style: normal; color: var(--text); }
+
+  /* ---------- export tables ---------- */
+  .rules { margin-top: 11px; }
+  .rule { border: 1px solid var(--line); border-radius: 9px; padding: 10px; background: var(--surface); margin-bottom: 8px; }
+  .rule .g { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+  .rule label {
+    display: block; font-family: var(--font-display); font-size: 9px; font-weight: 600;
+    letter-spacing: .12em; text-transform: uppercase; color: var(--text-2); margin-bottom: 4px;
+  }
+  .rule input, .rule select { font-size: 11px; padding: 7px 9px; }
+  .rule .x { margin-top: 8px; width: 100%; font-size: 10px; padding: 7px; }
+  .styles .srow { display: flex; align-items: center; gap: 9px; border-top: 1px solid var(--line); padding: 9px 0; }
+  .styles .srow .sid { font-family: var(--font-mono); font-weight: 500; font-size: 11px; letter-spacing: 0; color: var(--text); }
+  .styles .srow .sg { font-size: 10px; color: var(--text-2); }
+  .styles .srow .sp { margin-left: auto; }
+  .styles .srow .sp button { font-size: 10px; padding: 7px 12px; letter-spacing: .09em; text-transform: uppercase; }
+
+  /* ---- platform additions (plugin-src/ui/shell.html) ---- */
+  /* transient toast, bottom of the panel — platform.js ui.toast() */
+  #toasts { position: fixed; left: 12px; right: 12px; bottom: 12px; z-index: 50; display: flex; flex-direction: column; gap: 6px; pointer-events: none; }
+  #toasts .toast {
+    pointer-events: auto; padding: 9px 12px; border-radius: 9px; font-size: 11px; line-height: 1.45;
+    background: var(--surface-2); color: var(--text); border: 1px solid var(--line);
+    box-shadow: 0 6px 20px rgba(0,0,0,.35); border-left: 3px solid var(--cult-blue);
+    transition: opacity .2s, transform .2s;
+  }
+  #toasts .toast.warn { border-left-color: var(--cult-pink); }
+  #toasts .toast.ok   { border-left-color: var(--ok); }
+  #toasts .toast.out  { opacity: 0; transform: translateY(6px); }
+</style>
+</head>
+<body>
+<!-- =====================================================================================
+     plugin-src/ui/shell.html — the frame every panel lives in. OWNED BY THE PLATFORM.
+     build.js (node plugin-src/build.js) assembles plugin/ui.html from:
+       this file  +  ui/automate.html, ui/design.html, ui/export.html  (at the @panel markers)
+                  +  vendor/*.js, ui/platform.js, ui/automate.js, ui/design.js, ui/export.js
+                     (each its own <script> tag, at the @scripts marker, in that order)
+     Panels never edit this file; they own their own .html/.js pair. See plugin-src/BUILD.md.
+     ===================================================================================== -->
+  <div class="head">
+    <div class="top">
+      <!-- ===================== LOGO SWAP POINT =====================
+           The mark below is a RECONSTRUCTION traced from a supplied PNG, kept in
+           sync with plugin/assets/cult-mark.svg. It is not source artwork.
+
+           The official component is "V man + cult fit logo on white" in the
+           Aurora App Design System library. When that library's file key is
+           available, export it and paste it here in place of the <svg> below,
+           keeping class="mark-art". No CSS change is needed.
+
+           It must stay INLINE: Figma loads this file as __html__, so a relative
+           <img src="assets/..."> would not resolve inside the plugin.
+           ========================================================== -->
+      <div class="logo">
+        <svg class="mark-art" viewBox="0 0 100 109" role="img" aria-label="cult">
+          <g fill="none" stroke-linecap="round">
+            <line x1="50.5" y1="4.6" x2="50.5" y2="9.8" stroke="#EE3C6E" stroke-width="9.2"/>
+            <circle cx="50" cy="33.7" r="9.5" stroke="currentColor" stroke-width="7.6"/>
+            <line x1="8.6" y1="31.8" x2="26.3" y2="41.7" stroke="currentColor" stroke-width="8.8"/>
+            <line x1="91.4" y1="31.8" x2="73.7" y2="41.7" stroke="currentColor" stroke-width="8.8"/>
+            <line x1="6.8" y1="58.7" x2="93.2" y2="58.7" stroke="currentColor" stroke-width="11.2"/>
+            <line x1="9.6" y1="84.4" x2="28.4" y2="72.6" stroke="#5BC2EF" stroke-width="8.8"/>
+            <line x1="90.4" y1="84.4" x2="71.6" y2="72.6" stroke="#FFD93E" stroke-width="8.8"/>
+            <path d="M19.6 101.8 L50 71.6 L80.4 101.8" stroke="currentColor" stroke-width="10" stroke-linejoin="round"/>
+            <line x1="50.5" y1="95.6" x2="50.5" y2="104.4" stroke="currentColor" stroke-width="7.2"/>
+          </g>
+        </svg>
+      </div>
+      <div class="wordmark">Cult <em>A+</em> Design Lab</div>
+    </div>
+    <div class="pagebar">
+      <span class="k">Page</span>
+      <span id="page">Untitled page</span>
+      <span class="sub" id="page-sub"></span>
+    </div>
+  </div>
+
+  <!-- ==================== SIGN-IN GATE ====================
+       Shown until /auth/status reports a connected account with the scopes the plugin needs.
+       "Continue with Google" is the only control: the backend URL is a constant in platform.js
+       (developer override: clientStorage "backendUrl", see BUILD.md), never a field here. -->
+  <div id="gate">
+    <div class="lockup">
+      <svg viewBox="0 0 100 109" role="img" aria-label="cult">
+        <g fill="none" stroke-linecap="round">
+          <line x1="50.5" y1="4.6" x2="50.5" y2="9.8" stroke="#EE3C6E" stroke-width="9.2"/>
+          <circle cx="50" cy="33.7" r="9.5" stroke="currentColor" stroke-width="7.6"/>
+          <line x1="8.6" y1="31.8" x2="26.3" y2="41.7" stroke="currentColor" stroke-width="8.8"/>
+          <line x1="91.4" y1="31.8" x2="73.7" y2="41.7" stroke="currentColor" stroke-width="8.8"/>
+          <line x1="6.8" y1="58.7" x2="93.2" y2="58.7" stroke="currentColor" stroke-width="11.2"/>
+          <line x1="9.6" y1="84.4" x2="28.4" y2="72.6" stroke="#5BC2EF" stroke-width="8.8"/>
+          <line x1="90.4" y1="84.4" x2="71.6" y2="72.6" stroke="#FFD93E" stroke-width="8.8"/>
+          <path d="M19.6 101.8 L50 71.6 L80.4 101.8" stroke="currentColor" stroke-width="10" stroke-linejoin="round"/>
+          <line x1="50.5" y1="95.6" x2="50.5" y2="104.4" stroke="currentColor" stroke-width="7.2"/>
+        </g>
+      </svg>
+    </div>
+    <h2>Cult <em>A+</em> Design Lab</h2>
+    <p class="p">Builds Amazon A+ pages from your content sheet, straight onto the Figma page
+      you have open.</p>
+
+    <button class="btn google" id="gate-connect">
+      <svg class="gmark" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+      <span id="gate-label">Continue with Google</span>
+    </button>
+    <div class="authlink hidden" id="gate-authlink"></div>
+    <div id="gate-note"></div>
+
+    <div class="foot">
+      Reads your content sheets and the team's animation folder, and keeps your saved templates
+      in a <b>Cult A+ Design Lab</b> folder in your own Google Drive. Your session is an encrypted
+      token held by Figma, so you stay signed in between sessions.
+    </div>
+  </div>
+
+  <div id="app" class="hidden">
+  <div class="tabs" id="tabs">
+    <button class="on" data-tab="automate">Automate A+</button>
+    <button data-tab="design">Add design</button>
+    <button data-tab="export">Export</button>
+  </div>
+
+  <div class="status">
+    <div class="pill" id="pill-google" title="Google account">
+      <span class="dot"></span>
+      <div class="t"><b id="g-title">Google</b><span id="g-sub">not connected</span></div>
+    </div>
+  </div>
+
+  <!-- ==================== PANEL 1 — AUTOMATE A+ (ui/automate.html) ==================== -->
+  <!-- @panel automate -->
+
+  <!-- ==================== PANEL 2 — ADD DESIGN (ui/design.html) ==================== -->
+  <!-- @panel design -->
+
+  <!-- ==================== PANEL 3 — EXPORT (ui/export.html) ==================== -->
+  <!-- @panel export -->
+
+  <div class="panel" id="settings">
+    <div class="ph" id="settings-h"><span>⚙︎ Google account</span><span class="chev">›</span></div>
+    <div class="body">
+      <div id="g-manage" class="hidden">
+        <button class="btn ghost" id="gdisconnect" style="width:100%">Disconnect <span id="g-email" class="muted"></span></button>
+      </div>
+    </div>
+  </div>
+  </div><!-- /#app -->
+
+  <div id="toasts" aria-live="polite"></div>
+
+<!-- @scripts -->
+</body>
+</html>
