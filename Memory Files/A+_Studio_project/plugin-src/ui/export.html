@@ -1,48 +1,67 @@
 <!-- plugin-src/ui/export.html — owned by the export panel. Inserted into shell.html at "@panel export". -->
   <div class="view" id="view-export">
-    <div class="note info" style="margin-top:14px">
-      <b>Static or animated</b>
-      PNG, JPG, SVG and PDF come straight from Figma. GIF and MP4 put the A+ on top and the matched animation (a GIF or
-      a video such as <code>Running.mp4</code>) playing underneath it. The backend builds them (Figma can't make animated files), so they need Google connected.
-      <br><br><b>Amazon:</b> A+ image modules reject animated GIFs. Upload the A+ as a PNG or JPG, and use the MP4
-      only in a Premium A+ video module or outside Amazon.
-    </div>
 
     <div class="sec">
-      <div class="lab"><span class="n"><i>1</i> Animation folder (Drive)</span></div>
-      <input id="ex-folder" placeholder="Google Drive folder link or ID">
-      <div class="hint">Needed for GIF and MP4 only. Saved, along with the rules below, for next time.</div>
-    </div>
-
-    <div class="sec">
-      <div class="lab"><span class="n"><i>2</i> Category → animation rules</span><span class="meta" id="ex-rulemeta"></span></div>
-      <div class="hint" style="margin-top:0">First matching rule wins; a blank field matches anything.</div>
-      <div class="rules" id="ex-rules"></div>
-      <button class="btn ghost" id="ex-addrule" style="width:100%">+ Add rule</button>
-    </div>
-
-    <div class="sec">
-      <div class="lab"><span class="n"><i>3</i> Export by style ID</span><span class="meta" id="ex-stylemeta"></span></div>
+      <div class="lab"><span class="n"><i>1</i> Frames</span><span class="meta" id="ex-count"></span></div>
       <div class="row">
-        <select id="ex-format">
-          <optgroup label="Static, from Figma">
-            <option value="PNG">PNG</option>
-            <option value="JPG">JPG</option>
-            <option value="SVG">SVG</option>
-            <option value="PDF">PDF</option>
-          </optgroup>
-          <optgroup label="Animated, A+ with GIF below">
-            <option value="gif">GIF</option>
-            <option value="mp4">MP4</option>
-          </optgroup>
-        </select>
-        <select id="ex-scale">
-          <option value="1">1×</option>
-          <option value="2">2×</option>
-          <option value="3">3×</option>
-        </select>
+        <button class="btn ghost" id="ex-all" style="flex:1">Select all A+ on this page</button>
+        <button class="btn ghost" id="ex-clear" title="Clear the canvas selection">Clear</button>
       </div>
-      <div class="styles" id="ex-styles"></div>
+      <div class="exlist" id="ex-frames"></div>
+    </div>
+
+    <div class="sec">
+      <div class="lab"><span class="n"><i>2</i> Animation</span></div>
+      <div class="seg" id="ex-mode">
+        <button data-mode="static" class="on">Without GIF</button>
+        <button data-mode="gif">With GIF</button>
+      </div>
+      <div id="ex-gifnote"></div>
+    </div>
+
+    <div class="sec">
+      <div class="lab"><span class="n"><i>3</i> Format &amp; size</span></div>
+      <div class="row">
+        <select id="ex-format"></select>
+        <select id="ex-size"></select>
+      </div>
+      <div class="hint" id="ex-sizehint"></div>
+    </div>
+
+    <div class="sec">
+      <div class="lab"><span class="n"><i>4</i> Save to</span></div>
+      <div class="seg" id="ex-dest">
+        <button data-dest="zip" class="on">Download ZIP</button>
+        <button data-dest="drive">Google Drive</button>
+      </div>
+      <div id="ex-drivebox" class="hidden" style="margin-top:10px">
+        <input id="ex-drive" placeholder="Drive folder link — a folder per style ID is created inside it">
+      </div>
+    </div>
+
+    <div class="sec">
+      <button class="btn primary" id="ex-go" style="width:100%" disabled>Export</button>
       <div id="ex-out"></div>
+      <div class="exlist" id="ex-progress"></div>
+    </div>
+
+    <div class="sec">
+      <details class="exhelp">
+        <summary>How export works</summary>
+        <div class="hint">
+          <b>Without GIF</b> exports each selected A+ exactly as it is on the canvas: PNG or JPG for Amazon
+          (also SVG or PDF). 1×, 2× and 3× multiply the frame's own size.<br><br>
+          <b>With GIF</b> puts the A+ on top and its category's animation playing full-width underneath it, as one
+          GIF or MP4. The animation comes from the team's <b>Gifs</b> folder in Google Drive: the file named after
+          the category (Running → <code>Running.mp4</code>). The category is read from each frame; change it in the
+          list if it is wrong. A frame whose category has no animation can still be exported as a still image.<br><br>
+          <b>Where it runs:</b> everything is built on this computer: the frame images, the GIF/MP4, the ZIP. Files go
+          straight from here to your download folder or to Google Drive.<br><br>
+          <b>Google Drive:</b> paste a folder link. Each style ID gets its own subfolder inside it
+          (<code>706524/706524.gif</code>); an A+ shared by several styles is saved in each of their folders.<br><br>
+          <b>Amazon:</b> A+ image modules accept JPG or PNG only, max 2 MB. Animated GIFs are not accepted. An MP4 goes in
+          a Premium A+ video module. Use the GIF for the website, social and decks.
+        </div>
+      </details>
     </div>
   </div>

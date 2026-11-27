@@ -522,6 +522,27 @@
   .styles .srow .sp { margin-left: auto; }
   .styles .srow .sp button { font-size: 10px; padding: 7px 12px; letter-spacing: .09em; text-transform: uppercase; }
 
+  /* ---------- export panel: frame list, progress, help ---------- */
+  .exlist { margin-top: 10px; }
+  .exrow { display: flex; align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: 9px;
+    padding: 8px; background: var(--surface); margin-bottom: 6px; }
+  .exrow .th { width: 38px; height: 54px; flex: none; border-radius: 5px; background: var(--surface-2) center/cover no-repeat;
+    border: 1px solid var(--line); }
+  .exrow .mid { flex: 1; min-width: 0; }
+  .exrow .nm { font-size: 11px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .exrow .ids { font-family: var(--font-mono); font-size: 10.5px; color: var(--warm-peach); margin-top: 2px; }
+  .exrow .sub { font-size: 10px; color: var(--text-2); margin-top: 2px; }
+  .exrow .sub.bad { color: var(--cult-pink); }
+  .exrow .sub.good { color: var(--ok); }
+  .exrow select { width: auto; flex: none; font-size: 10.5px; padding: 6px 24px 6px 8px; }
+  .exrow .st { flex: none; font-size: 10px; color: var(--text-2); text-align: right; max-width: 45%; }
+  .exrow .st.ok { color: var(--ok); } .exrow .st.bad { color: var(--cult-pink); }
+  .exbar { height: 3px; border-radius: 2px; background: var(--line); margin-top: 5px; overflow: hidden; }
+  .exbar > i { display: block; height: 100%; width: 0; background: var(--panel-accent); transition: width .2s; }
+  .exhelp > summary { cursor: pointer; font-family: var(--font-display); font-size: 10px; font-weight: 600;
+    letter-spacing: .12em; text-transform: uppercase; color: var(--text-2); }
+  .exhelp[open] > summary { color: var(--text); }
+
   /* ---- platform additions (plugin-src/ui/shell.html) ---- */
   /* transient toast, bottom of the panel — platform.js ui.toast() */
   #toasts { position: fixed; left: 12px; right: 12px; bottom: 12px; z-index: 50; display: flex; flex-direction: column; gap: 6px; pointer-events: none; }

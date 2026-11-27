@@ -523,6 +523,27 @@
   .styles .srow .sp { margin-left: auto; }
   .styles .srow .sp button { font-size: 10px; padding: 7px 12px; letter-spacing: .09em; text-transform: uppercase; }
 
+  /* ---------- export panel: frame list, progress, help ---------- */
+  .exlist { margin-top: 10px; }
+  .exrow { display: flex; align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: 9px;
+    padding: 8px; background: var(--surface); margin-bottom: 6px; }
+  .exrow .th { width: 38px; height: 54px; flex: none; border-radius: 5px; background: var(--surface-2) center/cover no-repeat;
+    border: 1px solid var(--line); }
+  .exrow .mid { flex: 1; min-width: 0; }
+  .exrow .nm { font-size: 11px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .exrow .ids { font-family: var(--font-mono); font-size: 10.5px; color: var(--warm-peach); margin-top: 2px; }
+  .exrow .sub { font-size: 10px; color: var(--text-2); margin-top: 2px; }
+  .exrow .sub.bad { color: var(--cult-pink); }
+  .exrow .sub.good { color: var(--ok); }
+  .exrow select { width: auto; flex: none; font-size: 10.5px; padding: 6px 24px 6px 8px; }
+  .exrow .st { flex: none; font-size: 10px; color: var(--text-2); text-align: right; max-width: 45%; }
+  .exrow .st.ok { color: var(--ok); } .exrow .st.bad { color: var(--cult-pink); }
+  .exbar { height: 3px; border-radius: 2px; background: var(--line); margin-top: 5px; overflow: hidden; }
+  .exbar > i { display: block; height: 100%; width: 0; background: var(--panel-accent); transition: width .2s; }
+  .exhelp > summary { cursor: pointer; font-family: var(--font-display); font-size: 10px; font-weight: 600;
+    letter-spacing: .12em; text-transform: uppercase; color: var(--text-2); }
+  .exhelp[open] > summary { color: var(--text); }
+
   /* ---- platform additions (plugin-src/ui/shell.html) ---- */
   /* transient toast, bottom of the panel — platform.js ui.toast() */
   #toasts { position: fixed; left: 12px; right: 12px; bottom: 12px; z-index: 50; display: flex; flex-direction: column; gap: 6px; pointer-events: none; }
@@ -772,50 +793,69 @@
   <!-- ==================== PANEL 3 — EXPORT (ui/export.html) ==================== -->
   <!-- plugin-src/ui/export.html — owned by the export panel. Inserted into shell.html at "@panel export". -->
   <div class="view" id="view-export">
-    <div class="note info" style="margin-top:14px">
-      <b>Static or animated</b>
-      PNG, JPG, SVG and PDF come straight from Figma. GIF and MP4 put the A+ on top and the matched animation (a GIF or
-      a video such as <code>Running.mp4</code>) playing underneath it. The backend builds them (Figma can't make animated files), so they need Google connected.
-      <br><br><b>Amazon:</b> A+ image modules reject animated GIFs. Upload the A+ as a PNG or JPG, and use the MP4
-      only in a Premium A+ video module or outside Amazon.
-    </div>
 
     <div class="sec">
-      <div class="lab"><span class="n"><i>1</i> Animation folder (Drive)</span></div>
-      <input id="ex-folder" placeholder="Google Drive folder link or ID">
-      <div class="hint">Needed for GIF and MP4 only. Saved, along with the rules below, for next time.</div>
-    </div>
-
-    <div class="sec">
-      <div class="lab"><span class="n"><i>2</i> Category → animation rules</span><span class="meta" id="ex-rulemeta"></span></div>
-      <div class="hint" style="margin-top:0">First matching rule wins; a blank field matches anything.</div>
-      <div class="rules" id="ex-rules"></div>
-      <button class="btn ghost" id="ex-addrule" style="width:100%">+ Add rule</button>
-    </div>
-
-    <div class="sec">
-      <div class="lab"><span class="n"><i>3</i> Export by style ID</span><span class="meta" id="ex-stylemeta"></span></div>
+      <div class="lab"><span class="n"><i>1</i> Frames</span><span class="meta" id="ex-count"></span></div>
       <div class="row">
-        <select id="ex-format">
-          <optgroup label="Static, from Figma">
-            <option value="PNG">PNG</option>
-            <option value="JPG">JPG</option>
-            <option value="SVG">SVG</option>
-            <option value="PDF">PDF</option>
-          </optgroup>
-          <optgroup label="Animated, A+ with GIF below">
-            <option value="gif">GIF</option>
-            <option value="mp4">MP4</option>
-          </optgroup>
-        </select>
-        <select id="ex-scale">
-          <option value="1">1×</option>
-          <option value="2">2×</option>
-          <option value="3">3×</option>
-        </select>
+        <button class="btn ghost" id="ex-all" style="flex:1">Select all A+ on this page</button>
+        <button class="btn ghost" id="ex-clear" title="Clear the canvas selection">Clear</button>
       </div>
-      <div class="styles" id="ex-styles"></div>
+      <div class="exlist" id="ex-frames"></div>
+    </div>
+
+    <div class="sec">
+      <div class="lab"><span class="n"><i>2</i> Animation</span></div>
+      <div class="seg" id="ex-mode">
+        <button data-mode="static" class="on">Without GIF</button>
+        <button data-mode="gif">With GIF</button>
+      </div>
+      <div id="ex-gifnote"></div>
+    </div>
+
+    <div class="sec">
+      <div class="lab"><span class="n"><i>3</i> Format &amp; size</span></div>
+      <div class="row">
+        <select id="ex-format"></select>
+        <select id="ex-size"></select>
+      </div>
+      <div class="hint" id="ex-sizehint"></div>
+    </div>
+
+    <div class="sec">
+      <div class="lab"><span class="n"><i>4</i> Save to</span></div>
+      <div class="seg" id="ex-dest">
+        <button data-dest="zip" class="on">Download ZIP</button>
+        <button data-dest="drive">Google Drive</button>
+      </div>
+      <div id="ex-drivebox" class="hidden" style="margin-top:10px">
+        <input id="ex-drive" placeholder="Drive folder link — a folder per style ID is created inside it">
+      </div>
+    </div>
+
+    <div class="sec">
+      <button class="btn primary" id="ex-go" style="width:100%" disabled>Export</button>
       <div id="ex-out"></div>
+      <div class="exlist" id="ex-progress"></div>
+    </div>
+
+    <div class="sec">
+      <details class="exhelp">
+        <summary>How export works</summary>
+        <div class="hint">
+          <b>Without GIF</b> exports each selected A+ exactly as it is on the canvas: PNG or JPG for Amazon
+          (also SVG or PDF). 1×, 2× and 3× multiply the frame's own size.<br><br>
+          <b>With GIF</b> puts the A+ on top and its category's animation playing full-width underneath it, as one
+          GIF or MP4. The animation comes from the team's <b>Gifs</b> folder in Google Drive: the file named after
+          the category (Running → <code>Running.mp4</code>). The category is read from each frame; change it in the
+          list if it is wrong. A frame whose category has no animation can still be exported as a still image.<br><br>
+          <b>Where it runs:</b> everything is built on this computer: the frame images, the GIF/MP4, the ZIP. Files go
+          straight from here to your download folder or to Google Drive.<br><br>
+          <b>Google Drive:</b> paste a folder link. Each style ID gets its own subfolder inside it
+          (<code>706524/706524.gif</code>); an A+ shared by several styles is saved in each of their folders.<br><br>
+          <b>Amazon:</b> A+ image modules accept JPG or PNG only, max 2 MB. Animated GIFs are not accepted. An MP4 goes in
+          a Premium A+ video module. Use the GIF for the website, social and decks.
+        </div>
+      </details>
     </div>
   </div>
 
@@ -4935,7 +4975,8 @@ window.platform = platform;
       // hero — same layer stack the renderer walks, so the preview shows the real graphics
       var hw = svgPaint(M, (hm.word.fills || [])[0], 'hw' + uid, defs);
       s.push('<g clip-path="url(#hc' + uid + ')">');
-      s.push('<rect x="' + hm.x + '" y="' + hm.y + '" width="' + hm.w + '" height="' + hm.h + '" fill="rgb(' + hm.fill.join(',') + ')"/>');
+      var heroFill = Array.isArray(hm.fill) ? 'rgb(' + hm.fill.join(',') + ')' : pcol(M, hm.fill);
+      s.push('<rect x="' + hm.x + '" y="' + hm.y + '" width="' + hm.w + '" height="' + hm.h + '" fill="' + heroFill + '"/>');
       s.push(svgLayers(M, hm.layers, uid, 'he', defs, H, {
         bgPhoto: function () {
           var bp = hm.bgPhoto;
@@ -5121,9 +5162,9 @@ window.platform = platform;
     }
 
     // ---------- segmented tabs ----------
-    document.querySelectorAll('.seg button').forEach(function (b) {
+    document.querySelectorAll('#view-automate .seg button').forEach(function (b) {
       b.onclick = function () {
-        document.querySelectorAll('.seg button').forEach(function (x) { x.classList.toggle('on', x === b); });
+        document.querySelectorAll('#view-automate .seg button').forEach(function (x) { x.classList.toggle('on', x === b); });
         state.src = b.dataset.src;
         $('src-link').classList.toggle('hidden', state.src !== 'link');
         $('src-paste').classList.toggle('hidden', state.src !== 'paste');
@@ -5627,246 +5668,584 @@ window.platform = platform;
 <script data-src="ui/export.js">
 /* =============================================================================================
    plugin-src/ui/export.js — the "Export" panel.  OWNED BY THE EXPORT PANEL.
-   Markup: ui/export.html. Sandbox side: plugin-src/main-export.js. Backend config: backend/gif-rules.json.
-   Uses platform.js: state, $, esc, bus, bridge, backend, drive, files, errorText, registryCats,
-   Panels.automate.styleRows()/picks(). Vendor globals available: gifenc, fflate, Mp4Muxer.
-   Publishes Panels.export.
+   Markup: ui/export.html. Sandbox side: plugin-src/main-export.js. GIF rules: backend/gif-rules.json.
+
+   Flow: frames (canvas selection, or "select all A+") -> With / Without GIF -> format + size ->
+   ZIP download or Google Drive (a folder per style ID) -> Export.
+
+   Everything heavy runs HERE, in the plugin iframe on the user's machine:
+     - Figma renders each frame (sandbox exportAsync)
+     - the category's animation is downloaded straight from Drive with the user's token
+     - the GIF (gifenc) / MP4 (WebCodecs + mp4-muxer) is composited and encoded in this iframe
+     - the ZIP (fflate) is built here, or each file is uploaded straight to Drive
+   The backend is asked only which Drive file is the category's animation (/api/gif-match).
+   Uses platform.js: state, $, esc, bus, bridge, backend, drive, auth, files, ui, errorText, registryCats.
    ============================================================================================= */
 (function () {
-  // ---------- this panel's state ----------
-  state.gifRules = [];
-  state.exportFolder = '';
+  var ex = {
+    frames: [],          // [{id,name,w,h,ids,category,gender,source}]
+    pageId: null,
+    other: 0,            // selected things that are not frames
+    cat: {},             // frameId -> category override chosen in the list
+    thumbs: {},          // frameId -> object URL
+    match: {},           // category -> gif-match result | {pending:true} | {error}
+    mode: 'static', format: 'PNG', size: '2', dest: 'zip', driveLink: '',
+    missing: 'still',    // With GIF, category has no animation: 'still' | 'skip'
+    running: false, cancel: false
+  };
+  var STATIC_FORMATS = [['PNG', 'PNG'], ['JPG', 'JPG'], ['SVG', 'SVG'], ['PDF', 'PDF']];
+  var ANIM_FORMATS = [['gif', 'GIF'], ['mp4', 'MP4']];
+  var STATIC_SIZES = [['1', '1×'], ['2', '2×'], ['3', '3×']];
+  var ANIM_SIZES = [['w582', '582 px wide · house'], ['w970', '970 px wide'], ['s1', 'Frame width (1×)']];
+  var MIME = { png: 'image/png', jpg: 'image/jpeg', svg: 'image/svg+xml', pdf: 'application/pdf', gif: 'image/gif', mp4: 'video/mp4' };
+  var DEFAULT_FPS = 30;
 
-    // ---------- PANEL 3 — export ----------
-    var ruleSeq = 0;
-    function newRule() { return { id: 'r' + (++ruleSeq), category: '', gender: '', styleId: '', gif: '' }; }
-    function renderRules() {
-      var host = $('ex-rules'), cats = registryCats();
-      $('ex-rulemeta').textContent = state.gifRules.length ? (state.gifRules.length + ' rule' + (state.gifRules.length > 1 ? 's' : '')) : 'none yet';
-      if (!state.gifRules.length) {
-        host.innerHTML = '<div class="note info" style="margin-top:0"><b>No rules yet</b>Add one per GIF.</div>';
-        return;
-      }
-      host.innerHTML = state.gifRules.map(function (r, i) {
-        return '<div class="rule" data-i="' + i + '">' +
-          '<div class="g">' +
-          '<div><label>Category</label><select data-k="category"><option value="">any</option>' +
-          cats.map(function (c) { return '<option value="' + esc(c.id) + '"' + (r.category === c.id ? ' selected' : '') + '>' + esc(c.label) + '</option>'; }).join('') +
-          '</select></div>' +
-          '<div><label>Gender</label><input data-k="gender" value="' + esc(r.gender) + '" placeholder="any"></div>' +
-          '<div><label>Style ID</label><input data-k="styleId" value="' + esc(r.styleId) + '" placeholder="any"></div>' +
-          '<div><label>GIF / video</label><input data-k="gif" value="' + esc(r.gif) + '" placeholder="e.g. Running.mp4"></div>' +
-          '</div>' +
-          '<button class="btn ghost x" data-del="' + i + '">Remove rule</button>' +
-          '</div>';
-      }).join('');
-    }
-    $('ex-rules').addEventListener('input', function (ev) {
-      var el = ev.target, k = el.dataset && el.dataset.k;
-      if (!k) return;
-      var box = el.closest('.rule'); if (!box) return;
-      var r = state.gifRules[parseInt(box.dataset.i, 10)];
-      if (r) { r[k] = el.value; renderExportStyles(); saveExportConfig(); }
-    });
-    $('ex-rules').addEventListener('change', function (ev) {
-      var el = ev.target, k = el.dataset && el.dataset.k;
-      if (!k) return;
-      var box = el.closest('.rule'); if (!box) return;
-      var r = state.gifRules[parseInt(box.dataset.i, 10)];
-      if (r) { r[k] = el.value; renderExportStyles(); saveExportConfig(); }
-    });
-    $('ex-rules').addEventListener('click', function (ev) {
-      var d = ev.target.dataset && ev.target.dataset.del;
-      if (d === undefined) return;
-      state.gifRules.splice(parseInt(d, 10), 1);
-      renderRules(); renderExportStyles(); saveExportConfig();
-    });
-    $('ex-addrule').onclick = function () { state.gifRules.push(newRule()); renderRules(); renderExportStyles(); saveExportConfig(); };
-    $('ex-folder').oninput = function () { state.exportFolder = $('ex-folder').value.trim(); state.driveCache = {}; renderExportStyles(); saveExportConfig(); };
-    $('ex-format').onchange = function () { renderExportStyles(); };
+  // ---------------------------------------------------------------------------------------------
+  // settings
+  // ---------------------------------------------------------------------------------------------
+  function saveConfig() {
+    clearTimeout(state.pending.saveEx);
+    state.pending.saveEx = setTimeout(function () {
+      bridge.send('save-export-config', { config: { v: 2, mode: ex.mode, format: ex.format, size: ex.size, dest: ex.dest, drive: ex.driveLink, missing: ex.missing } });
+    }, 300);
+  }
+  function loadConfig(c) {
+    if (!c || c.v !== 2) return;   // v1 was the rule-editor panel; its fields mean nothing now
+    ex.mode = c.mode === 'gif' ? 'gif' : 'static';
+    ex.dest = c.dest === 'drive' ? 'drive' : 'zip';
+    ex.driveLink = c.drive || '';
+    ex.missing = c.missing === 'skip' ? 'skip' : 'still';
+    ex.format = c.format || ex.format; ex.size = c.size || ex.size;
+  }
+  function options(list, value) {
+    return list.map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === value ? ' selected' : '') + '>' + esc(o[1]) + '</option>'; }).join('');
+  }
+  function renderControls() {
+    var anim = ex.mode === 'gif';
+    var fl = anim ? ANIM_FORMATS : STATIC_FORMATS, sl = anim ? ANIM_SIZES : STATIC_SIZES;
+    if (!fl.some(function (o) { return o[0] === ex.format; })) ex.format = fl[0][0];
+    if (!sl.some(function (o) { return o[0] === ex.size; })) ex.size = anim ? 'w582' : '2';
+    $('ex-format').innerHTML = options(fl, ex.format);
+    $('ex-size').innerHTML = options(sl, ex.size);
+    var vector = ex.format === 'SVG' || ex.format === 'PDF';
+    $('ex-size').disabled = vector;
+    $('ex-sizehint').innerHTML = vector ? 'SVG and PDF are vector, so size does not apply.'
+      : anim ? 'Animated files are built at this width; the A+ is rendered by Figma at that width, so it stays sharp. 582 px matches the team\'s existing A+ GIFs.'
+      : 'Multiplies each frame\'s own size. Amazon A+ images: JPG or PNG, under 2 MB.';
+    document.querySelectorAll('#ex-mode button').forEach(function (b) { b.classList.toggle('on', b.dataset.mode === ex.mode); });
+    document.querySelectorAll('#ex-dest button').forEach(function (b) { b.classList.toggle('on', b.dataset.dest === ex.dest); });
+    $('ex-drivebox').classList.toggle('hidden', ex.dest !== 'drive');
+    if ($('ex-drive').value !== ex.driveLink) $('ex-drive').value = ex.driveLink;
+    renderGifNote();
+    renderGo();
+  }
 
-    // folder + rules persist in figma.clientStorage, debounced so typing does not hammer it
-    function saveExportConfig() {
-      clearTimeout(state.pending.saveEx);
-      state.pending.saveEx = setTimeout(function () {
-        bridge.send('save-export-config', { config: {
-          folder: state.exportFolder,
-          rules: state.gifRules.map(function (r) { return { category: r.category, gender: r.gender, styleId: r.styleId, gif: r.gif }; })
-        } });
-      }, 400);
-    }
-    function loadExportConfig(cfg) {
-      if (!cfg) return;
-      state.exportFolder = cfg.folder || '';
-      $('ex-folder').value = state.exportFolder;
-      state.gifRules = (cfg.rules || []).map(function (r) {
-        var n = newRule(); n.category = r.category || ''; n.gender = r.gender || ''; n.styleId = r.styleId || ''; n.gif = r.gif || ''; return n;
-      });
-      renderRules();
-    }
-    function isComposite(fmt) { return fmt === 'gif' || fmt === 'mp4'; }
+  // ---------------------------------------------------------------------------------------------
+  // the frame list
+  // ---------------------------------------------------------------------------------------------
+  function catOf(f) { return ex.cat[f.id] !== undefined ? ex.cat[f.id] : (f.category || ''); }
+  function catLabel(id) { var c = registryCats().find(function (x) { return x.id === id; }); return c ? c.label : (id || ''); }
+  function primaryId(f) { return f.ids[0] || null; }
 
-    // Matching is data: first rule whose filled fields all match wins. No category is named in code.
-    function gifFor(ctx) {
-      for (var i = 0; i < state.gifRules.length; i++) {
-        var r = state.gifRules[i];
-        if (r.category && r.category !== ctx.category) continue;
-        if (r.gender && String(r.gender).toLowerCase() !== String(ctx.gender || '').toLowerCase()) continue;
-        if (r.styleId && String(r.styleId).trim() !== ctx.styleId) continue;
-        return r;
-      }
-      return null;
+  var scanTimer = null, scanSeq = 0;
+  function scheduleScan() { clearTimeout(scanTimer); scanTimer = setTimeout(scan, 120); }
+  async function scan() {
+    if (ex.running) return;
+    var my = ++scanSeq;
+    try {
+      var r = await bridge.request('export-scan', { scope: 'selection' }, { timeoutMs: 20000 });
+      if (my !== scanSeq) return;
+      ex.frames = r.frames || []; ex.pageId = r.pageId; ex.other = r.other || 0;
+      renderFrames();
+      loadThumbs(my);
+      if (ex.mode === 'gif') matchAll();
+    } catch (e) {
+      $('ex-frames').innerHTML = ui.note('warn', 'Could not read the selection', esc(errorText(e)));
     }
-    // Style IDs come from the Automate panel's loaded rows (Panels.automate.styleRows) plus
-    // anything selected on the canvas.
-    function exportCandidates() {
-      var out = [], seen = {};
-      var A = Panels.automate || {};
-      (A.styleRows ? A.styleRows() : []).forEach(function (c) {
-        if (seen[c.styleId]) return; seen[c.styleId] = 1;
-        out.push({ styleId: c.styleId, category: c.category, gender: c.gender, label: c.label, error: c.error });
-      });
-      var picks = A.picks ? A.picks() : {};
-      (state.selection.ids || []).forEach(function (id) {
-        if (seen[id]) return; seen[id] = 1;
-        out.push({ styleId: id, category: picks.cat || '', gender: picks.gender || '', label: 'from canvas selection', error: null });
-      });
-      return out;
-    }
-    function renderExportStyles() {
-      var host = $('ex-styles'); if (!host) return;
-      var list = exportCandidates();
-      $('ex-stylemeta').textContent = list.length ? (list.length + ' style ID' + (list.length > 1 ? 's' : '')) : '';
-      if (!list.length) {
-        host.innerHTML = '<div class="note info"><b>Nothing to export yet</b>Load a sheet, or select A+ frames.</div>';
-        return;
-      }
-      host.innerHTML = list.map(function (c, i) {
-          var g = gifFor(c);
-          return '<div class="srow">' +
-            '<div><div class="sid">' + esc(c.styleId) + '</div>' +
-            '<div class="sg">' + esc(c.label || c.error || '—') + ' · GIF: ' + esc(g && g.gif ? g.gif : 'no rule matches') + '</div></div>' +
-            '<div class="sp"><button class="btn ghost" data-ex="' + i + '">Export</button></div>' +
-            '</div>';
-        }).join('');
-    }
-    $('ex-styles').addEventListener('click', function (ev) {
-      var d = ev.target.dataset && ev.target.dataset.ex;
-      if (d === undefined) return;
-      var c = exportCandidates()[parseInt(d, 10)];
-      if (!c) return;
-      var fmt = $('ex-format').value;
-      var composite = isComposite(fmt) ? fmt : null;
-      var g = gifFor(c);
-      // check everything the composite needs BEFORE asking Figma to render a large PNG
-      if (composite) {
-        var why = !g || !g.gif ? 'No GIF rule matches style ' + c.styleId + '. Add a rule in step 2.'
-          : (!(state.session && state.googleEmail) ? 'Connect Google first. The GIF is read from your Drive.'
-          : (!looksLikeDriveId(g.gif) && !state.exportFolder ? 'Set the GIF source folder in step 1.' : ''));
-        if (why) { exportNote('warn', 'Cannot export ' + c.styleId, esc(why)); return; }
-      }
-      var reqId = 'x' + Date.now();
-      state.exportJob = { reqId: reqId, styleId: c.styleId, composite: composite, gif: g ? g.gif : null };
-      bridge.send('export-style', {
-        reqId: reqId,
-        styleId: c.styleId, pageId: state.pageId,
-        // a composite is built on a PNG of the A+; the backend turns it into the GIF/MP4
-        format: composite ? 'PNG' : fmt,
-        composite: composite,
-        scale: parseInt($('ex-scale').value, 10) || 1
-      });
-      exportNote('pending', 'Exporting ' + c.styleId, 'Rendering the frame in Figma…');
-      clearTimeout(state.pending.exp);
-      state.pending.exp = setTimeout(function () {
-        if (!state.exportJob || state.exportJob.reqId !== reqId) return;
-        state.exportJob = null;
-        exportNote('warn', 'Figma did not answer', 'The plugin code did not reply within 60 s. Close and reopen the plugin, then try again. If it keeps happening, the installed <code>code.js</code> is out of date: rebuild it with <code>node plugin-src/build.js</code>.');
-      }, 60000);
-    });
-
-    function exportNote(kind, title, html) {
-      $('ex-out').innerHTML = '<div class="note ' + kind + '"><b>' + esc(title) + '</b>' + html + '</div>';
-    }
-    function looksLikeDriveId(s) {
-      s = String(s || '').trim();
-      return /drive\.google\.com|docs\.google\.com/.test(s) || /^[A-Za-z0-9_-]{25,}$/.test(s);
-    }
-    var u8ToB64 = files.toB64, b64ToU8 = files.fromB64, fmtBytes = files.fmtBytes, saveFile = files.save;
-    function postJson(path, body) { return backend.post(path, body); }
-    // A rule's GIF is either a Drive link/id, or a file name looked up in the source folder.
-    async function resolveGifFile(gif) {
-      if (looksLikeDriveId(gif)) return { id: gif, name: gif };
-      state.driveCache = state.driveCache || {};
-      var list = state.driveCache[state.exportFolder];
-      if (!list) {
-        list = await postJson('/api/drive/list', { session: state.session, folder: state.exportFolder });
-        state.driveCache[state.exportFolder] = list;
-      }
-      var want = String(gif).trim().toLowerCase(), files = list.files || [];
-      var hit = files.filter(function (f) {
-        var n = String(f.name).toLowerCase();
-        return n === want || n.replace(/\.[^.]+$/, '') === want;
-      })[0];
-      if (!hit) {
-        throw new Error('"' + gif + '" is not in ' + (list.folderName ? '"' + list.folderName + '"' : 'the folder') + '. ' +
-          (files.length ? 'Animations there: ' + files.slice(0, 8).map(function (f) { return f.name; }).join(', ') + (files.length > 8 ? '…' : '') : 'It has no GIF or video files.'));
-      }
-      return hit;
-    }
-    async function finishExport(m) {
-      var job = state.exportJob;
-      if (!job || job.reqId !== m.reqId) return;          // a stale reply from an earlier click
-      clearTimeout(state.pending.exp);
-      var dupe = m.matches > 1 ? '<br>' + m.matches + ' frames match this style ID. Exported "' + esc(m.frameName) + '". Select a frame to pick a different one.' : '';
+  }
+  async function loadThumbs(my) {
+    for (var i = 0; i < ex.frames.length; i++) {
+      var f = ex.frames[i];
+      if (ex.thumbs[f.id]) continue;
       try {
-        if (!job.composite) {
-          var ext = m.format.toLowerCase(), mime = { png: 'image/png', jpg: 'image/jpeg', svg: 'image/svg+xml', pdf: 'application/pdf' }[ext];
-          var link = saveFile(m.bytes, mime, job.styleId + '.' + ext);
-          exportNote('info', 'Exported ' + job.styleId + ' · ' + m.format,
-            esc(m.frameName) + ' · ' + m.width + '×' + m.height + ' · ' + fmtBytes(m.bytes.length) + '<br>' + link + dupe);
+        var r = await bridge.request('export-thumb', { frameId: f.id }, { timeoutMs: 20000 });
+        ex.thumbs[f.id] = URL.createObjectURL(new Blob([r.bytes], { type: 'image/png' }));
+        var el = document.querySelector('#ex-frames [data-th="' + CSS.escape(f.id) + '"]');
+        if (el) el.style.backgroundImage = 'url("' + ex.thumbs[f.id] + '")';
+      } catch (e) { /* a missing thumbnail is cosmetic */ }
+      if (my !== scanSeq) return;
+    }
+  }
+  function frameStatus(f) {
+    var c = catOf(f);
+    if (!f.ids.length) return { cls: 'bad', text: 'No style ID found in the frame name or on the canvas. It will be saved under its frame name.' };
+    if (ex.mode !== 'gif') return { cls: '', text: catLabel(c) || 'Category not detected' };
+    if (!c) return { cls: 'bad', text: 'Pick a category to find its GIF' };
+    var m = ex.match[c];
+    if (!m || m.pending) return { cls: '', text: 'Looking for the ' + catLabel(c) + ' GIF…' };
+    if (m.error) return { cls: 'bad', text: m.error };
+    if (!m.found) return { cls: 'bad', text: 'No GIF for ' + catLabel(c) + ' · ' + (ex.missing === 'skip' ? 'will be skipped' : 'exports as a still image') };
+    return { cls: 'good', text: 'GIF: ' + m.file.name + (m.file.durationMillis ? ' · ' + (m.file.durationMillis / 1000).toFixed(1) + ' s' : '') };
+  }
+  function renderFrames() {
+    var n = ex.frames.length;
+    $('ex-count').textContent = n ? n + ' frame' + (n > 1 ? 's' : '') : '';
+    if (!n) {
+      $('ex-frames').innerHTML = ui.note('info', 'No frames selected',
+        'Select A+ frames on the canvas (shift-click for several), or press <b>Select all A+ on this page</b>.' +
+        (ex.other ? '<br>' + ex.other + ' selected layer' + (ex.other > 1 ? 's are' : ' is') + ' not a frame and will be ignored.' : ''));
+      renderGo(); return;
+    }
+    var cats = registryCats();
+    $('ex-frames').innerHTML = ex.frames.map(function (f) {
+      var st = frameStatus(f), c = catOf(f);
+      var pick = '<select data-cat="' + esc(f.id) + '" title="Category — decides which GIF is used">' +
+        '<option value=""' + (c ? '' : ' selected') + '>Category…</option>' +
+        cats.map(function (k) { return '<option value="' + esc(k.id) + '"' + (k.id === c ? ' selected' : '') + '>' + esc(k.label) + '</option>'; }).join('') +
+        '</select>';
+      return '<div class="exrow">' +
+        '<div class="th" data-th="' + esc(f.id) + '"' + (ex.thumbs[f.id] ? ' style="background-image:url(\'' + ex.thumbs[f.id] + '\')"' : '') + '></div>' +
+        '<div class="mid"><div class="ids">' + esc(f.ids.join(', ') || '—') + '</div>' +
+        '<div class="nm" title="' + esc(f.name) + '">' + esc(f.name) + ' · ' + f.w + '×' + f.h + '</div>' +
+        '<div class="sub ' + st.cls + '">' + esc(st.text) + '</div></div>' + pick + '</div>';
+    }).join('') + (ex.other ? '<div class="hint">' + ex.other + ' other selected layer' + (ex.other > 1 ? 's are' : ' is') + ' not a frame and will be ignored.</div>' : '');
+    renderGifNote(); renderGo();
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // GIF matching (backend rules -> a Drive file id; bytes are fetched later, straight from Drive)
+  // ---------------------------------------------------------------------------------------------
+  function matchAll() {
+    var need = {};
+    ex.frames.forEach(function (f) { var c = catOf(f); if (c && !ex.match[c]) need[c] = 1; });
+    Object.keys(need).forEach(function (c) {
+      ex.match[c] = { pending: true };
+      backend.post('/api/gif-match', { session: state.session, category: c }, { timeoutMs: 75000 })
+        .then(function (r) { ex.match[c] = r; })
+        .catch(function (e) { ex.match[c] = { error: 'Could not look up the GIF: ' + errorText(e) }; })
+        .then(function () { renderFrames(); });
+    });
+  }
+  function renderGifNote() {
+    var host = $('ex-gifnote');
+    if (ex.mode !== 'gif') { host.innerHTML = ''; return; }
+    var missing = ex.frames.filter(function (f) { var m = ex.match[catOf(f)]; return !catOf(f) || (m && !m.pending && !m.found); });
+    if (!missing.length) {
+      host.innerHTML = '<div class="hint">Each frame gets its category\'s animation from the team <b>Gifs</b> folder in Drive.</div>';
+      return;
+    }
+    var names = {}; missing.forEach(function (f) { names[catOf(f) ? catLabel(catOf(f)) : 'no category'] = 1; });
+    host.innerHTML = ui.note('warn', missing.length + ' frame' + (missing.length > 1 ? 's have' : ' has') + ' no GIF',
+      'No animation for: ' + esc(Object.keys(names).join(', ')) + '. Add a file named after the category to the Gifs folder, or:') +
+      '<div class="seg" id="ex-missing" style="margin-top:8px">' +
+      '<button data-missing="still"' + (ex.missing === 'still' ? ' class="on"' : '') + '>Export them as still images</button>' +
+      '<button data-missing="skip"' + (ex.missing === 'skip' ? ' class="on"' : '') + '>Skip them</button></div>';
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // the Export button
+  // ---------------------------------------------------------------------------------------------
+  function plan() {
+    // -> [{frame, kind:'static'|'anim', category, match}] ; anything that cannot go is listed in `blocked`
+    var jobs = [], blocked = [];
+    ex.frames.forEach(function (f) {
+      if (ex.mode !== 'gif') { jobs.push({ f: f, kind: 'static' }); return; }
+      var c = catOf(f), m = ex.match[c];
+      if (c && m && m.found) { jobs.push({ f: f, kind: 'anim', category: c, match: m }); return; }
+      if (c && (!m || m.pending)) { blocked.push(f); return; }
+      if (ex.missing === 'still') jobs.push({ f: f, kind: 'static', fallback: true });
+    });
+    return { jobs: jobs, blocked: blocked };
+  }
+  function renderGo() {
+    var b = $('ex-go');
+    if (ex.running) { b.textContent = 'Cancel'; b.disabled = false; return; }
+    var p = plan();
+    var label = ex.mode === 'gif' ? ex.format.toUpperCase() : ex.format;
+    b.disabled = !p.jobs.length || p.blocked.length > 0 || (ex.dest === 'drive' && !drive.parseId(ex.driveLink));
+    b.textContent = !ex.frames.length ? 'Export' : p.blocked.length ? 'Looking up GIFs…'
+      : (ex.dest === 'drive' && !drive.parseId(ex.driveLink)) ? 'Paste a Drive folder link'
+      : 'Export ' + p.jobs.length + ' frame' + (p.jobs.length > 1 ? 's' : '') + ' · ' + label + (ex.dest === 'zip' ? ' · ZIP' : ' · Drive');
+  }
+
+  function sizeOpts(f, kind) {
+    if (kind === 'anim') {
+      var w = ex.size === 'w970' ? 970 : ex.size === 'w582' ? 582 : f.w;
+      return { width: w - (w % 2) };                            // even: H.264 needs it, GIF does not mind
+    }
+    if (ex.mode === 'gif') return { width: ex.size === 'w970' ? 970 : ex.size === 'w582' ? 582 : f.w }; // still fallback, same width
+    return { scale: Number(ex.size) || 1 };
+  }
+  function folderNames(f) {
+    if (f.ids.length) return f.ids.slice();
+    return [String(f.name || 'frame').replace(/[\\/:*?"<>|]+/g, '_').trim() || 'frame'];
+  }
+
+  async function run() {
+    var p = plan();
+    if (!p.jobs.length) return;
+    ex.running = true; ex.cancel = false; renderGo();
+    $('ex-out').innerHTML = '';
+    var rows = p.jobs.map(function (j, i) {
+      return '<div class="exrow"><div class="mid"><div class="ids">' + esc(j.f.ids.join(', ') || j.f.name) + '</div>' +
+        '<div class="sub" id="ex-st-' + i + '">Waiting</div><div class="exbar"><i id="ex-bar-' + i + '"></i></div></div></div>';
+    });
+    $('ex-progress').innerHTML = rows.join('');
+    function status(i, text, pct, cls) {
+      var s = $('ex-st-' + i); if (s) { s.textContent = text; s.className = 'sub' + (cls ? ' ' + cls : ''); }
+      var b = $('ex-bar-' + i); if (b && pct != null) b.style.width = Math.round(pct * 100) + '%';
+    }
+
+    var zip = {}, results = [], driveRoot = null, assetCache = {};
+    try {
+      if (ex.dest === 'drive') driveRoot = await prepareDrive();
+      for (var i = 0; i < p.jobs.length; i++) {
+        if (ex.cancel) { status(i, 'Cancelled', null, 'bad'); continue; }
+        var j = p.jobs[i], f = j.f;
+        try {
+          var out = j.kind === 'anim'
+            ? await buildAnimated(j, function (t, pct) { status(i, t, pct); }, assetCache)
+            : await buildStatic(j, function (t, pct) { status(i, t, pct); });
+          var names = folderNames(f);
+          if (ex.dest === 'zip') {
+            names.forEach(function (n) { zip[n + '/' + n + '.' + out.ext] = [out.bytes, { level: /^(svg|pdf)$/.test(out.ext) ? 6 : 0 }]; });
+          } else {
+            for (var k = 0; k < names.length; k++) {
+              status(i, 'Uploading to Drive' + (names.length > 1 ? ' (' + (k + 1) + '/' + names.length + ')' : '') + '…', 0.95);
+              await uploadOne(driveRoot, names[k], names[k] + '.' + out.ext, MIME[out.ext], out.bytes);
+            }
+          }
+          status(i, out.summary + (j.fallback ? ' · no GIF, still image' : ''), 1, 'good');
+          results.push({ ok: true, f: f, out: { ext: out.ext, size: out.bytes.length } });
+          out = null;                      // release the bytes we no longer need before the next frame
+        } catch (e) {
+          if (ex.cancel && e && e.cancelled) { status(i, 'Cancelled', null, 'bad'); continue; }
+          status(i, errorText(e), null, 'bad');
+          results.push({ ok: false, f: f, error: errorText(e) });
+        }
+      }
+      var ok = results.filter(function (r) { return r.ok; }).length, bad = results.length - ok;
+      if (ex.dest === 'zip' && ok) {
+        var d = new Date(), p2 = function (x) { return (x < 10 ? '0' : '') + x; };   // local time, as the user reads it
+        var stamp = d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()) + ' ' + p2(d.getHours()) + '.' + p2(d.getMinutes());
+        var zbytes = fflate.zipSync(zip);
+        var link = files.save(zbytes, 'application/zip', 'A+ export ' + stamp + '.zip');
+        $('ex-out').innerHTML = ui.note(bad ? 'pending' : 'info', 'Exported ' + ok + ' of ' + results.length,
+          'ZIP · ' + files.fmtBytes(zbytes.length) + ' · one folder per style ID.<br>' + link);
+      } else if (ex.dest === 'drive' && ok) {
+        $('ex-out').innerHTML = ui.note(bad ? 'pending' : 'info', 'Uploaded ' + ok + ' of ' + results.length + ' to Drive',
+          'Into <b>' + esc(driveRoot.name) + '</b>, one folder per style ID. ' +
+          '<a href="https://drive.google.com/drive/folders/' + esc(driveRoot.id) + '" target="_blank" rel="noopener">Open the folder</a>');
+      } else if (!ok) {
+        $('ex-out').innerHTML = ui.note('warn', ex.cancel ? 'Export cancelled' : 'Nothing was exported', 'See each frame above for the reason.');
+      }
+    } catch (e) {
+      $('ex-out').innerHTML = ui.note('warn', 'Export stopped', esc(errorText(e)));
+    } finally {
+      zip = null; assetCache = null;
+      ex.running = false; ex.cancel = false; renderGo();
+    }
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // static: Figma renders it, that is the file
+  // ---------------------------------------------------------------------------------------------
+  async function buildStatic(j, progress) {
+    var fmt = ex.mode === 'gif' ? 'PNG' : ex.format;
+    progress('Rendering ' + fmt + ' in Figma…', 0.2);
+    var r = await bridge.request('export-frame', Object.assign({ frameId: j.f.id, format: fmt }, sizeOpts(j.f, 'static')), { timeoutMs: 120000 });
+    var ext = fmt.toLowerCase();
+    return { bytes: r.bytes, ext: ext, summary: fmt + ' · ' + (ext === 'svg' || ext === 'pdf' ? '' : r.width + '×' + r.height + ' · ') + files.fmtBytes(r.bytes.length) };
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // animated: A+ (static, top) + the category animation (full width, below), encoded on device
+  // ---------------------------------------------------------------------------------------------
+  async function buildAnimated(j, progress, cache) {
+    var fmt = ex.format;                              // 'gif' | 'mp4'
+    if (fmt === 'mp4' && typeof VideoEncoder === 'undefined') throw new Error('This version of Figma cannot encode MP4 (no WebCodecs). Choose GIF, or update the Figma desktop app.');
+    var so = sizeOpts(j.f, 'anim'), W = so.width;
+    progress('Rendering the A+ in Figma…', 0.03);
+    var top = await bridge.request('export-frame', { frameId: j.f.id, format: 'PNG', width: W }, { timeoutMs: 120000 });
+    var topBmp = await createImageBitmap(new Blob([top.bytes], { type: 'image/png' }));
+    var file = j.match.file;
+    var asset = cache[file.id];
+    if (!asset) {
+      progress('Downloading ' + file.name + ' from Drive…', 0.06);
+      var bytes = await drive.download(file.id, { onProgress: function (l, t) { if (t) progress('Downloading ' + file.name + '… ' + Math.round(100 * l / t) + '%', 0.06 + 0.06 * l / t); } });
+      asset = cache[file.id] = await openAnimation(bytes, file);
+    }
+    var topH = topBmp.height;
+    var botH = Math.round(W * asset.height / asset.width / 2) * 2;
+    var H = topH + botH; if (H % 2) { botH += 1; H += 1; }
+    var fps = Math.min(DEFAULT_FPS, asset.fps || DEFAULT_FPS);
+    var n = Math.max(1, Math.round(asset.duration * fps));
+    var canvas = new OffscreenCanvas(W, H);
+    var ctx = canvas.getContext('2d', { willReadFrequently: fmt === 'gif' });
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, H);
+    ctx.drawImage(topBmp, 0, 0, W, topH);
+    topBmp.close();
+    if (fmt === 'gif') progress('Choosing the GIF colours…', 0.12);
+    var enc = fmt === 'mp4' ? await mp4Encoder(W, H, fps) : gifEncoder(W, H, topH, botH, fps, await gifPalette(ctx, asset, W, topH, botH));
+    for (var i = 0; i < n; i++) {
+      if (ex.cancel) { enc.abort(); var ce = new Error('Cancelled'); ce.cancelled = true; throw ce; }
+      var img = await asset.frameAt((i + 0.5) / fps);
+      ctx.drawImage(img, 0, topH, W, botH);
+      await enc.add(ctx, canvas, i);
+      if (i % 3 === 0 || i === n - 1) {
+        progress('Encoding ' + fmt.toUpperCase() + ' · frame ' + (i + 1) + ' of ' + n, 0.12 + 0.8 * (i + 1) / n);
+        await new Promise(function (r) { setTimeout(r, 0); });   // let the panel repaint
+      }
+    }
+    var out = await enc.finish();
+    return { bytes: out, ext: fmt, summary: fmt.toUpperCase() + ' · ' + W + '×' + H + ' · ' + n + ' frames @ ' + fps + ' fps · ' + files.fmtBytes(out.length) };
+  }
+
+  // The animation asset: a video (MP4/MOV/WebM, decoded by a <video> element) or an animated
+  // GIF/WebP (decoded by ImageDecoder). Exposes width/height/duration/fps and frameAt(seconds).
+  async function openAnimation(bytes, meta) {
+    var isGif = bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46;
+    if (isGif || /image\/(gif|webp)/.test(meta.mimeType || '')) return openImageAnimation(bytes, isGif ? 'image/gif' : meta.mimeType);
+    return openVideo(bytes, meta.mimeType || 'video/mp4');
+  }
+  function openVideo(bytes, mime) {
+    return new Promise(function (resolve, reject) {
+      var url = URL.createObjectURL(new Blob([bytes], { type: mime }));
+      var v = document.createElement('video');
+      v.muted = true; v.playsInline = true; v.preload = 'auto'; v.src = url;
+      v.onerror = function () { reject(new Error('This Figma app cannot play "' + mime + '" (' + ((v.error && v.error.message) || 'decode error') + ').')); };
+      v.onloadeddata = function () {
+        resolve({
+          width: v.videoWidth, height: v.videoHeight, duration: v.duration, fps: DEFAULT_FPS,
+          frameAt: function (t) {
+            return new Promise(function (res, rej) {
+              var target = Math.min(Math.max(0, t), Math.max(0, v.duration - 0.001));
+              if (Math.abs(v.currentTime - target) < 1e-6 && v.readyState >= 2) return res(v);
+              var done = false;
+              var to = setTimeout(function () { if (!done) { done = true; rej(new Error('The animation stopped decoding at ' + target.toFixed(2) + ' s.')); } }, 15000);
+              v.addEventListener('seeked', function h() { v.removeEventListener('seeked', h); if (!done) { done = true; clearTimeout(to); res(v); } });
+              v.currentTime = target;
+            });
+          }
+        });
+      };
+    });
+  }
+  async function openImageAnimation(bytes, mime) {
+    if (typeof ImageDecoder === 'undefined') throw new Error('This Figma app cannot decode an animated ' + mime + ' (no ImageDecoder). Use an MP4 in the Gifs folder.');
+    var dec = new ImageDecoder({ data: bytes, type: mime });
+    await dec.tracks.ready;
+    var count = dec.tracks.selectedTrack.frameCount, starts = [], t = 0, first = await dec.decode({ frameIndex: 0 });
+    var w = first.image.displayWidth, h = first.image.displayHeight;
+    for (var i = 0; i < count; i++) {
+      var d = i === 0 ? first : await dec.decode({ frameIndex: i });
+      starts.push(t); t += (d.image.duration || 100000) / 1e6;
+      if (i) d.image.close();
+    }
+    first.image.close();
+    var cur = null, curIdx = -1;
+    return {
+      width: w, height: h, duration: t, fps: DEFAULT_FPS,
+      frameAt: async function (sec) {
+        var k = 0; while (k + 1 < starts.length && starts[k + 1] <= sec) k++;
+        if (k !== curIdx) { if (cur) cur.close(); cur = (await dec.decode({ frameIndex: k })).image; curIdx = k; }
+        return cur;
+      }
+    };
+  }
+
+  // GIF, built the way the team's existing A+ GIFs are small (~3-5 MB at 582 px, 30 fps):
+  //  - ONE palette for the whole file (255 colours), sampled from the A+ plus frames spread across
+  //    the animation. A shared palette means a pixel that does not change maps to the same index
+  //    in every frame...
+  //  - ...so every later frame marks unchanged pixels transparent (index 255) and, with "do not
+  //    dispose", the previous frame shows through. The static A+ costs nothing after frame 1 and
+  //    the strip carries only what moved — which LZW compresses to a fraction.
+  // (A fresh palette per frame looks marginally better but re-numbers every pixel every frame,
+  //  so nothing is ever unchanged: measured 21.3 MB vs this approach for the same Running.mp4.)
+  // The palette is sampled from the A+ and from SAMPLES frames of the animation. The A+ is
+  // repeated so it weighs about as much as the animation — otherwise the video's colours win
+  // the 255 slots and the A+'s soft grey gradients band into contour rings.
+  async function gifPalette(ctx, asset, W, topH, botH) {
+    var SAMPLES = 6, top = ctx.getImageData(0, 0, W, topH).data;
+    var reps = Math.max(1, Math.round(SAMPLES * botH / topH));
+    var parts = [], total = 0;
+    for (var r = 0; r < reps; r++) { parts.push(top); total += top.length; }
+    for (var s = 0; s < SAMPLES; s++) {
+      ctx.drawImage(await asset.frameAt((s + 0.5) * asset.duration / SAMPLES), 0, topH, W, botH);
+      var d = ctx.getImageData(0, topH, W, botH).data; parts.push(d); total += d.length;
+    }
+    var all = new Uint8ClampedArray(total), o = 0;
+    parts.forEach(function (p) { all.set(p, o); o += p.length; });
+    return gifenc.quantize(all, 255, { format: 'rgb565' });
+  }
+  // Floyd–Steinberg onto a fixed palette. Nearest-colour lookups are cached on an RGB565 key,
+  // so ~1 M pixels take tens of milliseconds.
+  function ditherFS(rgba, w, h, pal) {
+    var out = new Uint8Array(w * h), cache = new Int16Array(65536).fill(-1);
+    var cur = new Float32Array((w + 2) * 3), nxt = new Float32Array((w + 2) * 3);
+    function nearest(r, g, b) {
+      var key = ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3);
+      var c = cache[key];
+      if (c >= 0) return c;
+      var best = 0, bd = Infinity;
+      for (var p = 0; p < pal.length; p++) {
+        var dr = r - pal[p][0], dg = g - pal[p][1], db = b - pal[p][2], d = dr * dr * 2 + dg * dg * 4 + db * db * 3;
+        if (d < bd) { bd = d; best = p; }
+      }
+      cache[key] = best; return best;
+    }
+    function clamp(v) { return v < 0 ? 0 : v > 255 ? 255 : v | 0; }
+    for (var y = 0; y < h; y++) {
+      var t = cur; cur = nxt; nxt = t; nxt.fill(0);
+      for (var x = 0; x < w; x++) {
+        var i = (y * w + x) * 4, e = (x + 1) * 3;
+        var r = clamp(rgba[i] + cur[e]), g = clamp(rgba[i + 1] + cur[e + 1]), b = clamp(rgba[i + 2] + cur[e + 2]);
+        var k = nearest(r, g, b), col = pal[k];
+        out[y * w + x] = k;
+        var er = r - col[0], eg = g - col[1], eb = b - col[2];
+        cur[e + 3] += er * 7 / 16; cur[e + 4] += eg * 7 / 16; cur[e + 5] += eb * 7 / 16;
+        nxt[e - 3] += er * 3 / 16; nxt[e - 2] += eg * 3 / 16; nxt[e - 1] += eb * 3 / 16;
+        nxt[e] += er * 5 / 16;     nxt[e + 1] += eg * 5 / 16; nxt[e + 2] += eb * 5 / 16;
+        nxt[e + 3] += er / 16;     nxt[e + 4] += eg / 16;     nxt[e + 5] += eb / 16;
+      }
+    }
+    return out;
+  }
+  function gifEncoder(W, H, topH, botH, fps, pal) {
+    var G = gifenc, gif = G.GIFEncoder(), prevCs = 0;
+    var table = pal.slice(); while (table.length < 255) table.push([0, 0, 0]); table.push([0, 0, 0]);   // 255 = transparent
+    var out = new Uint8Array(W * H), prev = null;
+    function delayMs(i) { var cs = Math.round((i + 1) * 100 / fps); var d = cs - prevCs; prevCs = cs; return d * 10; }
+    return {
+      add: async function (ctx, canvas, i) {
+        if (i === 0) {
+          // The A+ is written once, so it can afford error-diffusion dithering (smooth gradients,
+          // no banding). The strip is mapped without dithering so still pixels keep their index
+          // from frame to frame and become transparent below.
+          var all = new Uint8Array(W * H);
+          all.set(ditherFS(ctx.getImageData(0, 0, W, topH).data, W, topH, pal), 0);
+          prev = G.applyPalette(ctx.getImageData(0, topH, W, botH).data, pal, 'rgb565');
+          all.set(prev, W * topH);
+          gif.writeFrame(all, W, H, { palette: table, delay: delayMs(i), repeat: 0, dispose: 1 });
+          out.fill(255, 0, W * topH);                        // the A+ area: transparent from now on
           return;
         }
-        exportNote('pending', 'Exporting ' + job.styleId, 'Finding "' + esc(job.gif) + '" in Drive…');
-        var file = await resolveGifFile(job.gif);
-        exportNote('pending', 'Exporting ' + job.styleId, 'Building the ' + job.composite.toUpperCase() + ' with "' + esc(file.name) + '" on the backend. Large A+ pages can take 10 to 30 s…');
-        var r = await postJson('/api/compose', { session: state.session, aplusPng: u8ToB64(m.bytes), driveFileId: file.id, format: job.composite });
-        var out = b64ToU8(r.base64);
-        var link2 = saveFile(out, r.mimeType, job.styleId + '.' + job.composite);
-        var amz = r.amazon || {};
-        exportNote(amz.acceptedByAmazonAPlus === false ? 'pending' : 'info',
-          'Exported ' + job.styleId + ' · ' + job.composite.toUpperCase(),
-          esc(r.output.width + '×' + r.output.height + ' · ' + r.output.frames + ' frames · ' + fmtBytes(out.length) + ' · GIF: ' + file.name) +
-          '<br>' + link2 + dupe +
-          (amz.reason ? '<br><br><b>Amazon:</b> ' + esc(amz.reason) : ''));
-      } catch (e) {
-        exportNote('warn', 'Export failed · ' + job.styleId, esc(errorText(e)));
-      } finally {
-        if (state.exportJob === job) state.exportJob = null;
-      }
+        var cur = G.applyPalette(ctx.getImageData(0, topH, W, botH).data, pal, 'rgb565');
+        var base = W * topH;
+        for (var k = 0; k < cur.length; k++) out[base + k] = cur[k] === prev[k] ? 255 : cur[k];
+        prev = cur;
+        gif.writeFrame(out, W, H, { delay: delayMs(i), transparent: true, transparentIndex: 255, dispose: 1 });
+      },
+      finish: async function () { gif.finish(); return gif.bytes(); },
+      abort: function () {}
+    };
+  }
+
+  // MP4: WebCodecs H.264, muxed with mp4-muxer. Tries High, then Main, then Baseline profiles.
+  async function mp4Encoder(W, H, fps) {
+    var bitrate = Math.max(2e6, Math.min(20e6, Math.round(W * H * fps * 0.12)));
+    var codecs = ['avc1.640034', 'avc1.640033', 'avc1.64002A', 'avc1.4D0034', 'avc1.4D0033', 'avc1.42E034', 'avc1.42E01F'];
+    var config = null;
+    for (var c = 0; c < codecs.length && !config; c++) {
+      var cfg = { codec: codecs[c], width: W, height: H, bitrate: bitrate, framerate: fps, avc: { format: 'avc' } };
+      try { var s = await VideoEncoder.isConfigSupported(cfg); if (s && s.supported) config = cfg; } catch (e) {}
     }
+    if (!config) throw new Error('This Figma app cannot encode H.264 MP4 at ' + W + '×' + H + '. Choose GIF, or a smaller size.');
+    var muxer = new Mp4Muxer.Muxer({ target: new Mp4Muxer.ArrayBufferTarget(), video: { codec: 'avc', width: W, height: H, frameRate: fps }, fastStart: 'in-memory' });
+    var failure = null;
+    var encoder = new VideoEncoder({ output: function (chunk, meta) { muxer.addVideoChunk(chunk, meta); }, error: function (e) { failure = e; } });
+    encoder.configure(config);
+    var us = 1e6 / fps;
+    return {
+      add: async function (ctx, canvas, i) {
+        if (failure) throw failure;
+        var frame = new VideoFrame(canvas, { timestamp: Math.round(i * us), duration: Math.round(us) });
+        encoder.encode(frame, { keyFrame: i % (fps * 2) === 0 });
+        frame.close();
+        while (encoder.encodeQueueSize > 6) await new Promise(function (r) { setTimeout(r, 5); });
+      },
+      finish: async function () {
+        await encoder.flush();
+        if (failure) throw failure;
+        encoder.close(); muxer.finalize();
+        return new Uint8Array(muxer.target.buffer);
+      },
+      abort: function () { try { encoder.close(); } catch (e) {} }
+    };
+  }
 
-  // ---------- events from the platform and the sandbox ----------
-  bus.on('registry', function () { renderRules(); });
-  bus.on('rows-changed', function () { renderExportStyles(); });
-  bus.on('selection', function () { renderExportStyles(); });
-  bus.on('tab', function (name) { if (name === 'export') renderExportStyles(); });
-  bus.on('init', function (m) {
-    loadExportConfig(m.exportConfig);   // after the registry, so rule rows can list categories
-    renderExportStyles();
-  });
-  bridge.on('export-bytes', function (m) { return finishExport(m); });
-  bridge.on('export-error', function (m) {
-    if (state.exportJob && m.reqId && state.exportJob.reqId !== m.reqId) return;
-    clearTimeout(state.pending.exp);
-    state.exportJob = null;
-    exportNote('warn', 'Export failed' + (m.styleId ? ' · ' + m.styleId : ''), esc(m.message || 'No reason given.'));
-  });
+  // ---------------------------------------------------------------------------------------------
+  // Google Drive destination
+  // ---------------------------------------------------------------------------------------------
+  async function prepareDrive() {
+    var id = drive.parseId(ex.driveLink);
+    if (!id) throw new Error('That is not a Google Drive folder link.');
+    var info = auth.tokenInfo();
+    if (!info) { await auth.getAccessToken(); info = auth.tokenInfo(); }
+    if (info && info.driveAccess && info.driveAccess !== 'full') {
+      throw new Error('Your Google sign-in can only read Drive. Use the Google button at the top: disconnect, then continue with Google again and allow Drive access. Then export again.');
+    }
+    var f = await drive.get(id);
+    if (!f.isFolder) throw new Error('"' + f.name + '" is a file. Paste the link of a folder.');
+    return f;
+  }
+  // One folder per style ID; a re-export replaces the file of the same name instead of piling up copies.
+  async function uploadOne(root, folderName, fileName, mime, bytes) {
+    var folder = await drive.findOrCreateFolder(root.id, folderName);
+    var existing = await drive.query(drive.quote(folder.id) + ' in parents and name = ' + drive.quote(fileName) + ' and trashed = false', { pageSize: 5, max: 5 });
+    return drive.upload(folder.id, fileName, mime, bytes, existing.length ? { fileId: existing[0].id } : {});
+  }
 
-  Panels.export = {};
+  // ---------------------------------------------------------------------------------------------
+  // events
+  // ---------------------------------------------------------------------------------------------
+  $('ex-mode').addEventListener('click', function (e) {
+    var m = e.target.dataset && e.target.dataset.mode; if (!m || ex.running) return;
+    ex.mode = m; renderControls(); renderFrames(); if (m === 'gif') matchAll(); saveConfig();
+  });
+  $('ex-dest').addEventListener('click', function (e) {
+    var d = e.target.dataset && e.target.dataset.dest; if (!d || ex.running) return;
+    ex.dest = d; renderControls(); saveConfig();
+  });
+  $('ex-gifnote').addEventListener('click', function (e) {
+    var m = e.target.dataset && e.target.dataset.missing; if (!m) return;
+    ex.missing = m; renderFrames(); saveConfig();
+  });
+  $('ex-format').onchange = function () { ex.format = this.value; renderControls(); saveConfig(); };
+  $('ex-size').onchange = function () { ex.size = this.value; renderGo(); saveConfig(); };
+  $('ex-drive').oninput = function () { ex.driveLink = this.value.trim(); renderGo(); saveConfig(); };
+  $('ex-frames').addEventListener('change', function (e) {
+    var id = e.target.dataset && e.target.dataset.cat; if (id === undefined) return;
+    ex.cat[id] = e.target.value; renderFrames(); if (ex.mode === 'gif') matchAll();
+  });
+  $('ex-all').onclick = async function () {
+    if (ex.running) return;
+    try {
+      var r = await bridge.request('export-select-all', {}, { timeoutMs: 20000 });
+      if (!r.count) $('ex-frames').innerHTML = ui.note('info', 'No A+ frames on this page', 'An A+ frame is a top-level frame with a six-digit style ID in its name or next to it.');
+      // the selection change triggers a scan through the core 'selection' message
+    } catch (e) { ui.toast(errorText(e), 'warn'); }
+  };
+  $('ex-clear').onclick = function () { if (!ex.running) bridge.request('export-clear', {}).catch(function () {}); };
+  $('ex-go').onclick = function () {
+    if (ex.running) { ex.cancel = true; $('ex-go').textContent = 'Cancelling…'; $('ex-go').disabled = true; return; }
+    run();
+  };
+
+  bus.on('selection', scheduleScan);
+  bus.on('page', function () { ex.cat = {}; scheduleScan(); });
+  bus.on('tab', function (name) { if (name === 'export') scheduleScan(); });
+  bus.on('registry', function () { renderFrames(); });
+  bus.on('auth', function () { ex.match = {}; if (ex.mode === 'gif') matchAll(); });
+  bus.on('init', function (m) { loadConfig(m.exportConfig); renderControls(); scheduleScan(); });
+
+  Panels.export = { rescan: scheduleScan, _state: ex };
 
   // first paint
-  renderRules();
-  renderExportStyles();
+  renderControls();
+  renderFrames();
 })();
 </script>
 </body>

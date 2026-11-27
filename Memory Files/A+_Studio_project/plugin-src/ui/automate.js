@@ -224,7 +224,8 @@
       // hero — same layer stack the renderer walks, so the preview shows the real graphics
       var hw = svgPaint(M, (hm.word.fills || [])[0], 'hw' + uid, defs);
       s.push('<g clip-path="url(#hc' + uid + ')">');
-      s.push('<rect x="' + hm.x + '" y="' + hm.y + '" width="' + hm.w + '" height="' + hm.h + '" fill="rgb(' + hm.fill.join(',') + ')"/>');
+      var heroFill = Array.isArray(hm.fill) ? 'rgb(' + hm.fill.join(',') + ')' : pcol(M, hm.fill);
+      s.push('<rect x="' + hm.x + '" y="' + hm.y + '" width="' + hm.w + '" height="' + hm.h + '" fill="' + heroFill + '"/>');
       s.push(svgLayers(M, hm.layers, uid, 'he', defs, H, {
         bgPhoto: function () {
           var bp = hm.bgPhoto;
@@ -410,9 +411,9 @@
     }
 
     // ---------- segmented tabs ----------
-    document.querySelectorAll('.seg button').forEach(function (b) {
+    document.querySelectorAll('#view-automate .seg button').forEach(function (b) {
       b.onclick = function () {
-        document.querySelectorAll('.seg button').forEach(function (x) { x.classList.toggle('on', x === b); });
+        document.querySelectorAll('#view-automate .seg button').forEach(function (x) { x.classList.toggle('on', x === b); });
         state.src = b.dataset.src;
         $('src-link').classList.toggle('hidden', state.src !== 'link');
         $('src-paste').classList.toggle('hidden', state.src !== 'paste');

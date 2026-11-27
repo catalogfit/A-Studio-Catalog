@@ -86,6 +86,13 @@ onUiMessage('run', async function (msg) {
           var res = manifest.renderer === CAP_RENDERER
             ? await capBuildFromManifest(manifest, row, { x: x, y: y })
             : await buildFromManifest(manifest, row, { F: fonts.F, icons: icons, x: x, y: y });
+          // Tag the frame so Export knows its category without guessing (main-export.js reads it).
+          try {
+            var kp = String(key || '').split('/');
+            res.frame.setPluginData('aplus', JSON.stringify({
+              v: 1, styleIds: row.ids || [], category: kp[0] || null, gender: kp[1] || null, templateKey: key
+            }));
+          } catch (tagErr) { res.warnings = (res.warnings || []).concat(['Could not tag the frame for Export: ' + tagErr.message]); }
           created.push(res.frame, res.label);
           report.push({ name: name + '  ·  ' + manifest.meta.label, ok: true, warnings: res.warnings });
           lastLabel = manifest.meta.label;
