@@ -1,0 +1,273 @@
+{
+  "schema": "aplus.template/2",
+  "renderer": "aplus-standard-v1",
+  "meta": {
+    "category": "training",
+    "categoryLabel": "Training",
+    "version": 1,
+    "status": "active",
+    "updated": "2026-11-27",
+    "owner": "Rohit Ghosh, Catalog Design, Curefit / Cultstore",
+    "notes": "Shared geometry for every Training A+. Measured layer for layer off the three men's Training designs on Page 2: Compression Top Solid 2 (1097:1514, styles 707041/707042/707044, 1572 x 4743, 3 callouts), Trackpants Graphic (1097:1383, styles 707564/707565/707566, 1572 x 5379.69, 4 callouts) and Shorts Graphic 1 (1097:1633, styles 707175/707176/707177, 1572 x 4743, 3 callouts). The three fall into two lineages: the two 3-callout frames are near-identical to each other, and the Trackpants is identical to the Running master geometry (running/_base) to three decimals. Where a value is height-independent this file takes the 2-of-3 majority (the Compression Top / Shorts lineage); where the value has to adapt to 3 vs 4 callouts it takes the Trackpants, which is the only complete 4-callout reference and reproduces that frame's 1572 x 5380 exactly. Gender templates extend this file and override only meta, labels and defaults.",
+    "width": 1572,
+    "sliceSplitY": 2960,
+    "artDirection": {
+      "comment": "What a template cannot fix, because it is per-style, not per-gender. Two layers carry each Training style's accent colour — the body 'Wash · lower' and the hero 'Hero shade · right'. All three men's designs share their geometry exactly and differ only in this colour. The base ships the Compression Top's maroon; the designer recolours those two layers per style.",
+      "accentLayers": ["Wash · lower", "Hero shade · right"],
+      "measured": {
+        "707041/707042/707044 · Compression Top Solid 2": { "wash": [170, 72, 89], "heroShade": [170, 82, 96] },
+        "707564/707565/707566 · Trackpants Graphic": { "wash": [72, 103, 88], "heroShade": [82, 111, 100] },
+        "707175/707176/707177 · Shorts Graphic 1": { "wash": [114, 63, 137], "heroShade": [109, 54, 122] }
+      }
+    },
+    "notExpressible": [
+      "The fabric card (`Frame 852`) carries a GLASS effect (radius 16.903) in all three designs. The renderer gives the fabric box a solid fill and no effects, so the effect is dropped; the card's gradient veil itself IS reproduced, as the 'Dark overlay' layer.",
+      "The hero italic word is x-centred by the renderer. The originals place it ~35px right of centre (x 139.6 / 145 against a centred 105), which the manifest cannot express because hero.italic has no x.",
+      "The callout bar is a single white gradient at paint opacity 0.58 on a rotated matrix; the renderer only builds bars with the fixed LR/RL directions, so it is approximated with three stops (unchanged from running/_base).",
+      "The `Fabric in Focus` heading carries a disabled DROP_SHADOW in all three designs; the renderer's textStack has no effects field, so it is not reproduced (it is switched off anyway)."
+    ],
+    "knownDeviations": [
+      "Rendered frame heights match the real designs exactly — 1572 x 4743 for a 3-feature row (Compression Top, Shorts) and 1572 x 5380 for a 4-feature one (Trackpants, real 5379.69). What does NOT match is the spacing WITHIN a 3-callout frame: the two hand-made 3-callout designs pack their three cards ~45px tighter than the Trackpants' four-card rig, and one `callouts.cards` array has to serve both, so the Trackpants spacing is used and the slack lands below card 3.",
+      "'Wash · lower' is bottom-anchored (yFromBottom 66.78, the Trackpants/Running placement). The two 3-callout designs park it 211px lower on a fixed y with a different gradient matrix.",
+      "Hidden leftovers NOT reproduced, as orphans the project set out to clean up: a hidden duplicate of 'Glow · right lower' (Ellipse 87), a hidden fabric photo (705963_C), a hidden wash entirely below the frame (Rectangle 42140, y 5685), and a hidden hero model photo (948a6666…). The hidden layers that ARE reproduced are the two alternate gradients and the fabric Photo wash."
+    ]
+  },
+  "fonts": {
+    "hero": { "family": "Poppins", "style": "Bold", "fallback": "bold" },
+    "display": { "family": "Racing Sans One", "style": "Regular", "fallback": "bold" },
+    "light": { "family": "Fustat", "style": "Light", "fallback": "regular" },
+    "regular": { "family": "Fustat", "style": "Regular", "fallback": "regular" },
+    "medium": { "family": "Fustat", "style": "Medium", "fallback": "regular" },
+    "semibold": { "family": "Fustat", "style": "SemiBold", "fallback": "bold" },
+    "bold": { "family": "Fustat", "style": "Bold", "fallback": "bold" }
+  },
+  "palette": {
+    "comment": "ink and tag are read off the real Training text nodes (callout copy rgb(21,0,0), hero tagline rgb(113,119,124)). fabricBg is carried over from running/_base: the Training fabric card (Frame 852) has NO solid base fill at all, only the dark gradient that this manifest draws as the 'Dark overlay' layer, so a base colour had to be chosen — it is almost entirely covered by the fabric photo and the overlay.",
+    "ink": [21, 0, 0],
+    "white": [255, 255, 255],
+    "tag": [113, 119, 124],
+    "slotFill": [205, 209, 214],
+    "slotStroke": [110, 116, 124],
+    "slotLabel": [70, 76, 84],
+    "fabricBg": [92, 86, 88],
+    "label": [130, 130, 130],
+    "guide": [170, 170, 170]
+  },
+  "frame": {
+    "comment": "bottomPad is 0 and the padding below the last callout is folded into callouts.frame.h3 / h4 instead. It has to be: the two 3-callout Training designs leave 18.85px and 29.85px below their callouts frame and the 4-callout one leaves 101.18px, so no single bottomPad reproduces both real heights. Folding it in does — see callouts.frame.",
+    "fillRole": "white",
+    "clip": true,
+    "bottomPad": 0
+  },
+  "background": {
+    "comment": "Frame-level art, in the z-order of the real Training files (which differs from Running: the two body washes are drawn BEFORE the fabric wash, not after). The glows are radial-gradient ellipses and the washes are large rotated rectangles — 'Wash · lower' is also FLIPPED (negative determinant), so it carries the full rt matrix.",
+    "layers": [
+      { "name": "BG gradient", "x": -10, "y": 1616, "w": 1697, "hToFramePlus": 0,
+        "comment": "Compression Top / Shorts both run this to the frame bottom exactly (hToFramePlus 0). The Trackpants runs it 108.28 past, as Running does.",
+        "fills": [ { "gt": [[0.0003, 1.6641, -0.6867], [-1.6641, 0, 1.3319]],
+          "stops": [ [0, [162, 173, 179], 1], [0.3942, [255, 255, 255], 1], [1, [204, 209, 213], 1] ] } ] },
+
+      { "name": "Glow · left upper", "shape": "ellipse", "x": -627.63, "y": 2121.09, "w": 1720.8, "h": 1734.97, "opacity": 0.61,
+        "fills": [ { "radial": true, "gt": [[0, 1, 0], [-1, 0, 1]],
+          "stops": [ [0.2105, [255, 255, 255], 1], [1, [191, 196, 200], 0] ] } ] },
+
+      { "name": "BG gradient · alternate", "x": -11.33, "y": 3008.42, "w": 1699.25, "h": 1784.86,
+        "comment": "Switched off in the Compression Top and the Shorts (Rectangle 42153) and absent from the Trackpants. Kept here, hidden, so the option stays visible to the designer — same convention as the Running fabric Photo wash.",
+        "visible": false,
+        "fills": [ { "gt": [[0.0002, 0.8941, -0.0001], [-0.8941, 0.0001, 0.9471]],
+          "stops": [ [0, [204, 209, 213], 1], [0.4332, [255, 255, 255], 1], [1, [204, 209, 213], 1] ] } ] },
+
+      { "name": "Glow · right lower", "shape": "ellipse", "x": 904.35, "y": 3912.2, "w": 1052.16, "h": 774.15,
+        "fills": [ { "radial": true, "gt": [[0, 1, 0], [-1, 0, 1]],
+          "stops": [ [0, [255, 255, 255], 1], [1, [191, 200, 199], 0] ] } ] },
+      { "name": "Glow · right upper", "shape": "ellipse", "x": 737.09, "y": 3171.14, "w": 1370.97, "h": 969.54,
+        "fills": [ { "radial": true, "gt": [[0, 1, 0], [-1, 0, 1]],
+          "stops": [ [0.2223, [255, 255, 255], 1], [1, [191, 196, 200], 0] ] } ] },
+      { "name": "Glow · left lower", "shape": "ellipse", "x": -498.93, "y": 3799.37, "w": 1720.8, "h": 1734.97,
+        "fills": [ { "radial": true, "gt": [[0, 1, 0], [-1, 0, 1]],
+          "stops": [ [0.2105, [255, 255, 255], 1], [1, [191, 196, 200], 0] ] } ] },
+
+      { "name": "Wash · lower", "rt": [[-0.90901, -0.41677, 1126.1], [0.41677, -0.90901, 5312.91]], "yFromBottom": 66.78, "w": 1083.76, "h": 2786.28,
+        "comment": "The accent wash — this is the layer that carries each style's colour. Anchored to the frame bottom, so it has to be the Trackpants/Running placement; the two 3-callout frames park it 211px lower with a slightly different gradient matrix. The stop colour here is the Compression Top's maroon; see meta.artDirection.",
+        "fills": [ { "gt": [[-0.8881, -0.2636, 1.2157], [2.0353, -18.1559, 9.3857]],
+          "stops": [ [0, [170, 72, 89], 1], [1, [217, 217, 217], 0] ] } ] },
+
+      { "name": "Wash · upper", "rt": [[0.90901, 0.41677, 162.27], [-0.41677, 0.90901, 2152.15]], "w": 1083.76, "h": 2786.28,
+        "comment": "Byte-identical in all three Training designs and in running/_base.",
+        "fills": [ { "opacity": 0.32, "gt": [[-1.2029, 0.3601, 0.9336], [0.4951, -25.5645, 13.2355]],
+          "stops": [ [0, [163, 172, 177], 1], [1, [217, 217, 217], 0] ] } ] },
+
+      { "name": "Wash · fabric", "rt": [[0.92133, -0.33749, 194.09], [-0.38878, -0.94133, 3512.98]], "w": 2325.05, "h": 1942.02,
+        "comment": "Flipped as well as rotated (determinant -0.9985), so it must keep its full rt matrix. Geometry is the Compression Top / Shorts one (2 of 3); the Trackpants uses the slightly smaller Running box 2298.81 x 1809.75 at ty 3383.",
+        "fills": [ { "gt": [[-0.5553, -0.4038, 1.2941], [3.4689, -11.673, 1.4173]],
+          "stops": [ [0, [113, 113, 113], 1], [1, [217, 217, 217], 0] ] } ] }
+    ]
+  },
+  "hero": {
+    "name": "Card 1 · Hero",
+    "x": 0, "y": 0, "w": 1575, "h": 1616,
+    "fill": [250, 250, 251],
+    "comment": "Layer order is the Compression Top / Shorts hero (`SOLID Frame 54`), layer for layer. The real heroes stack up to four full-bleed 1575 x ~1599 colourway photographs on top of each other; they all collapse into the single `bgPhoto` slot, which is placed where the topmost one sits. The halftone texture appears TWICE in every Training hero (`image 394` below the photo stack, `image 395` above it) — both are kept, with the identical paint the originals carry.",
+    "layers": [
+      { "name": "Hero backdrop · trr3", "x": -60, "y": -40, "w": 1696, "h": 1696,
+        "comment": "Bottom-most layer in the Compression Top and the Shorts: a shared backdrop graphic (same imageHash in both), not a per-style photograph, so it stays a specified layer rather than a slot. The Trackpants puts a style photo here instead. An imageHash only resolves inside the Figma file that holds the bytes — the renderer drops it with a warning elsewhere.",
+        "fills": [ { "image": "ec31933d587a4a4f2f4fad740048399f56e09fe7", "scale": "FILL", "scalingFactor": 0.5 } ] },
+
+      { "name": "image 394 · texture", "x": -1085.19, "y": -66.69, "w": 2961.45, "h": 1681.68,
+        "fills": [ { "image": "28773688fac2f933786c5bb29507ca5cefb5429b", "scale": "FILL", "opacity": 0.07,
+          "scalingFactor": 0.5, "filters": { "exposure": -1 } } ] },
+
+      { "name": "Hero shade · bottom", "rt": [[0.7446, 0.66751, -321.64], [0.66751, -0.7446, 1372.86]], "w": 1584.85, "h": 2361.4,
+        "comment": "Flipped as well as rotated (determinant -1.0) — rt, not rotation. Identical box and gradient matrix in all three Training designs and in running/_base; only the first stop colour changes (near-white here, white on the Trackpants, near-black on Running men's).",
+        "fills": [ { "gt": [[-1.7363, -0.2115, 1.799], [0.2543, -2.8369, 1.3611]],
+          "stops": [ [0, [237, 234, 233], 1], [1, [217, 217, 217], 0] ] } ] },
+
+      { "name": "Hero shade · alternate", "rt": [[-0.94957, 0.31356, 1543.71], [-0.31356, -0.94957, 1757.41]], "w": 2104.41, "h": 1653.62,
+        "comment": "Switched off in the Compression Top and the Shorts. Kept hidden so the designer can see the option.",
+        "visible": false,
+        "fills": [ { "gt": [[-1.6769, -0.5822, 2.0699], [-1.8535, -31.1008, 25.455]],
+          "stops": [ [0, [139, 139, 139], 1], [1, [217, 217, 217], 0] ] } ] },
+
+      { "name": "Hero glow", "shape": "ellipse", "x": 601.76, "y": -530.76, "w": 1572, "h": 1311.69, "opacity": 0.64,
+        "fills": [ { "radial": true, "gt": [[0.1339, 1.126, -0.1929], [-1.126, 0.067, 0.996]],
+          "stops": [ [0.2223, [255, 255, 255], 1], [1, [212, 212, 212], 0] ] } ] },
+
+      { "role": "bgPhoto" },
+
+      { "name": "image 395 · texture", "x": -1085.19, "y": -66.69, "w": 2961.45, "h": 1681.68,
+        "fills": [ { "image": "28773688fac2f933786c5bb29507ca5cefb5429b", "scale": "FILL", "opacity": 0.07,
+          "scalingFactor": 0.5, "filters": { "exposure": -1 } } ] },
+
+      { "name": "Hero shade · right", "rt": [[0.94957, -0.31356, 960.05], [0.31356, 0.94957, -237.72]], "w": 1205.98, "h": 1971.47,
+        "comment": "The second accent layer. Same box in all three Training designs; the Compression Top and the Shorts share this gradient matrix, the Trackpants uses Running's. The stop colour is per-style art direction — see meta.artDirection.",
+        "fills": [ { "gt": [[-0.6421, -0.5016, 1.4194], [3.3802, -13.1219, 6.6317]],
+          "stops": [ [0, [170, 82, 96], 1], [1, [217, 217, 217], 0] ] } ] },
+
+      { "role": "tagline" },
+      { "role": "word" },
+      { "role": "italic" },
+      { "role": "model" }
+    ],
+    "bgPhoto": {
+      "name": "Hero background photo (full bleed)", "x": 0, "y": -1, "w": 1575, "h": 1599,
+      "fillOpacity": 0.45, "labelCorner": true, "label": "Hero background photo (full bleed)"
+    },
+    "word": {
+      "name": "Hero word", "font": "hero", "size": 536.553, "lhPct": 87, "ls": -32.19,
+      "upper": true, "align": "CENTER", "opacity": 0.24, "maxWidth": 1500, "y": 13.52,
+      "comment": "ls is the original's -6% of 536.553px. At this size 'TRAIN' measures 1464 wide, exactly as in the originals; longer words are scaled down to maxWidth by the renderer.",
+      "fills": [ { "opacity": 0.67, "gt": [[0.0795, 0.8811, 0.2121], [-8.6741, 0.0795, 5.2407]],
+        "stops": [ [0, [8, 8, 8], 1], [1, [75, 92, 124], 1] ] } ]
+    },
+    "italic": {
+      "name": "Hero italic word", "font": "display", "size": 321.613, "lhPct": 87, "ls": -6.43,
+      "upper": true, "align": "CENTER", "colorRole": "white", "opacity": 0.34, "maxWidth": 1440, "y": 412.46, "blur": 16.903
+    },
+    "model": {
+      "comment": "The real heroes stack a hidden model photo under the live one; only the live one is reproduced. Box is the Compression Top's; the Shorts uses (245, -3, 1157 x 1601) and the Trackpants (233, 0, 1192 x 1615).",
+      "name": "Hero model photo", "x": 237, "y": 8, "w": 1170, "h": 1586, "fillOpacity": 0.35,
+      "label": "Hero model photo"
+    },
+    "tagline": {
+      "name": "Hero tagline", "font": "medium", "size": 35, "upper": true, "ls": 2.45,
+      "colorRole": "tag", "align": "RIGHT", "width": 371, "x": 1140, "y": 706
+    }
+  },
+  "fabric": {
+    "box": { "name": "Card 2 · Fabric in Focus", "x": -3, "y": 1616, "w": 1578, "h": 1344, "radius": 5.672, "fillRole": "fabricBg" },
+    "bgPhoto": { "name": "Fabric background photo", "x": 56, "y": 56, "w": 1467, "h": 1250, "labelCorner": true, "label": "Fabric background photo" },
+    "closeup": { "name": "Fabric close-up", "x": 582, "y": 92, "w": 413, "h": 413, "circle": true, "labelSize": 30, "label": "Fabric close-up" },
+    "comment": "fabric.box starts at y 1616 with height 1344, not the measured y 1599 / height 1361. The renderer draws the hero BEFORE the fabric card, so a box starting at 1599 would paint over the hero's bottom 17px — in the originals the hero is on top. Those 17px sit behind the hero either way, and the 'Dark overlay' layer carries y -17 so its gradient still covers exactly the original 1578 x 1361 box. The bottom still lands on 2960, the export slice boundary. Matches the convention in training/_women. The real Training fabric card (`Frame 852`) carries the dark veil as its OWN gradient fill plus a GLASS effect. The renderer fills the card with a solid palette role, so the veil is reproduced here as the full-size 'Dark overlay' layer (exactly as running/_base does) and the GLASS effect is dropped — see meta.notExpressible. Close-up diameters across the three designs are 443 / 413 / 378; all three are centred on the card's horizontal axis, and 413 (the Trackpants, and the median) is used.",
+    "layers": [
+      { "role": "bgPhoto" },
+      { "name": "Photo wash", "x": 53.67, "y": 54.67, "w": 1473.96, "h": 1397.34, "opacity": 0.35,
+        "comment": "Switched off in all three Training designs (Rectangle 42167) — kept here, hidden, so the option is visible to the designer.",
+        "visible": false,
+        "fills": [ { "solid": [217, 217, 217] } ] },
+      { "name": "Dark overlay", "x": 0, "y": -17, "w": 1578, "h": 1361, "radius": 5.672,
+        "fills": [ { "opacity": 0.52, "gt": [[0.4567, 0.3437, 0.1223], [-0.3437, 0.3301, 0.5301]],
+          "stops": [ [0, [21, 0, 0], 1], [0.5354, [21, 0, 0], 0.59], [1, [21, 0, 0], 0.51] ] } ] },
+      { "role": "closeup" }
+    ],
+    "textStack": {
+      "name": "Card 2 · text", "y": 2192, "gap": 26, "cross": "CENTER",
+      "heading": { "text": "Fabric in Focus", "font": "display", "size": 90, "upper": true, "colorRole": "white" },
+      "copy": { "font": "regular", "size": 40, "colorRole": "white", "width": 1487, "bold": true },
+      "divider": { "name": "Divider", "w": 613.4, "h": 1.671,
+        "comment": "In the Training files this is a VECTOR line with a gradient STROKE (`Vector 87` / `Vector 88`), not a filled rectangle. Reproduced as a 1.671px rectangle carrying the identical gradient as a fill — same pixels.",
+        "fills": [ { "transform": "LR", "stops": [ [0, [201, 204, 244], 0], [0.4723, [255, 255, 255], 1], [1, [201, 204, 244], 0] ] } ] },
+      "composition": { "font": "semibold", "size": 41.93, "colorRole": "white" },
+      "iconRow": { "name": "Icons", "gap": 24, "cross": "CENTER", "max": 4,
+        "comment": "24 is measured off the Trackpants' `Frame 861`, the only icon row in the three that is a real auto-layout hug (1077.26 = 304 + 243 + 304.26 + 154 + 3 x 24)." }
+    },
+    "overflowWarnY": 2950
+  },
+  "callouts": {
+    "comment": "Card geometry is the Trackpants', the only men's Training design with four callouts. h4 = 2319.9 reproduces that frame at 1572 x 5380 (real 5379.69) and h3 = 1683.21 reproduces the Compression Top and the Shorts at 1572 x 4743 — both exactly, because frame.bottomPad is 0 and each height carries its own bottom padding. Both values still clear their last card (card 3 ends at 1656.21, card 4 at 2211.21), so nothing overhangs the box. The two 3-callout designs do pack their three cards ~45px tighter than the four-card rig; the card array here is the Trackpants', since one array has to serve both.",
+    "frame": { "name": "Callouts", "x": 70.18, "y": 3059.79, "w": 1431.64, "h4": 2319.9, "h3": 1683.21 },
+    "barHeight": 385.44,
+    "bar": { "name": "Bar",
+      "comment": "The real bar is a single white gradient at paint opacity 0.58 on a rotated matrix. The renderer builds callout bars with the fixed LR/RL directions only, so the same ramp is expressed as three stops at 0.58 — the running/_base approximation, unchanged.",
+      "gradientStops": [ [0, [255, 255, 255], 0.58], [0.295, [255, 255, 255], 0.58], [1, [255, 255, 255], 0] ] },
+    "title": { "font": "display", "size": 60, "lh": 75.71, "upper": true, "colorRole": "ink" },
+    "copy": { "font": "light", "size": 40, "lh": 45, "colorRole": "ink", "bold": true },
+    "textGap": 26,
+    "cards": [
+      { "bar": { "x": 247.12, "y": 71.31, "w": 1081.83, "flip": false }, "photo": { "x": 64.82, "y": 4.21, "d": 519 }, "text": { "left": 733.82, "w": 655, "copyW": 622, "align": "LEFT" } },
+      { "bar": { "x": 105.50, "y": 612.68, "w": 1176.46, "flip": true }, "photo": { "x": 849.82, "y": 542.21, "d": 519 }, "text": { "right": 673.82, "w": 593, "copyW": 559.71, "align": "RIGHT" } },
+      { "bar": { "x": 266.55, "y": 1201.21, "w": 1052.68, "flip": false }, "photo": { "x": 62.82, "y": 1131.21, "d": 525 }, "text": { "left": 734.82, "w": 621, "copyW": 621, "align": "LEFT" } },
+      { "bar": { "x": 105.66, "y": 1761.67, "w": 1176.46, "flip": true }, "photo": { "x": 848.82, "y": 1692.21, "d": 519 }, "text": { "right": 673.82, "w": 647, "copyW": 647, "align": "RIGHT" } }
+    ]
+  },
+  "comparison": {
+    "comment": "NOT measured from any Training design — none of the three men's Training A+ files has a fit-comparison card. The geometry is carried over verbatim from running/_base (measured off the Running 706327) so that the plugin's manual 'add fit comparison to this frame' escape hatch still works on a Training frame. It stays off; re-measure it the day a Training design actually uses one.",
+    "enabled": false,
+    "name": "Fit comparison",
+    "gap": 62,
+    "x": 236.7, "w": 1235.25, "h": 990,
+    "label": { "font": "display", "size": 60, "lh": 76, "upper": true, "colorRole": "ink", "align": "CENTER",
+      "y": 0, "w": 434.81, "xs": [108.95, 657.99] },
+    "photo": { "y": 87.22, "w": 666.95, "h": 865.93, "xs": [0, 568.3] },
+    "guides": {
+      "colorRole": "guide", "opacity": 1, "thickness": 3.685,
+      "vertical": [
+        { "x": 125.72, "y": 101.96, "h": 888.04 },
+        { "x": 994.02, "y": 101.96, "h": 888.04 }
+      ],
+      "horizontal": [
+        { "x": 31.59, "y": 182.52, "w": 744.33 },
+        { "x": 311.63, "y": 182.52, "w": 781.18 },
+        { "x": 31.59, "y": 909.42, "w": 744.33 },
+        { "x": 311.63, "y": 909.42, "w": 781.18 }
+      ]
+    }
+  },
+  "slices": [
+    { "name": "1", "y": 0, "h": 2960 },
+    { "name": "2", "y": 2960, "hToEnd": true }
+  ],
+  "content": {
+    "comment": "How one row of the live content sheet maps into this template. Columns are taken verbatim from the registry's sheet schema (backend/templates/index.json -> sheet), which is the single place the layout is defined: B=style IDs, C=category, G=headline ('TRAIN FEARLESS' — first word is the hero word, the rest the italic), H=tagline, I=fabric copy, J=composition, K=icons, L–O=the four features ('TITLE: body'), R=status, T=gender. Training rows already exist in that sheet.",
+    "styleIdColumn": 1,
+    "categoryColumn": 2,
+    "genderColumn": 19,
+    "headlineColumn": 6,
+    "taglineColumn": 7,
+    "fabricCopyColumn": 8,
+    "compositionColumn": 9,
+    "iconsColumn": 10,
+    "cardColumns": [11, 12, 13, 14],
+    "statusColumn": 17,
+    "cardTitleSeparator": ": ",
+    "compositionSeparator": " | ",
+    "heroDefaults": ["TRAIN", "FEARLESS", "For the bold and the relentless"],
+    "fabric": { "compositionMarker": "%" },
+    "callouts": { "min": 3, "max": 4, "titleIsFirstLine": true },
+    "comparison": { "defaults": ["Regular fit", "Slim fit"] }
+  },
+  "warnings": {
+    "comment": "titleTallPx is 160 rather than Running's 125 because the Training callout title line height is 75.71px (126.176% of 60), so two lines are already 151px.",
+    "titleTallPx": 160,
+    "textTallerThanBarPx": 385
+  }
+}

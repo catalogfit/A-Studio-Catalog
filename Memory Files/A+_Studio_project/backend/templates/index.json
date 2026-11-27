@@ -60,11 +60,30 @@
     {
       "id": "training",
       "label": "Training",
-      "status": "coming-soon",
+      "status": "active",
       "defaultGender": "men",
       "genders": [
-        { "id": "men", "label": "Men", "status": "coming-soon", "hero": ["TRAIN", "FEARLESS"], "templates": [] },
-        { "id": "women", "label": "Women", "status": "coming-soon", "hero": ["TRAIN", "FEARLESS"], "templates": [] }
+        {
+          "id": "men",
+          "label": "Men",
+          "status": "active",
+          "hero": ["TRAIN", "FEARLESS"],
+          "comment": "One template: the three men's designs (707041/42/44, 707564/65/66, 707175/76/77) are structurally identical and differ only in a two-layer accent colour, which is art direction — see meta.artDirection in training/_base.json. Callout count comes from the sheet, not the template.",
+          "templates": [
+            { "id": "template-1", "label": "Standard", "sub": "Hero + Fabric + 3–4 callouts", "version": 1, "status": "active", "file": "training/men/template-1.json" }
+          ]
+        },
+        {
+          "id": "women",
+          "label": "Women",
+          "status": "active",
+          "hero": ["TRAIN", "FEARLESS"],
+          "comment": "Two templates: beyond the accent colour the two women's designs differ in close-up diameter, fabric text position, copy width, icon gap and both hero photo boxes — too much for one file.",
+          "templates": [
+            { "id": "template-1", "label": "All Over Print", "sub": "Hero + Fabric + 3–4 callouts", "version": 1, "status": "active", "file": "training/women/template-1.json" },
+            { "id": "template-2", "label": "Solid", "sub": "Hero + Fabric + 3–4 callouts", "version": 1, "status": "active", "file": "training/women/template-2.json" }
+          ]
+        }
       ]
     },
     {

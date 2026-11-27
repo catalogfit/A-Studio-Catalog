@@ -1,0 +1,14 @@
+{
+  "extends": "training/_base",
+  "meta": {
+    "gender": "men",
+    "genderLabel": "Men",
+    "label": "Training · Men · Standard",
+    "notes": "The everyday men's Training A+: hero, Fabric in Focus, then 3 or 4 alternating callouts. Measured off all three men's Training designs on Page 2 — Compression Top Solid 2 (1097:1514, 707041/707042/707044), Trackpants Graphic (1097:1383, 707564/707565/707566) and Shorts Graphic 1 (1097:1633, 707175/707176/707177). Only one men's template exists because the three designs are structurally identical: same hero stack, same fabric card, same alternating callout rig, no extra block in any of them. What separates them is the accent colour (meta.artDirection) and how many features the sheet row fills, and neither is a template.",
+    "hero": ["TRAIN", "FEARLESS"]
+  },
+  "hero": {
+    "bgPhoto": { "name": "Hero background photo · men's training", "label": "Hero background photo · men's training" },
+    "model": { "name": "Hero model photo · men's training", "label": "Hero model photo · men's training" }
+  }
+}

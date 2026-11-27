@@ -1,0 +1,7 @@
+{
+  "extends": "training/_women",
+  "meta": {
+    "label": "Training · Women · All Over Print",
+    "notes": "The all-over-print women's Training A+: hero, Fabric in Focus, then 3 or 4 alternating callouts. Measured off 1097:1740 on Page 2 (styles 707841, 707842), the 3-callout 1572 x 4743 version. Every number is inherited from training/_women, which was measured from this frame — a row with four features renders 1572 x 5327 using the fourth callout slot taken from the Solid design."
+  }
+}

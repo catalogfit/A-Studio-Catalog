@@ -57,7 +57,7 @@ var RENDERER_REQUIRED = [
   ['hero.w', 'number'], ['hero.h', 'number'], ['hero.layers', 'array'],
   ['hero.word', 'object'], ['hero.italic', 'object'], ['hero.model', 'object'], ['hero.tagline', 'object'],
   ['fabric', 'object'], ['fabric.box', 'object'], ['fabric.textStack', 'object'],
-  ['callouts', 'object'], ['callouts.frame', 'object'], ['callouts.title', 'object'], ['callouts.copy', 'object'], ['callouts.cards', 'object'],
+  ['callouts', 'object'], ['callouts.frame', 'object'], ['callouts.title', 'object'], ['callouts.copy', 'object'], ['callouts.cards', 'array'],
   ['content', 'object']
 ];
 
@@ -139,6 +139,9 @@ function checkReferences(where, M) {
   walk(M, '');
 
   Object.keys(palette).forEach(function (role) {
+    // these manifests carry `comment` keys throughout as documentation; the renderer
+    // ignores them and so must this check, or every documented palette fails as a colour.
+    if (role === 'comment') return;
     var c = palette[role];
     if (!Array.isArray(c) || c.length !== 3 || !c.every(isNum)) fail(where, 'palette.' + role + ' must be [r,g,b] 0-255');
     else c.forEach(function (n, i) { if (n < 0 || n > 255) fail(where, 'palette.' + role + '[' + i + '] = ' + n + ' is outside 0-255'); });

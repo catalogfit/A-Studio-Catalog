@@ -1,0 +1,112 @@
+{
+  "extends": "training/_women",
+  "meta": {
+    "label": "Training · Women · Solid",
+    "notes": "The solid-colour women's Training A+, measured layer for layer off 1097:1861 on Page 2 (styles 707835, 707837, 707838) — the 4-callout, 1572 x 5327 version. It is not a structural variant of All Over Print: hero, Fabric in Focus and the callouts are the same construction, and the 4743 / 5327 difference is just 3 vs 4 callouts. What genuinely differs, and is restated here, is the art direction (crimson accent instead of teal, and a harder middle stop on the fabric veil), the hero backing-plate and model boxes, a larger fabric close-up, a lower and wider fabric text block, a wider icon row, and the four callout cards' own geometry. background.layers and hero.layers are restated in full because `extends` replaces arrays rather than merging them.",
+    "artDirection": {
+      "comment": "This template ships the Solid design's crimson on the two accent layers ('Wash · lower' and 'Hero shade · right'). See training/_women for the All Over Print teal and for the rule."
+    }
+  },
+  "background": {
+    "layers": [
+      { "name": "BG gradient", "x": -10, "y": 1616, "w": 1697, "hToFramePlus": 0,
+        "fills": [ { "gt": [[0, 1.664, -0.687], [-1.664, 0, 1.332]],
+          "stops": [ [0, [162, 173, 179], 1], [0.394, [255, 255, 255], 1], [1, [204, 209, 213], 1] ] } ] },
+
+      { "name": "Glow · left upper", "shape": "ellipse", "x": -627.635, "y": 2121.094, "w": 1720.796, "h": 1734.97, "opacity": 0.61,
+        "fills": [ { "radial": true, "gt": [[0, 1, 0], [-1, 0, 1]],
+          "stops": [ [0.21, [255, 255, 255], 1], [1, [191, 196, 200], 0] ] } ] },
+
+      { "name": "BG gradient · alternate", "x": -11.328, "y": 3008.414, "w": 1699.25, "h": 1784.865, "visible": false,
+        "fills": [ { "gt": [[0, 0.894, 0], [-0.894, 0, 0.947]],
+          "stops": [ [0, [204, 209, 213], 1], [0.433, [255, 255, 255], 1], [1, [204, 209, 213], 1] ] } ] },
+
+      { "name": "Glow · right lower", "shape": "ellipse", "x": 904.35, "y": 3912.195, "w": 1052.16, "h": 774.15,
+        "fills": [ { "radial": true, "gt": [[0, 1, 0], [-1, 0, 1]],
+          "stops": [ [0, [255, 255, 255], 1], [1, [191, 200, 199], 0] ] } ] },
+      { "name": "Glow · right upper", "shape": "ellipse", "x": 737.086, "y": 3171.141, "w": 1370.967, "h": 969.542,
+        "fills": [ { "radial": true, "gt": [[0, 1, 0], [-1, 0, 1]],
+          "stops": [ [0.222, [255, 255, 255], 1], [1, [191, 196, 200], 0] ] } ] },
+      { "name": "Glow · left lower", "shape": "ellipse", "x": -498.934, "y": 3799.367, "w": 1720.796, "h": 1734.97,
+        "fills": [ { "radial": true, "gt": [[0, 1, 0], [-1, 0, 1]],
+          "stops": [ [0.21, [255, 255, 255], 1], [1, [191, 196, 200], 0] ] } ] },
+
+      { "name": "Wash · lower", "rt": [[-0.909, -0.417, 1124.389], [0.417, -0.909, 5181.758]], "yFromBottom": 145.242, "w": 1083.756, "h": 2786.279,
+        "comment": "Crimson here, teal on the All Over Print design — the accent follows the garment. Bottom-anchored: the original's ty is 5181.758 on a 5327-tall frame, i.e. 145.242px above the bottom edge. The two women's frames do not agree on this anchor (All Over Print sits 144.758px BELOW its bottom edge), so each template carries its own.",
+        "fills": [ { "gt": [[-0.701, -0.083, 1.107], [1.211, -14.502, 7.637]],
+          "stops": [ [0, [154, 28, 54], 1], [1, [217, 217, 217], 0] ] } ] },
+
+      { "name": "Wash · upper", "rt": [[0.909, 0.417, 162.271], [-0.417, 0.909, 2152.148]], "w": 1083.756, "h": 2786.279,
+        "fills": [ { "opacity": 0.32, "gt": [[-1.203, 0.36, 0.934], [0.495, -25.564, 13.235]],
+          "stops": [ [0, [163, 172, 177], 1], [1, [217, 217, 217], 0] ] } ] },
+
+      { "name": "Wash · fabric", "rt": [[0.921, -0.337, 194.08], [-0.389, -0.941, 3512.977]], "w": 2325.05, "h": 1942.022,
+        "fills": [ { "gt": [[-0.555, -0.404, 1.294], [3.469, -11.673, 1.417]],
+          "stops": [ [0, [113, 113, 113], 1], [1, [217, 217, 217], 0] ] } ] }
+    ]
+  },
+  "hero": {
+    "comment": "Same stack as All Over Print, layer for layer; only the right-hand shade's colour and the two photo boxes differ.",
+    "layers": [
+      { "role": "bgPhoto" },
+      { "name": "image 394 · texture", "x": -1085.187, "y": -66.687, "w": 2961.445, "h": 1681.681,
+        "fills": [ { "image": "28773688fac2f933786c5bb29507ca5cefb5429b", "scale": "FILL", "opacity": 0.07,
+          "scalingFactor": 0.5, "rotation": 0, "imageTransform": [[1, 0, 0], [0, 1, 0]],
+          "filters": { "exposure": -1, "contrast": 0, "saturation": 0, "temperature": 0, "tint": 0, "highlights": 0, "shadows": 0 } } ] },
+      { "name": "Hero shade · bottom", "rt": [[0.745, 0.668, -321.641], [0.668, -0.745, 1372.86]], "w": 1584.847, "h": 2361.402,
+        "fills": [ { "gt": [[-1.736, -0.212, 1.799], [0.254, -2.837, 1.361]],
+          "stops": [ [0, [237, 234, 233], 1], [1, [217, 217, 217], 0] ] } ] },
+      { "name": "Hero shade · right", "rt": [[0.95, -0.314, 960.047], [0.314, 0.95, -237.719]], "w": 1205.983, "h": 1971.466,
+        "fills": [ { "gt": [[-0.642, -0.502, 1.419], [3.38, -13.122, 6.632]],
+          "stops": [ [0, [143, 24, 50], 1], [1, [217, 217, 217], 0] ] } ] },
+      { "name": "Hero shade · alternate", "rt": [[-0.95, 0.314, 1543.709], [-0.314, -0.95, 1757.406]], "w": 2104.408, "h": 1653.617, "visible": false,
+        "fills": [ { "gt": [[-1.677, -0.582, 2.07], [-1.853, -31.101, 25.455]],
+          "stops": [ [0, [139, 139, 139], 1], [1, [217, 217, 217], 0] ] } ] },
+      { "name": "Hero glow", "shape": "ellipse", "x": 601.756, "y": -530.758, "w": 1572, "h": 1311.69, "opacity": 0.64,
+        "fills": [ { "radial": true, "gt": [[0.134, 1.126, -0.193], [-1.126, 0.067, 0.996]],
+          "stops": [ [0.222, [255, 255, 255], 1], [1, [212, 212, 212], 0] ] } ] },
+      { "role": "tagline" },
+      { "role": "word" },
+      { "role": "italic" },
+      { "role": "model" }
+    ],
+    "bgPhoto": {
+      "name": "Hero background photo (full bleed)", "x": -142, "y": -178, "w": 1859, "h": 2026,
+      "fillOpacity": 0.45, "labelCorner": true, "label": "Hero background photo (full bleed)"
+    },
+    "model": {
+      "name": "Hero model photo · women's training", "x": 251, "y": 120, "w": 1074, "h": 1431, "fillOpacity": 0.35,
+      "label": "Hero model photo · women's training"
+    }
+  },
+  "fabric": {
+    "bgPhoto": { "name": "Fabric background photo", "x": 55.727, "y": 38.617, "w": 1467.337, "h": 1395.578, "labelCorner": true, "label": "Fabric background photo" },
+    "closeup": { "name": "Fabric close-up", "x": 531.001, "y": 58.999, "w": 503.634, "h": 503.634, "circle": true, "labelSize": 32, "label": "Fabric close-up" },
+    "layers": [
+      { "role": "bgPhoto" },
+      { "name": "Photo wash", "x": 53.668, "y": 37.68, "w": 1473.961, "h": 1397.341, "opacity": 0.35,
+        "visible": false,
+        "fills": [ { "solid": [217, 217, 217] } ] },
+      { "name": "Dark overlay", "x": 0, "y": -21, "w": 1578, "h": 1361, "radius": 5.672,
+        "comment": "Same veil as All Over Print except the middle stop, which here is opaque pure black rather than 60% of the ink colour — the Solid design's fabric band is noticeably darker through the middle.",
+        "fills": [ { "opacity": 0.52, "gt": [[0.457, 0.344, 0.122], [-0.344, 0.33, 0.53]],
+          "stops": [ [0, [21, 0, 0], 1], [0.535, [0, 0, 0], 1], [1, [21, 0, 0], 1] ] } ] },
+      { "role": "closeup" }
+    ],
+    "textStack": {
+      "y": 2212,
+      "copy": { "width": 1315 },
+      "iconRow": { "gap": 88 }
+    }
+  },
+  "callouts": {
+    "comment": "All four cards measured off 1097:1873. Reproduces the real 1572 x 5327 page exactly.",
+    "frame": { "name": "Callouts", "x": 70, "y": 3027, "w": 1432, "h4": 2300, "h3": 1716 },
+    "cards": [
+      { "bar": { "x": 247.119, "y": 71.313, "w": 1081.83, "flip": false }, "photo": { "x": 68.303, "y": 7.539, "d": 517.239 }, "text": { "left": 732.695, "w": 685, "copyW": 685, "align": "LEFT" } },
+      { "bar": { "x": 105.493, "y": 612, "w": 1176.464, "flip": true }, "photo": { "x": 841.695, "y": 546, "d": 517.239 }, "text": { "right": 697, "w": 665, "copyW": 665, "align": "RIGHT" } },
+      { "bar": { "x": 266.553, "y": 1208, "w": 1052.679, "flip": false }, "photo": { "x": 68.695, "y": 1142, "d": 517.239 }, "text": { "left": 733, "w": 661, "copyW": 661, "align": "LEFT" } },
+      { "bar": { "x": 125.798, "y": 1746, "w": 1176.464, "flip": true }, "photo": { "x": 862, "y": 1680, "d": 517.239 }, "text": { "right": 697, "w": 622, "copyW": 612, "align": "RIGHT" } }
+    ]
+  }
+}

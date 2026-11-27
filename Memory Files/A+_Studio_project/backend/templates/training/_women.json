@@ -1,0 +1,155 @@
+{
+  "extends": "training/_base",
+  "meta": {
+    "gender": "women",
+    "genderLabel": "Women",
+    "notes": "Women's Training shares the men's geometry but NOT its art direction, the same split the Running work found. Measured layer for layer off the two women's designs on Page 2: Shorts All Over Print (1097:1740, styles 707841/707842, 1572 x 4743, 3 callouts) and Shorts Solid (1097:1861, styles 707835/707837/707838, 1572 x 5327, 4 callouts). What is inherited from training/_base is genuinely identical in both genders — the fonts, the palette, the four glows, the BG gradient, 'Wash · upper' and 'Wash · fabric' (the latter to 0.1px), 'Hero shade · bottom' box, matrix AND colour, 'Hero shade · right' box and matrix, the halftone paint, the fabric Photo wash, the divider, composition and heading, the callout bar ramp, copy style, bar height and text gap, the sheet mapping and the carried-over fit-comparison block. The numbers in THIS file are the All Over Print frame's, because template-1 inherits them unchanged; training/women/template-2.json restates what the Solid frame does differently. The 4743 / 5327 split is NOT structural — it is 3 vs 4 callouts, driven by how many of sheet columns L-O are filled, exactly as in Running.",
+    "sliceSplitY": 2956,
+    "artDirection": {
+      "comment": "Per-style, not per-gender. The two accent layers are the same ones the men's designs use — the body 'Wash · lower' and the hero 'Hero shade · right' — and the women's designs follow the same rule: the accent matches the garment. _women ships the All Over Print teal; template-2 ships the Solid crimson; the designer recolours those two layers for any other style.",
+      "measured": {
+        "707841/707842 · Shorts All Over Print (women)": { "wash": [94, 161, 146], "heroShade": [71, 153, 130] },
+        "707835/707837/707838 · Shorts Solid (women)": { "wash": [154, 28, 54], "heroShade": [143, 24, 50] }
+      }
+    },
+    "notExpressible": [
+      "The fabric card (`Frame 852`) carries a GLASS effect (radius 16.903) in both women's designs. The renderer gives the fabric box a solid fill and no effects, so the effect is dropped; the card's gradient veil itself IS reproduced, as the 'Dark overlay' layer.",
+      "The hero italic word is x-centred by the renderer. Both originals place it at x 139.6, about 35px right of a centred 105, which the manifest cannot express because hero.italic has no x. Same deviation the men's designs have.",
+      "The callout bar's real paint is one white gradient at opacity 0.58 on the matrix [[1.391,0.014,-0.414],[-0.144,1.391,-0.153]]. Resolving that matrix gives solid 58% out to 29.8% of the width then a fade to ~1% — which is what training/_base's three-stop LR approximation already draws, so it is inherited unchanged. Only the matrix's slight shear is lost.",
+      "The fabric close-up ring EXISTS in both women's designs (Ellipse 801, white stroke 1.937px at 47% opacity) but is SWITCHED OFF in both. The renderer's `ring` role has no hidden state — it draws the ring unconditionally — so `fabric.ring` is deliberately omitted rather than shipped visible. This is the one place the women's Running split does not carry over: Running women's rings are on, Training women's are off.",
+      "The `Fabric in Focus` heading carries a disabled DROP_SHADOW in both designs; the renderer's textStack has no effects field, so it is not reproduced (it is switched off anyway)."
+    ],
+    "knownDeviations": [
+      "fabric.box starts at y 1616 with height 1340, not at the original Frame 852's y 1595 / height 1361. The renderer draws the hero BEFORE the fabric card, so a box starting at 1595 would paint over the hero's bottom 21px — in the originals the hero is on top. Those 21px are hidden behind the hero either way, and the 'Dark overlay' layer is offset by -21 so its gradient covers exactly the original 1578 x 1361 box. Bottom lands on 2956, the export slice boundary. This is a different convention from training/_base, which keeps the men's box at its measured y.",
+      "'Wash · lower' is bottom-anchored, but the two women's frames disagree about the anchor: All Over Print sits 144.758px BELOW its bottom edge and Solid 145.242px ABOVE it. There is no reconciling value, so each template carries its own. Its gradient matrix is also the 3-callout lineage's ([[-0.701,-0.083,1.107],[1.211,-14.502,7.637]]), not the Running/Trackpants matrix training/_base inherits.",
+      "callouts.title.lh is 60, not the base's 75.71. The women's callout titles measure 60px on a single line and 53-54px on two; 60 is the single-line measurement and matches the Running templates. warnings.titleTallPx goes back to 125 to suit it.",
+      "Hidden leftovers NOT reproduced, matching the base's choice: a hidden duplicate of 'Glow · right lower' (Ellipse 87), a hidden wash entirely below the frame (Rectangle 42140, y 5685), a hidden fabric photo belonging to an unrelated style (705963_C), and a second, duplicated close-up mask group in the fabric card. The hidden layers that ARE reproduced are the alternate BG gradient, the alternate hero shade and the fabric Photo wash."
+    ]
+  },
+  "frame": {
+    "bottomPad": 0,
+    "comment": "Both women's frames end flush: 3027 + 1694.148 callouts + 21.852 = 4743, and 3027 + 2300 + 0 = 5327. The dialect has one bottomPad, so it is 0 and the All Over Print frame's 21.852px trailing pad is folded into callouts.frame.h3 (1716). The callouts frame is unfilled and unclipped, so its height only ever sizes the page."
+  },
+  "background": {
+    "comment": "Frame-level art of 1097:1740, bottom to top. Same stack as training/_base — only 'Wash · lower' differs, in both placement and gradient matrix. Restated in full because `extends` replaces arrays rather than merging them.",
+    "layers": [
+      { "name": "BG gradient", "x": -10, "y": 1616, "w": 1697, "hToFramePlus": 0,
+        "fills": [ { "gt": [[0, 1.664, -0.687], [-1.664, 0, 1.332]],
+          "stops": [ [0, [162, 173, 179], 1], [0.394, [255, 255, 255], 1], [1, [204, 209, 213], 1] ] } ] },
+
+      { "name": "Glow · left upper", "shape": "ellipse", "x": -627.635, "y": 2121.092, "w": 1720.796, "h": 1734.97, "opacity": 0.61,
+        "fills": [ { "radial": true, "gt": [[0, 1, 0], [-1, 0, 1]],
+          "stops": [ [0.21, [255, 255, 255], 1], [1, [191, 196, 200], 0] ] } ] },
+
+      { "name": "BG gradient · alternate", "x": -11.328, "y": 3008.417, "w": 1699.25, "h": 1784.865,
+        "comment": "Switched off in both women's designs (Rectangle 42153). Kept hidden so the option stays visible to the designer.",
+        "visible": false,
+        "fills": [ { "gt": [[0, 0.894, 0], [-0.894, 0, 0.947]],
+          "stops": [ [0, [204, 209, 213], 1], [0.433, [255, 255, 255], 1], [1, [204, 209, 213], 1] ] } ] },
+
+      { "name": "Glow · right lower", "shape": "ellipse", "x": 904.35, "y": 3912.198, "w": 1052.16, "h": 774.15,
+        "fills": [ { "radial": true, "gt": [[0, 1, 0], [-1, 0, 1]],
+          "stops": [ [0, [255, 255, 255], 1], [1, [191, 200, 199], 0] ] } ] },
+      { "name": "Glow · right upper", "shape": "ellipse", "x": 737.086, "y": 3171.139, "w": 1370.967, "h": 969.542,
+        "fills": [ { "radial": true, "gt": [[0, 1, 0], [-1, 0, 1]],
+          "stops": [ [0.222, [255, 255, 255], 1], [1, [191, 196, 200], 0] ] } ] },
+      { "name": "Glow · left lower", "shape": "ellipse", "x": -498.934, "y": 3799.368, "w": 1720.796, "h": 1734.97,
+        "fills": [ { "radial": true, "gt": [[0, 1, 0], [-1, 0, 1]],
+          "stops": [ [0.21, [255, 255, 255], 1], [1, [191, 196, 200], 0] ] } ] },
+
+      { "name": "Wash · lower", "rt": [[-0.909, -0.417, 1190.389], [0.417, -0.909, 4887.758]], "yFromBottom": -144.758, "w": 1083.756, "h": 2786.279,
+        "comment": "Rotated AND flipped (negative determinant), so the whole relativeTransform is stored. The accent layer — teal here, crimson on the Solid design. Bottom-anchored, but the original's ty is 4887.758 on a 4743-tall frame, i.e. 144.758px BELOW the bottom edge, hence the negative yFromBottom. Different gradient matrix from training/_base.",
+        "fills": [ { "gt": [[-0.701, -0.083, 1.107], [1.211, -14.502, 7.637]],
+          "stops": [ [0, [94, 161, 146], 1], [1, [217, 217, 217], 0] ] } ] },
+
+      { "name": "Wash · upper", "rt": [[0.909, 0.417, 162.271], [-0.417, 0.909, 2152.149]], "w": 1083.756, "h": 2786.279,
+        "fills": [ { "opacity": 0.32, "gt": [[-1.203, 0.36, 0.934], [0.495, -25.564, 13.235]],
+          "stops": [ [0, [163, 172, 177], 1], [1, [217, 217, 217], 0] ] } ] },
+
+      { "name": "Wash · fabric", "rt": [[0.921, -0.337, 194.04], [-0.389, -0.941, 3512.892]], "w": 2325.05, "h": 1942.022,
+        "fills": [ { "gt": [[-0.555, -0.404, 1.294], [3.469, -11.673, 1.417]],
+          "stops": [ [0, [113, 113, 113], 1], [1, [217, 217, 217], 0] ] } ] }
+    ]
+  },
+  "hero": {
+    "fill": "white",
+    "comment": "The women's hero stacks differently from the men's: the full-bleed backing plate is the BOTTOM-most layer, there is only ONE halftone texture (the men's designs carry image 394 AND image 395), there is no shared backdrop graphic, and the bottom shade is drawn BELOW the right-hand shade. Order here is 1097:1740's own, layer for layer. The real frame has NO fill — the dialect always paints one solid, so it is white, the same as the page frame underneath, and the backing-plate slot covers it edge to edge anyway.",
+    "layers": [
+      { "role": "bgPhoto" },
+      { "name": "image 394 · texture", "x": -1085.187, "y": -66.687, "w": 2961.445, "h": 1681.681,
+        "fills": [ { "image": "28773688fac2f933786c5bb29507ca5cefb5429b", "scale": "FILL", "opacity": 0.07,
+          "scalingFactor": 0.5, "rotation": 0, "imageTransform": [[1, 0, 0], [0, 1, 0]],
+          "filters": { "exposure": -1, "contrast": 0, "saturation": 0, "temperature": 0, "tint": 0, "highlights": 0, "shadows": 0 } } ] },
+      { "name": "Hero shade · bottom", "rt": [[0.745, 0.668, -321.641], [0.668, -0.745, 1372.86]], "w": 1584.847, "h": 2361.402,
+        "comment": "Flipped as well as rotated. Box, matrix and the off-white first stop are identical to the men's designs.",
+        "fills": [ { "gt": [[-1.736, -0.212, 1.799], [0.254, -2.837, 1.361]],
+          "stops": [ [0, [237, 234, 233], 1], [1, [217, 217, 217], 0] ] } ] },
+      { "name": "Hero shade · right", "rt": [[0.95, -0.314, 960.047], [0.314, 0.95, -237.722]], "w": 1205.983, "h": 1971.466,
+        "comment": "Box and gradient matrix identical to the men's; only the stop colour is per-style. Teal on the All Over Print design because the garment is teal — see meta.artDirection.",
+        "fills": [ { "gt": [[-0.642, -0.502, 1.419], [3.38, -13.122, 6.632]],
+          "stops": [ [0, [71, 153, 130], 1], [1, [217, 217, 217], 0] ] } ] },
+      { "name": "Hero shade · alternate", "rt": [[-0.95, 0.314, 1543.709], [-0.314, -0.95, 1757.408]], "w": 2104.408, "h": 1653.617,
+        "comment": "Switched off in both women's designs, as in the men's. Kept hidden so the designer can see the option.",
+        "visible": false,
+        "fills": [ { "gt": [[-1.677, -0.582, 2.07], [-1.853, -31.101, 25.455]],
+          "stops": [ [0, [139, 139, 139], 1], [1, [217, 217, 217], 0] ] } ] },
+      { "name": "Hero glow", "shape": "ellipse", "x": 601.756, "y": -530.762, "w": 1572, "h": 1311.69, "opacity": 0.64,
+        "fills": [ { "radial": true, "gt": [[0.134, 1.126, -0.193], [-1.126, 0.067, 0.996]],
+          "stops": [ [0.222, [255, 255, 255], 1], [1, [212, 212, 212], 0] ] } ] },
+      { "role": "tagline" },
+      { "role": "word" },
+      { "role": "italic" },
+      { "role": "model" }
+    ],
+    "bgPhoto": {
+      "name": "Hero background photo (full bleed)", "x": -77, "y": -201, "w": 1730, "h": 2080,
+      "fillOpacity": 0.45, "labelCorner": true, "label": "Hero background photo (full bleed)"
+    },
+    "model": {
+      "comment": "Measured off 705540_D bg 1. The women's heroes carry a single model photograph, not the men's stack.",
+      "name": "Hero model photo · women's training", "x": 250, "y": 120, "w": 1076, "h": 1438, "fillOpacity": 0.35,
+      "label": "Hero model photo · women's training"
+    }
+  },
+  "fabric": {
+    "comment": "Same construction as training/_base — the real card is a transparent frame whose own FILL is the dark veil — but the women's box is started at 1616 instead of its measured 1595 so the renderer does not paint over the hero; see meta.knownDeviations. The 'Dark overlay' layer carries y -21 to compensate, so its gradient covers exactly the original 1578 x 1361 box.",
+    "box": { "name": "Card 2 · Fabric in Focus", "x": -3, "y": 1616, "w": 1578, "h": 1340, "radius": 5.672, "fillRole": "fabricBg" },
+    "bgPhoto": { "name": "Fabric background photo", "x": 55.686, "y": 38.611, "w": 1467.337, "h": 1395.578, "labelCorner": true, "label": "Fabric background photo" },
+    "closeup": { "name": "Fabric close-up", "x": 537, "y": 51, "w": 460.055, "h": 460.055, "circle": true, "labelSize": 30, "label": "Fabric close-up" },
+    "layers": [
+      { "role": "bgPhoto" },
+      { "name": "Photo wash", "x": 53.628, "y": 37.675, "w": 1473.961, "h": 1397.341, "opacity": 0.35,
+        "comment": "Switched off in both women's designs (Rectangle 42167) — kept hidden so the option is visible to the designer.",
+        "visible": false,
+        "fills": [ { "solid": [217, 217, 217] } ] },
+      { "name": "Dark overlay", "x": 0, "y": -21, "w": 1578, "h": 1361, "radius": 5.672,
+        "fills": [ { "opacity": 0.52, "gt": [[0.457, 0.344, 0.122], [-0.344, 0.33, 0.53]],
+          "stops": [ [0, [21, 0, 0], 1], [0.535, [21, 0, 0], 0.6], [1, [21, 0, 0], 1] ] } ] },
+      { "role": "closeup" }
+    ],
+    "textStack": {
+      "y": 2152.009,
+      "copy": { "width": 1193 },
+      "iconRow": { "gap": 58 }
+    }
+  },
+  "callouts": {
+    "comment": "Cards 1-3 are the All Over Print frame's (1097:1752). Card 4 is the Solid frame's, because the All Over Print design has only three — it is the only measurement of a fourth women's Training callout that exists. h3 carries the All Over Print frame's 21.852px trailing pad (see frame.bottomPad); h4 is the Solid frame's callout frame exactly. Unlike training/_base, these reproduce BOTH real page sizes: 4743 on three cards and 5327 on four.",
+    "frame": { "name": "Callouts", "x": 70.305, "y": 3027, "w": 1431.634, "h4": 2300, "h3": 1716 },
+    "barHeight": 385.442,
+    "title": { "lh": 60 },
+    "cards": [
+      { "bar": { "x": 247.119, "y": 71.312, "w": 1081.83, "flip": false }, "photo": { "x": 68.303, "y": 7.542, "d": 517.239 }, "text": { "left": 729.695, "w": 663, "copyW": 634, "align": "LEFT" } },
+      { "bar": { "x": 105.493, "y": 612.674, "w": 1176.464, "flip": true }, "photo": { "x": 849.23, "y": 545, "d": 517.239 }, "text": { "right": 693.695, "w": 626, "copyW": 626, "align": "RIGHT" } },
+      { "bar": { "x": 266.553, "y": 1200.646, "w": 1052.679, "flip": false }, "photo": { "x": 68.301, "y": 1133, "d": 517.239 }, "text": { "left": 730.695, "w": 598, "copyW": 598, "align": "LEFT" } },
+      { "bar": { "x": 125.798, "y": 1746, "w": 1176.464, "flip": true }, "photo": { "x": 862, "y": 1680, "d": 517.239 }, "text": { "right": 697, "w": 622, "copyW": 612, "align": "RIGHT" } }
+    ]
+  },
+  "slices": [
+    { "name": "1", "y": 0, "h": 2956 },
+    { "name": "2", "y": 2956, "hToEnd": true }
+  ],
+  "warnings": {
+    "titleTallPx": 125
+  }
+}
