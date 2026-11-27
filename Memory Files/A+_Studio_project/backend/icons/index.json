@@ -9,6 +9,7 @@
     "bankLabelNode": "1105:2130",
     "bankLabelText": "ICON BANK",
     "bankBounds": { "x": [60022, 60471], "y": [17406, 17890] },
+    "bankBoundsNote": "These bounds cover the ORIGINAL bank only. Icons added later are not necessarily inside them — 'Odour Free' (1130:4906, added 2026-11-27) sits at x68481 / y13903. Do not use these bounds to enumerate the bank; buildIconIndex searches the whole page geometrically and that is the authority.",
     "bankTopLevelGroups": [
       "1105:2039", "1105:2043", "1105:2056", "1105:2067", "1105:2071",
       "1105:2077", "1105:2095", "1105:2108", "1105:2114", "1105:2125"
@@ -31,7 +32,7 @@
       "note": "Two bank ellipses (1105:2041 on Ribbed Texture, 1105:2127 on High Lycra) stroke #5E5E5E instead of #5C5C5C."
     },
     "scaleFactor": 8.016,
-    "scaleFactorNote": "150.86 / 18.820038 = 8.016. A bank icon is an exact 8x reduction of production scale, so bank artwork can be scaled up to production size without redrawing it."
+    "scaleFactorNote": "150.86 / 18.820038 = 8.016, for the ORIGINAL bank only. It is not a constant of the system: 'Odour Free' (added 2026-11-27) has a 33.75px ring and scales by 4.4695. renderer.js therefore derives the factor per icon from that icon's own ring (iconBankScale) instead of using this number, and this field is kept only as the original measurement."
   },
 
   "label": {
@@ -388,6 +389,37 @@
       "files": { "svg": "high-lycra.svg", "png": "high-lycra.png" }
     },
     {
+      "name": "Odour Free",
+      "slug": "odour-free",
+      "description": null,
+      "descriptionNote": "Added to the file on 2026-11-27 by the designer, answering the sheet's unresolved 'Odour-Free' value. Its label is a plain name with no ': description' suffix, unlike the original bank labels.",
+      "bank": {
+        "group": "1130:4906",
+        "groupName": "Group 1244830616",
+        "innerGroup": "1130:4907",
+        "text": "1130:4910",
+        "ellipse": "1130:4908",
+        "glyph": "1130:4909",
+        "glyphName": "Vector",
+        "glyphType": "VECTOR",
+        "artwork": "vector",
+        "imageHash": null,
+        "glyphSize": [17.211765, 17.211765],
+        "ringDiameter": 33.752941,
+        "ellipseFill": "#FFFDFA",
+        "ellipseStroke": "#676767",
+        "ellipseStrokeWeight": 1,
+        "labelFill": "#5C5C5C",
+        "labelFontSize": 10,
+        "location": { "x": 68481, "y": 13903 },
+        "locationNote": "NOT inside the original ICON BANK bounds — it sits at x68481 / y13903, near the RUNNING WOMEN row, roughly 8400px right of and 3500px above the bank. buildIconIndex finds icons geometrically wherever they are, so this costs the plugin nothing, but it is why source.bankBounds no longer describes every bank icon.",
+        "scaleNote": "The ring is 33.75px, not the original bank's 18.82px, so the scale to production size is 150.86 / 33.75 = 4.4695 and NOT the 8.016 every other bank icon uses. renderer.js now derives this per icon from the ring (iconBankScale); while it was hardcoded this glyph would have been drawn at 138px, overflowing the 150.86px ring by 53px.",
+        "styleNote": "The ring is drawn in the PRODUCTION palette (fill #FFFDFA, stroke #676767), not the bank's (fill none, stroke #5C5C5C). It makes no difference to output — bankIcon discards the source ring and draws a fresh production-spec one — but it is why this icon looks unlike its neighbours in the file."
+      },
+      "production": null,
+      "files": { "svg": "odour-free.svg", "png": "odour-free.png" }
+    },
+    {
       "name": "Stretchy",
       "slug": "stretchy",
       "description": null,
@@ -426,6 +458,11 @@
   "aliases": {
     "comment": "Sheet spelling -> canonical icon name. Keys are already normalised (lowercased, every run of non-alphanumeric characters collapsed to a single space, trimmed), which is the same normalisation buildIconIndex applies to both sides before it compares them. That normalisation alone already resolves case and hyphen/space variants ('Sweat Wicking' == 'sweat-wicking' == 'SWEAT–WICKING'), so this map only needs to carry genuine renamings. Every entry here is either taken from an instruction written inside the bank or is a morphological variant of a single unambiguous bank name; nothing here is a guess between two candidate icons.",
     "entries": {
+      "soft": {
+        "to": "Super-Soft",
+        "source": "product decision 2026-11-27",
+        "note": "Was left unresolved as ambiguous (Super-Soft / Hyper Soft / Ultra-Soft / Soft Cotton-Lycra). The product owner chose Super-Soft, the feather, consistent with bank node 1105:2101 ('Super-Soft, buttery soft, lightweight - have same feather icon')."
+      },
       "buttery soft": {
         "to": "Super-Soft",
         "source": "bank node 1105:2101",
@@ -544,7 +581,8 @@
   "coverage": {
     "bankOnly": [
       "Ribbed Texture", "Multi Stretch", "Ripstop Fabric", "Super Stretch",
-      "Bio-Wash Treated", "Premium Cotton", "Soft Cotton-Lycra", "COMFlex Fabric", "High Lycra"
+      "Bio-Wash Treated", "Premium Cotton", "Soft Cotton-Lycra", "COMFlex Fabric", "High Lycra",
+      "Odour Free"
     ],
     "productionOnly": ["Stretchy", "Ultra-Soft"],
     "both": ["Lightweight", "Sweat-Wicking", "Hyper Soft", "Breathable", "Super-Soft"]
@@ -560,11 +598,11 @@
       { "value": "Hyper Soft", "to": "Hyper Soft", "via": "exact (production)", "rows": 4 },
       { "value": "Stretchy", "to": "Stretchy", "via": "exact (production)", "rows": 5 },
       { "value": "Super Soft", "to": "Super-Soft", "via": "normalisation", "rows": 8 },
-      { "value": "Bio-Washed", "to": "Bio-Wash Treated", "via": "alias (bank only — renders at 8x from bank artwork, reported as a warning)", "rows": 8 }
+      { "value": "Bio-Washed", "to": "Bio-Wash Treated", "via": "alias (bank only — renders at 8x from bank artwork, reported as a warning)", "rows": 8 },
+      { "value": "Soft", "to": "Super-Soft", "via": "alias (product decision 2026-11-27)", "rows": 2 },
+      { "value": "Odour-Free", "to": "Odour Free", "via": "normalisation (bank only — rebuilt at 4.47x from bank artwork, reported as a warning)", "rows": 1, "note": "Resolved on 2026-11-27 when the designer added the icon. The sheet writes 'Odour-Free' and the Figma label reads 'Odour Free'; both normalise to 'odour free', so no alias is needed, but the RENDERED label follows the Figma spelling and will read 'Odour Free' without the hyphen — unlike its neighbours Sweat-Wicking / Ultra-Soft / Super-Soft. Renaming the Figma text node to 'Odour-Free' would make it match." }
     ],
     "unresolved": [
-      { "value": "Soft", "rows": 2, "usedBy": ["Training 710042", "Winter Wear 708665"], "reason": "ambiguous between Super-Soft / Hyper Soft / Ultra-Soft / Soft Cotton-Lycra" },
-      { "value": "Odour-Free", "rows": 1, "usedBy": ["Training 710042"], "reason": "no icon in either population" },
       { "value": "Warmth Retaining", "rows": 1, "usedBy": ["Winter Wear 708665"], "reason": "no icon in either population" },
       { "value": "Eco-Friendly", "rows": 1, "usedBy": ["Winter Wear 708665"], "reason": "no icon in either population" },
       { "value": "Ultra-Lightweight", "rows": 1, "usedBy": ["Winter Wear 708836"], "reason": "no icon in either population; distinct claim from 'Lightweight'" },
@@ -576,7 +614,7 @@
       "Premium Cotton", "Soft Cotton-Lycra", "COMFlex Fabric", "High Lycra", "Ultra-Soft"
     ],
     "runningRowsStatus": "All four Running rows resolve every icon they ask for, against production icons only.",
-    "trainingRowsStatus": "Four of the five Training rows resolve fully. Training 710042 ('Soft, Odour-Free, Lightweight') resolves only 'Lightweight'. Training 710467 ('Super Soft, Bio-Washed') needs the bank for 'Bio-Washed'."
+    "trainingRowsStatus": "As of 2026-11-27 all five Training rows resolve every icon they ask for. Training 710042 ('Soft, Odour-Free, Lightweight') was the last to close: 'Soft' resolves to Super-Soft by the product decision of 2026-11-27, 'Lightweight' to the production icon, and 'Odour-Free' to the Odour Free icon the designer added that day. It and Training 710467 ('Super Soft, Bio-Washed') both draw a bank icon rebuilt at production scale, so each reports a warning asking that the result be checked before publishing."
   },
 
   "backup": {
@@ -584,7 +622,7 @@
     "exportedFrom": "the glyph node of each icon (not the whole icon group), so the long '<Name>: <description>' bank label is not baked into the artwork",
     "svgNote": "Every .svg parses as XML and is self-contained: a raster glyph is embedded as a base64 data URI inside the SVG, so the .svg alone is a complete backup. The matching .png is the same artwork as the original uploaded bitmap, kept because it is smaller and easier to re-import.",
     "vectorOnly": ["multi-stretch", "ripstop-fabric", "comflex-fabric", "stretchy-production"],
-    "vectorOnlyNote": "These four glyphs are true vectors, so there is no .png — the .svg is the artwork itself, not a wrapper.",
+    "vectorOnlyNote": "These four glyphs are true vectors, so there is no .png — the .svg is the artwork itself, not a wrapper. 'odour-free' is also a true vector but DOES ship a .png, rendered at 8x (138px) for convenience; its .svg is the authoritative copy and is the one that scales.",
     "rasterNote": "Every other glyph is a raster image fill, not vector line art. The .svg is therefore a bitmap wrapped in SVG and will not scale cleanly beyond its native pixel size.",
     "notExported": [
       {

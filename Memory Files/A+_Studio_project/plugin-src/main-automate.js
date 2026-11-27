@@ -60,7 +60,7 @@ onUiMessage('run', async function (msg) {
   }
 
   try {
-    var icons = buildIconIndex();
+    var icons = await buildIconIndexAll();
     var maxX = 0, minY = Infinity;
     figma.currentPage.children.forEach(function (n) { maxX = Math.max(maxX, n.x + n.width); minY = Math.min(minY, n.y); });
     var x = maxX + 600, y = isFinite(minY) ? minY : 0;

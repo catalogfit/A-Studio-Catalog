@@ -197,6 +197,44 @@ function box(parent, o) {
   if (o.name) f.name = o.name;
   return f;
 }
+// Keep the Fabric-in-Focus text stack (heading, copy, divider, composition, icon row) inside its
+// card. The stack is placed at the design's y and grows downward, and the card has a fixed
+// height, so long fabric copy used to push the icon row out of the card and into the callouts.
+// In order, and only as far as needed:
+//   1. the design position, when it fits (short copy renders exactly as designed)
+//   2. lift the stack toward the close-up photo, never closer than FAB_MIN_GAP below it
+//   3. step the copy size down 2 px at a time, never below 80 % of the design size
+//   4. widen the copy, up to the background panel less FAB_SIDE_PAD each side
+//   5. still too long: keep the best position and say so — the copy needs shortening
+// The bottom limit is the card or the background panel, whichever ends first, less FAB_BOTTOM_PAD.
+// The stack never moves LOWER than the design put it (the Training designs already sit it ~30 px
+// under the close-up, closer than FAB_MIN_GAP).
+var FAB_MIN_GAP = 40, FAB_BOTTOM_PAD = 48, FAB_SIDE_PAD = 80;
+function fitFabricStack(fb, ts, cols, copyNode, warn) {
+  var panelBottom = fb.bgPhoto ? fb.bgPhoto.y + fb.bgPhoto.h : fb.box.h;
+  var limit = fb.box.y + Math.min(fb.box.h, panelBottom) - FAB_BOTTOM_PAD;
+  var designY = cols.y;
+  var minTop = Math.min(designY, fb.box.y + (fb.closeup ? fb.closeup.y + fb.closeup.h : 0) + FAB_MIN_GAP);
+  function fits() { return minTop + cols.height <= limit; }
+  function place() { cols.y = Math.max(minTop, Math.min(designY, limit - cols.height)); }
+  if (designY + cols.height <= limit) return { moved: 0, size: ts.copy.size, fits: true };
+  var size0 = ts.copy.size, floor = Math.round(size0 * 0.8), size = size0;
+  var width0 = copyNode.width, maxW = Math.max(width0, (fb.bgPhoto ? fb.bgPhoto.w : fb.box.w) - 2 * FAB_SIDE_PAD), width = width0;
+  while (!fits() && size - 2 >= floor) { size -= 2; copyNode.fontSize = size; }
+  while (!fits() && width + 40 <= maxW) { width += 40; copyNode.resize(width, copyNode.height); copyNode.textAutoResize = 'HEIGHT'; }
+  place();
+  var what = [];
+  if (designY - cols.y >= 1) what.push('moved the fabric text up ' + Math.round(designY - cols.y) + ' px');
+  if (size !== size0) what.push('set the copy at ' + size + ' px (design ' + size0 + ' px)');
+  if (width !== width0) what.push('widened the copy to ' + Math.round(width) + ' px (design ' + Math.round(width0) + ' px)');
+  if (cols.y + cols.height <= limit) {
+    warn.push('Fabric copy is long: ' + what.join(', ') + ' to keep the icons inside the card.');
+    return { moved: designY - cols.y, size: size, width: width, fits: true };
+  }
+  warn.push('Fabric copy is too long for the card even after it ' + (what.join(', ') || 'was adjusted') + '. The icons run ' +
+    Math.round(cols.y + cols.height - limit) + ' px past the card. Shorten the fabric copy in the sheet.');
+  return { moved: designY - cols.y, size: size, width: width, fits: false };
+}
 function stack(parent, dir, o) {
   var f = figma.createFrame(); f.fills = []; f.clipsContent = false;
   f.layoutMode = dir;
@@ -261,10 +299,13 @@ var ICON_LABEL_SIZE = 40.228325;
 // Sheet spelling -> canonical icon name, for the cases normalisation alone cannot reach.
 // Every entry is either written down inside the bank or is an unambiguous morphological
 // variant of a single bank name. Ambiguous values are deliberately absent so that they are
-// reported rather than guessed: "Soft" could be Super-Soft, Hyper Soft, Ultra-Soft or Soft
-// Cotton-Lycra, and "Stretchy" must not be bent onto Super Stretch / Multi Stretch / High
-// Lycra. Shipping a plausible-but-wrong glyph to Amazon is worse than shipping a visible gap.
+// reported rather than guessed: "Stretchy" must not be bent onto Super Stretch / Multi Stretch /
+// High Lycra. Shipping a plausible-but-wrong glyph to Amazon is worse than shipping a visible gap.
+// "Soft" was in that ambiguous group (Super-Soft / Hyper Soft / Ultra-Soft / Soft Cotton-Lycra)
+// until the product owner decided it on 2026-11-27: Soft = Super-Soft, the feather.
 var ICON_ALIASES = {
+  // product decision 2026-11-27 (Training 710042, Winter Wear 708665 write plain "Soft")
+  'soft': 'super soft',
   // bank node 1105:2101: "Super-Soft, buttery soft, lightweight - have same feather icon"
   'buttery soft': 'super soft',
   'bio washed': 'bio wash treated',
@@ -359,13 +400,29 @@ function iconLabelFor(ring) {
 }
 // Index every icon on the page, production and bank alike, under both its exact label and a
 // normalised key. Production wins over bank for the same name.
-function buildIconIndex() {
-  var idx = {
+// Icons are looked up on the CURRENT page first, then on every other page of the file, so a bulk
+// run on a fresh output page still finds the production icons and the ICON BANK that live on the
+// design page. A name already found on an earlier page is never replaced by a later one.
+// (documentAccess is "dynamic-page": other pages must be loaded before they can be searched.)
+async function buildIconIndexAll() {
+  var idx = buildIconIndex(figma.currentPage);
+  idx.pages = [figma.currentPage.name];
+  var pages = figma.root.children.filter(function (p) { return p !== figma.currentPage; });
+  for (var i = 0; i < pages.length; i++) {
+    try { await pages[i].loadAsync(); } catch (e) { continue; }
+    var before = idx.names.length;
+    buildIconIndex(pages[i], idx);
+    if (idx.names.length > before) idx.pages.push(pages[i].name);
+  }
+  return idx;
+}
+function buildIconIndex(page, into) {
+  var idx = into || {
     production: { exact: {}, norm: {} },
     bank: { exact: {}, norm: {} },
     names: []
   };
-  var ellipses = figma.currentPage.findAllWithCriteria({ types: ['ELLIPSE'] });
+  var ellipses = (page || figma.currentPage).findAllWithCriteria({ types: ['ELLIPSE'] });
   for (var i = 0; i < ellipses.length; i++) {
     var ring = ellipses[i];
     if (ring.visible === false) continue;
@@ -426,6 +483,14 @@ function resolveIcon(idx, label) {
 // the production spec (the bank's own 19px ring and "<Name>: <description>" label are reference
 // art, not usable output); only the GLYPH comes from the bank, scaled up by ICON_BANK_SCALE.
 // This is a real icon of the right name — not a stand-in — but every use is reported.
+// How far a bank glyph has to be scaled up to sit correctly in a production ring. Derived from
+// THIS icon's own ring rather than a constant: the original bank is drawn at 18.82px (giving
+// 8.016x, the value that used to be hardcoded) but icons added later are not — the Odour-Free
+// icon's ring is 33.75px, and scaling its glyph by 8.016 would overflow the ring.
+function iconBankScale(entry) {
+  var rb = iconBox(entry.ring);
+  return rb && rb.width ? (ICON_RING_D / rb.width) : ICON_BANK_SCALE;
+}
 function bankIcon(M, F, parent, entry) {
   var g = stack(parent, 'VERTICAL', { gap: ICON_LABEL_GAP, cross: 'CENTER',
     name: 'Icon · ' + entry.name + ' · rebuilt from icon bank' });
@@ -437,14 +502,15 @@ function bankIcon(M, F, parent, entry) {
   e.strokeWeight = ICON_RING_STROKE_W;
   holder.appendChild(e); e.x = 0; e.y = 0; e.name = 'Ellipse 3';
   var rb = iconBox(entry.ring);
+  var scale = iconBankScale(entry);
   for (var i = 0; i < entry.glyphs.length; i++) {
     var src = entry.glyphs[i];
     var sb = iconBox(src);
     var c = src.clone();
     holder.appendChild(c);
-    if (typeof c.rescale === 'function') c.rescale(ICON_BANK_SCALE);
-    else if (typeof c.resize === 'function' && sb) c.resize(sb.width * ICON_BANK_SCALE, sb.height * ICON_BANK_SCALE);
-    if (sb && rb) { c.x = (sb.x - rb.x) * ICON_BANK_SCALE; c.y = (sb.y - rb.y) * ICON_BANK_SCALE; }
+    if (typeof c.rescale === 'function') c.rescale(scale);
+    else if (typeof c.resize === 'function' && sb) c.resize(sb.width * scale, sb.height * scale);
+    if (sb && rb) { c.x = (sb.x - rb.x) * scale; c.y = (sb.y - rb.y) * scale; }
     c.name = 'Glyph · ' + entry.name;
   }
   txt(M, F, g, { text: entry.name, font: 'regular', size: ICON_LABEL_SIZE, colorRole: 'white',
@@ -687,7 +753,7 @@ async function buildFromManifest(M, row, opts) {
   var ts = fb.textStack;
   var cols = stack(fr, 'VERTICAL', { gap: ts.gap, cross: ts.cross, name: ts.name });
   txt(M, F, cols, { text: ts.heading.text, font: ts.heading.font, size: ts.heading.size, upper: ts.heading.upper, colorRole: ts.heading.colorRole, align: 'CENTER', name: 'Heading' });
-  txt(M, F, cols, { text: row.fab.copy, font: ts.copy.font, size: ts.copy.size, colorRole: ts.copy.colorRole, align: 'CENTER', width: ts.copy.width, bold: ts.copy.bold, name: 'Fabric copy' });
+  var copyNode = txt(M, F, cols, { text: row.fab.copy, font: ts.copy.font, size: ts.copy.size, colorRole: ts.copy.colorRole, align: 'CENTER', width: ts.copy.width, bold: ts.copy.bold, name: 'Fabric copy' });
   rect(cols, { w: ts.divider.w, h: ts.divider.h, name: ts.divider.name,
     fills: ts.divider.fills ? paintsOf(M, ts.divider.fills) : [solid(col(M, ts.divider.colorRole), ts.divider.opacity)] });
   txt(M, F, cols, { text: row.fab.comp, font: ts.composition.font, size: ts.composition.size, colorRole: ts.composition.colorRole, align: 'CENTER', name: 'Composition' });
@@ -709,8 +775,8 @@ async function buildFromManifest(M, row, opts) {
     } else {
       bankIcon(M, F, iconRow, hit.entry);
       warn.push('Icon "' + label + '" is not in any shipped design, so it was rebuilt from the ' +
-        'ICON BANK glyph scaled up ' + ICON_BANK_SCALE + 'x (bank art is 19px reference art). ' +
-        'Check it renders cleanly before publishing.');
+        'ICON BANK glyph scaled up ' + iconBankScale(hit.entry).toFixed(2) + 'x (bank art is ' +
+        'reference art, drawn small). Check it renders cleanly before publishing.');
     }
     if (hit.via === 'alias') {
       warn.push('Icon "' + label + '" resolved through an alias to "' + hit.entry.name + '".');
@@ -728,7 +794,8 @@ async function buildFromManifest(M, row, opts) {
   }
   if (!row.fab.icons.length) warn.push('No icons listed');
   cols.x = (W - cols.width) / 2; cols.y = ts.y;
-  if (cols.y + cols.height > fb.overflowWarnY) warn.push('Fabric copy is long and runs past the fabric card');
+  fitFabricStack(fb, ts, cols, copyNode, warn);
+  cols.x = (W - cols.width) / 2;
 
   // ---- Cards 3-6 · Callouts (each card = bar + photo + text, grouped together) ----
   var co = M.callouts;
@@ -12092,7 +12159,7 @@ onUiMessage('run', async function (msg) {
   }
 
   try {
-    var icons = buildIconIndex();
+    var icons = await buildIconIndexAll();
     var maxX = 0, minY = Infinity;
     figma.currentPage.children.forEach(function (n) { maxX = Math.max(maxX, n.x + n.width); minY = Math.min(minY, n.y); });
     var x = maxX + 600, y = isFinite(minY) ? minY : 0;

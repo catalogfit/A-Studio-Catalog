@@ -5727,7 +5727,7 @@ window.platform = platform;
     var vector = ex.format === 'SVG' || ex.format === 'PDF';
     $('ex-size').disabled = vector;
     $('ex-sizehint').innerHTML = vector ? 'SVG and PDF are vector, so size does not apply.'
-      : anim ? 'Animated files are built at this width; the A+ is rendered by Figma at that width, so it stays sharp. 582 px matches the team\'s existing A+ GIFs.'
+      : anim ? 'Figma renders the A+ at exactly this width. 582 px matches the team\'s existing A+ GIFs (about 4 MB). For crisper text, choose 970 px (about 2.5× the file size) or Frame width (largest).'
       : 'Multiplies each frame\'s own size. Amazon A+ images: JPG or PNG, under 2 MB.';
     document.querySelectorAll('#ex-mode button').forEach(function (b) { b.classList.toggle('on', b.dataset.mode === ex.mode); });
     document.querySelectorAll('#ex-dest button').forEach(function (b) { b.classList.toggle('on', b.dataset.dest === ex.dest); });
@@ -5984,7 +5984,7 @@ window.platform = platform;
     ctx.drawImage(topBmp, 0, 0, W, topH);
     topBmp.close();
     if (fmt === 'gif') progress('Choosing the GIF colours…', 0.12);
-    var enc = fmt === 'mp4' ? await mp4Encoder(W, H, fps) : gifEncoder(W, H, topH, botH, fps, await gifPalette(ctx, asset, W, topH, botH));
+    var enc = fmt === 'mp4' ? await mp4Encoder(W, H, fps) : gifEncoder(W, H, topH, botH, fps, await gifPalettes(ctx, asset, W, topH, botH));
     for (var i = 0; i < n; i++) {
       if (ex.cancel) { enc.abort(); var ce = new Error('Cancelled'); ce.cancelled = true; throw ce; }
       var img = await asset.frameAt((i + 0.5) / fps);
@@ -6052,34 +6052,36 @@ window.platform = platform;
     };
   }
 
-  // GIF, built the way the team's existing A+ GIFs are small (~3-5 MB at 582 px, 30 fps):
-  //  - ONE palette for the whole file (255 colours), sampled from the A+ plus frames spread across
-  //    the animation. A shared palette means a pixel that does not change maps to the same index
-  //    in every frame...
-  //  - ...so every later frame marks unchanged pixels transparent (index 255) and, with "do not
-  //    dispose", the previous frame shows through. The static A+ costs nothing after frame 1 and
-  //    the strip carries only what moved — which LZW compresses to a fraction.
-  // (A fresh palette per frame looks marginally better but re-numbers every pixel every frame,
-  //  so nothing is ever unchanged: measured 21.3 MB vs this approach for the same Running.mp4.)
-  // The palette is sampled from the A+ and from SAMPLES frames of the animation. The A+ is
-  // repeated so it weighs about as much as the animation — otherwise the video's colours win
-  // the 255 slots and the A+'s soft grey gradients band into contour rings.
-  async function gifPalette(ctx, asset, W, topH, botH) {
-    var SAMPLES = 6, top = ctx.getImageData(0, 0, W, topH).data;
-    var reps = Math.max(1, Math.round(SAMPLES * botH / topH));
-    var parts = [], total = 0;
-    for (var r = 0; r < reps; r++) { parts.push(top); total += top.length; }
+  // GIF, built for quality first and the team's size (~3-5 MB at 582 px, 30 fps) second:
+  //  - TWO palettes. GIF allows a colour table per frame, and the A+ is only drawn in frame 1, so
+  //    frame 1 carries a palette built from the A+ alone (all 256 colours for its greys, skin,
+  //    fabric and type). Sharing one palette with the video left the A+ a handful of greys:
+  //    banding, and orange "track" dots dithered into a lilac shirt.
+  //  - The animation frames share a second palette (255 colours + transparent), sampled across
+  //    the clip. Shared, so a pixel that does not change keeps its index and is written as
+  //    transparent: the A+ costs nothing after frame 1 and each frame carries only what moved.
+  //  - The A+ is dithered gently (Floyd–Steinberg at reduced strength): smooth gradients without
+  //    the speckle that full-strength diffusion leaves on flat backgrounds and around type. The
+  //    animation is not dithered, so still pixels stay still and compress away.
+  // (A fresh palette per animation frame re-numbers every pixel every frame — nothing is ever
+  //  unchanged — measured 21.3 MB vs ~3.4 MB for the same Running.mp4.)
+  var GIF_TOP_DITHER = 0.75;
+  async function gifPalettes(ctx, asset, W, topH, botH) {
+    var top = ctx.getImageData(0, 0, W, topH).data;
+    var topPal = gifenc.quantize(top, 256, { format: 'rgb565' });
+    var SAMPLES = 8, parts = [], total = 0;
     for (var s = 0; s < SAMPLES; s++) {
       ctx.drawImage(await asset.frameAt((s + 0.5) * asset.duration / SAMPLES), 0, topH, W, botH);
       var d = ctx.getImageData(0, topH, W, botH).data; parts.push(d); total += d.length;
     }
     var all = new Uint8ClampedArray(total), o = 0;
     parts.forEach(function (p) { all.set(p, o); o += p.length; });
-    return gifenc.quantize(all, 255, { format: 'rgb565' });
+    return { top: topPal, anim: gifenc.quantize(all, 255, { format: 'rgb565' }) };
   }
   // Floyd–Steinberg onto a fixed palette. Nearest-colour lookups are cached on an RGB565 key,
   // so ~1 M pixels take tens of milliseconds.
-  function ditherFS(rgba, w, h, pal) {
+  function ditherFS(rgba, w, h, pal, strength) {
+    var k8 = strength === undefined ? 1 : strength;
     var out = new Uint8Array(w * h), cache = new Int16Array(65536).fill(-1);
     var cur = new Float32Array((w + 2) * 3), nxt = new Float32Array((w + 2) * 3);
     function nearest(r, g, b) {
@@ -6101,7 +6103,7 @@ window.platform = platform;
         var r = clamp(rgba[i] + cur[e]), g = clamp(rgba[i + 1] + cur[e + 1]), b = clamp(rgba[i + 2] + cur[e + 2]);
         var k = nearest(r, g, b), col = pal[k];
         out[y * w + x] = k;
-        var er = r - col[0], eg = g - col[1], eb = b - col[2];
+        var er = (r - col[0]) * k8, eg = (g - col[1]) * k8, eb = (b - col[2]) * k8;
         cur[e + 3] += er * 7 / 16; cur[e + 4] += eg * 7 / 16; cur[e + 5] += eb * 7 / 16;
         nxt[e - 3] += er * 3 / 16; nxt[e - 2] += eg * 3 / 16; nxt[e - 1] += eb * 3 / 16;
         nxt[e] += er * 5 / 16;     nxt[e + 1] += eg * 5 / 16; nxt[e + 2] += eb * 5 / 16;
@@ -6110,30 +6112,29 @@ window.platform = platform;
     }
     return out;
   }
-  function gifEncoder(W, H, topH, botH, fps, pal) {
+  function gifEncoder(W, H, topH, botH, fps, pals) {
     var G = gifenc, gif = G.GIFEncoder(), prevCs = 0;
-    var table = pal.slice(); while (table.length < 255) table.push([0, 0, 0]); table.push([0, 0, 0]);   // 255 = transparent
+    var topTable = pals.top.slice(); while (topTable.length < 256) topTable.push([0, 0, 0]);
+    var anim = pals.anim, animTable = anim.slice(); while (animTable.length < 255) animTable.push([0, 0, 0]); animTable.push([0, 0, 0]); // 255 = transparent
     var out = new Uint8Array(W * H), prev = null;
     function delayMs(i) { var cs = Math.round((i + 1) * 100 / fps); var d = cs - prevCs; prevCs = cs; return d * 10; }
     return {
       add: async function (ctx, canvas, i) {
         if (i === 0) {
-          // The A+ is written once, so it can afford error-diffusion dithering (smooth gradients,
-          // no banding). The strip is mapped without dithering so still pixels keep their index
-          // from frame to frame and become transparent below.
+          // frame 1: the A+ (its own palette, gently dithered) + the first animation frame
           var all = new Uint8Array(W * H);
-          all.set(ditherFS(ctx.getImageData(0, 0, W, topH).data, W, topH, pal), 0);
-          prev = G.applyPalette(ctx.getImageData(0, topH, W, botH).data, pal, 'rgb565');
-          all.set(prev, W * topH);
-          gif.writeFrame(all, W, H, { palette: table, delay: delayMs(i), repeat: 0, dispose: 1 });
+          all.set(ditherFS(ctx.getImageData(0, 0, W, topH).data, W, topH, pals.top, GIF_TOP_DITHER), 0);
+          all.set(ditherFS(ctx.getImageData(0, topH, W, botH).data, W, botH, pals.top, GIF_TOP_DITHER), W * topH);
+          gif.writeFrame(all, W, H, { palette: topTable, delay: delayMs(i), repeat: 0, dispose: 1 });
           out.fill(255, 0, W * topH);                        // the A+ area: transparent from now on
           return;
         }
-        var cur = G.applyPalette(ctx.getImageData(0, topH, W, botH).data, pal, 'rgb565');
+        var cur = G.applyPalette(ctx.getImageData(0, topH, W, botH).data, anim, 'rgb565');
         var base = W * topH;
-        for (var k = 0; k < cur.length; k++) out[base + k] = cur[k] === prev[k] ? 255 : cur[k];
+        // frame 2 redraws the whole strip in the animation palette; later frames only what changed
+        for (var k = 0; k < cur.length; k++) out[base + k] = (prev && cur[k] === prev[k]) ? 255 : cur[k];
         prev = cur;
-        gif.writeFrame(out, W, H, { delay: delayMs(i), transparent: true, transparentIndex: 255, dispose: 1 });
+        gif.writeFrame(out, W, H, { palette: animTable, delay: delayMs(i), transparent: true, transparentIndex: 255, dispose: 1 });
       },
       finish: async function () { gif.finish(); return gif.bytes(); },
       abort: function () {}
